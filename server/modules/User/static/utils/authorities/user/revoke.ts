@@ -1,4 +1,3 @@
-;
 import ObjectError from "$/server/utils/ObjectError/index.js";
 import { Requester } from "../../../../../../utils/express/index.js";
 import requesterFields from "../../../../../utils/requesterFields/index.js";
@@ -81,7 +80,9 @@ export default async function revoke(options: RevokeOptions) {
                 error: {
                     msg: "not all key names of authorities to be revoked were found (use ignoreNotExisting flag if you want to ignore this error)",
                     foundAuthorities,
-                    notFoundAuthorities: options.authoritiesKeys.filter((ak) => !foundAuthorities.find((fa) => fa.keyName == ak)),
+                    notFoundAuthorities: options.authoritiesKeys.filter(
+                        (ak) => !foundAuthorities.find((fa) => fa.keyName == ak),
+                    ),
                 },
             });
         }

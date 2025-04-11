@@ -1,9 +1,8 @@
-
 import fs from "fs";
 import path from "path";
 import logger from "../../../../logger.js";
 import { appPath } from "../../../../utils/appPath/index.js";
-const utilsPath = path.join(appPath, "server", "utils")
+const utilsPath = path.join(appPath, "server", "utils");
 
 const rawSchema = fs.readFileSync(path.join(appPath, "prisma", "schema.prisma"), "utf-8");
 
@@ -45,9 +44,7 @@ for (const model of models.filter((el) => el[2] != "User")) {
 
     fullModels.push(`
    
-${
-    model[1]
-}
+${model[1]}
     
     ${defaultModelAddition.replaceAll("[model]", model[2]).replaceAll("[clampedmodel]", model[2]).replaceAll("[random]", `${model[2]}`)}   
 

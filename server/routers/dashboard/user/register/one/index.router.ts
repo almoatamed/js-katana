@@ -5,7 +5,6 @@ const router = express.Router();
 // database pool
 const client = (await import("$/server/modules/index.js")).default;
 
-
 // authentication middleware
 const { auth } = (await import("$/server/middlewares/user.middleware.js")).default;
 const { authorize } = (await import("$/server/middlewares/authorize.middleware.js")).default;

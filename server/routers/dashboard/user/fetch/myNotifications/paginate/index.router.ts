@@ -28,7 +28,7 @@ router.post("/", auth, async (request, response, next) => {
                                   contains: request.body.search,
                               },
                           },
-                      ].filter(e=>!!e)) as any,
+                      ].filter((e) => !!e)) as any,
             },
             orderBy: request.body.orderBy || [
                 {

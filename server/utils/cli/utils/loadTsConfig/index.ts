@@ -1,6 +1,6 @@
+import path from "path";
 import { appPath } from "../appPath/index.js";
 import { loadJson } from "../loadJson/index.js";
-import path from "path";
 /**
  *
  * @returns {import("$/tsconfig.json")}

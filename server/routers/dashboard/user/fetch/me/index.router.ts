@@ -8,7 +8,6 @@ const router = express.Router();
 // authentication middleware
 const { auth } = (await import("$/server/middlewares/user.middleware.js")).default;
 
-
 type Requester = Prisma.UserGetPayload<{
     include: {
         employmentPosition: {

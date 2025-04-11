@@ -8,7 +8,15 @@ function setApp(app) {
     appObj.app = app;
 }
 
-function removeRoute(router, targetRoutesPaths, targetRoutesHandlersContain, path = "", routes = [], root = true, updateEndpoints = false) {
+function removeRoute(
+    router,
+    targetRoutesPaths,
+    targetRoutesHandlersContain,
+    path = "",
+    routes = [],
+    root = true,
+    updateEndpoints = false,
+) {
     if (!router) {
         if (!appObj.app?.Router) {
             throw {
@@ -44,7 +52,11 @@ function removeRoute(router, targetRoutesPaths, targetRoutesHandlersContain, pat
                     }
                 }
                 if (targetRoutesHandlersContain) {
-                    if (targetRoutesHandlersContain.some((targetName) => HandlersNames.filter((name) => name != "<anonymous>").includes(targetName))) {
+                    if (
+                        targetRoutesHandlersContain.some((targetName) =>
+                            HandlersNames.filter((name) => name != "<anonymous>").includes(targetName),
+                        )
+                    ) {
                         removed = true;
                         router.stack = router.stack.filter((Layer) => {
                             const handlersNames = Layer?.route?.stack.map((handler) => handler?.name);
@@ -70,7 +82,14 @@ function removeRoute(router, targetRoutesPaths, targetRoutesHandlersContain, pat
                 const subPath = String(layer.regexp)
                     .match(/(\^\\?)(.*?)(\\\/\?)/)[2]
                     .replace("\\", "");
-                removeRoute(layer.handle, targetRoutesPaths, targetRoutesHandlersContain, path + subPath, routes, false);
+                removeRoute(
+                    layer.handle,
+                    targetRoutesPaths,
+                    targetRoutesHandlersContain,
+                    path + subPath,
+                    routes,
+                    false,
+                );
             }
         }
     }

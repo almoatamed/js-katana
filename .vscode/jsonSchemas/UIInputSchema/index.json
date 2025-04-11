@@ -23,7 +23,7 @@
                     "type": "object",
                     "properties": {
                         "rules": {
-                            "type": "array", 
+                            "type": "array",
                             "items": {
                                 "$ref": "#/definitions/rule"
                             }
@@ -63,13 +63,13 @@
                                     "type": ["array"],
                                     "items": {
                                         "type": "object"
-                                    }                                    
+                                    }
                                 },
                                 "autocompleteType": {
-                                    "type": "string", 
+                                    "type": "string",
                                     "enum": ["api", "data"]
                                 },
-                                "textMapper":  {
+                                "textMapper": {
                                     "$ref": "../TextMapperSchema/index.json#/definitions/textMapper"
                                 },
                                 "valueMapper": {
@@ -80,15 +80,15 @@
                                 },
                                 "fetchUrlPath": {
                                     "type": "string"
-                                },  
+                                },
                                 "fetchMapper": {
                                     "type": ["string", "null"]
-                                },             
+                                },
                                 "label": {
                                     "type": "string"
                                 }
                             }
-                        }, 
+                        },
 
                         {
                             "type": "object",
@@ -102,9 +102,9 @@
                                 },
                                 "bodyKey": {
                                     "type": "string"
-                                }, 
+                                },
                                 "inputType": {
-                                    "type": "string", 
+                                    "type": "string",
                                     "enum": ["password", "number", "text"]
                                 }
                             }
@@ -120,13 +120,13 @@
                                     "type": ["array"],
                                     "items": {
                                         "type": "object"
-                                    }                                    
+                                    }
                                 },
                                 "comboboxType": {
-                                    "type": "string", 
+                                    "type": "string",
                                     "enum": ["api", "data"]
                                 },
-                                "textMapper":  {
+                                "textMapper": {
                                     "$ref": "../TextMapperSchema/index.json#/definitions/textMapper"
                                 },
                                 "label": {
@@ -137,11 +137,11 @@
                                 },
                                 "fetchUrlPath": {
                                     "type": "string"
-                                },  
+                                },
                                 "fetchMapper": {
                                     "type": ["string", "null"]
-                                } 
-                            }                                   
+                                }
+                            }
                         }
                     ]
                 }

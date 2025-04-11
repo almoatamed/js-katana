@@ -81,7 +81,11 @@ const languageLogFileFromKey = (languageKey: string) => {
 };
 
 const createLogFileIfNotExists = (languageKey: string) => {
-    const logFileFullPath = path.join(rootPaths.srcPath, "internationalization/logs", languageLogFileFromKey(languageKey));
+    const logFileFullPath = path.join(
+        rootPaths.srcPath,
+        "internationalization/logs",
+        languageLogFileFromKey(languageKey),
+    );
 
     const logFileParentDirFullPath = path.dirname(logFileFullPath);
     fs.mkdirSync(logFileParentDirFullPath, {
@@ -100,7 +104,7 @@ const createLogFileIfNotExists = (languageKey: string) => {
             ),
         );
     }
-    return logFileFullPath
+    return logFileFullPath;
 };
 
 type LangLogFile = {

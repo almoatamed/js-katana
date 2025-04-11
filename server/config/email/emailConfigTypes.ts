@@ -1,3 +1,3 @@
-import {Options} from "nodemailer"
+import { Options } from "nodemailer";
 
-export type EmailConfig = Options
+export type EmailConfig = Options;

@@ -27,22 +27,23 @@ class addressValidationRule implements RuleBase {
             });
         }
         this.values = Array.isArray(params) ? params : Object.keys(params);
-        if(Array.isArray(params)){
+        if (Array.isArray(params)) {
             if (!params.includes(value)) {
                 return false;
             }
-        }else{
-            if(!params[value]){
-                return false
+        } else {
+            if (!params[value]) {
+                return false;
             }
         }
         return true;
     }
 }
 
-export type inValidatorParameters = (string | number)[] | {
-    [key: string | number]: any
-};
+export type inValidatorParameters =
+    | (string | number)[]
+    | {
+          [key: string | number]: any;
+      };
 export type inSetterParameters = null;
 export default [addressValidationRule];
-

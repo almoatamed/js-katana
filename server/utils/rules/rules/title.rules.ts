@@ -21,13 +21,14 @@ class titleValidationRule implements RuleBase {
             this.errorMsg = `[field] ${t("must be equal to")} ${params?.eq} ${t("in length")}`;
             return false;
         }
-        if (
-            params?.reserved?.length
-        ) {
+        if (params?.reserved?.length) {
             if (params?.sensitiveCaseReserved && params.reserved.some((item) => item == value)) {
                 this.errorMsg = `[field] ${t("must not be one the following values (sensitive case)")} ${String(params.reserved)}`;
                 return false;
-            } else if (!params?.sensitiveCaseReserved && params.reserved.some((item) => item.toUpperCase() == value.toUpperCase())) {
+            } else if (
+                !params?.sensitiveCaseReserved &&
+                params.reserved.some((item) => item.toUpperCase() == value.toUpperCase())
+            ) {
                 this.errorMsg = `[field] ${t("must not be one the following values (insensitive case)")} ${String(params.reserved)}`;
                 return false;
             }
@@ -36,18 +37,18 @@ class titleValidationRule implements RuleBase {
             this.errorMsg = `[field] is not equal to required value`;
             return false;
         }
-        if (
-            params?.in?.length
-        ) {
+        if (params?.in?.length) {
             if (params?.sensitiveCaseIn && !params.in.some((item) => item == value)) {
                 this.errorMsg = `[field] ${t("must be one the following values (sensitive case)")} ${String(params.in)}`;
                 return false;
-            } else if (!params?.sensitiveCaseIn && !params.in.some((item) => item.toUpperCase() == value.toUpperCase())) {
+            } else if (
+                !params?.sensitiveCaseIn &&
+                !params.in.some((item) => item.toUpperCase() == value.toUpperCase())
+            ) {
                 this.errorMsg = `[field] ${t("must be one the following values (insensitive case)")} ${String(params.in)}`;
                 return false;
             }
         }
-
 
         return true;
     }

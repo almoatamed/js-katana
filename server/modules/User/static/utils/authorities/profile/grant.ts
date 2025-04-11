@@ -1,4 +1,3 @@
-;
 import { Requester } from "../../../../../../utils/express/index.js";
 import { AuthoritiesRequest } from "../user/grant.js";
 import validate from "../validateAuthoritiesRequest.js";

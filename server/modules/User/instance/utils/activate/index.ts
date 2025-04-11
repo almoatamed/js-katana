@@ -1,7 +1,6 @@
 import { User } from "$/prisma/client/index.js";
 import ObjectError from "$/server/utils/ObjectError/index.js";
 
-
 const client = (await import("$/server/utils/database/prisma.js")).default;
 export async function activateUser(user: User, requester: any = undefined) {
     if (user.active) {

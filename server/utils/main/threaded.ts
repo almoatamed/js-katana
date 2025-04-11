@@ -3,13 +3,12 @@ process.setMaxListeners(30);
 const logUtil = await import("../log/index.js");
 const cluster = (await import("cluster")).default;
 const os = (await import("os")).default;
-const forceLog = logUtil.forceLog
+const forceLog = logUtil.forceLog;
 import cmn from "$/server/utils/common/index.js";
-import { createApp } from "./app.js";
 import { hostingConfig } from "../../config/hosting/index.js";
 import { multithreadingConfig } from "../../config/multithreading/index.js";
 import { routerConfig } from "../../config/routing/index.js";
-
+import { createApp } from "./app.js";
 
 const llog = await logUtil.localLogDecorator("MAIN_SERVER", "red", true, "Info", false);
 const workerLlog = await logUtil.localLogDecorator("MAIN_SERVER", "red", true, "Info", true);
@@ -42,10 +41,10 @@ if (cluster.isPrimary) {
         for (const worker of Object.values(cluster.workers || {})) {
             worker?.kill();
         }
-        process.exit()
+        process.exit();
     };
     process.on("sigint", kill);
-    process.on("exit", kill)
+    process.on("exit", kill);
 }
 
 if (!cluster.isPrimary) {
@@ -55,7 +54,7 @@ if (!cluster.isPrimary) {
 
         const port = hostingConfig.getPort();
         const server = (await makeServer()).listen(port);
-        
+
         forceLog("Started server on port", port, " PID", process.pid);
 
         server.keepAliveTimeout = routerConfig.getKeepAliveTimeout();

@@ -7,8 +7,8 @@ export const routerConfig = {
     getChannelsDirectory() {
         return "/channels";
     },
-    getApiPrefix(){
-        return "/server/api"
+    getApiPrefix() {
+        return "/server/api";
     },
     getChannelSuffix() {
         return ".channel.ts";

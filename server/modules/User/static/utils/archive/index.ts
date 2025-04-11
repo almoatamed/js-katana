@@ -3,8 +3,6 @@ import { User } from "$/prisma/client/index.js";
 import ObjectError from "$/server/utils/ObjectError/index.js";
 const multirules = (await import("../../../../../utils/rules/multirules.js")).default;
 
-;
-
 type ArchiveProps = {
     userId: number;
 };

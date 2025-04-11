@@ -1,9 +1,9 @@
 import { Requester } from "../../../../../../utils/express/index.js";
 import multirule from "../../../../../../utils/rules/multirules.js";
-import requesterFields from "../../../../../utils/requesterFields/index.js";
 const client = (await import("../../../../instance/index.js")).AddressingInstanceClient;
 
-const findOrCreateCountryIfProvided = (await import("../../country/findOrCreateIfProvided/index.js")).findOrCreateIfProvided;
+const findOrCreateCountryIfProvided = (await import("../../country/findOrCreateIfProvided/index.js"))
+    .findOrCreateIfProvided;
 const register = (await import("../register/index.js")).register;
 
 type Attrs = {

@@ -1,8 +1,6 @@
 const client = (await import("../../../instance/index.js")).UserInstanceClient;
 const multirules = (await import("../../../../../utils/rules/multirules.js")).default;
 
-;
-
 type DeleteProps = {
     userId: number;
 };
@@ -42,7 +40,12 @@ export const deleteUser = async (deletionBy: any, attrs: DeleteProps) => {
         ],
     ]);
 
-    if (holder.user.active || holder.user.createdUsersLogs?.length || holder.user.userId == 1 || holder.user.username == "admin") {
+    if (
+        holder.user.active ||
+        holder.user.createdUsersLogs?.length ||
+        holder.user.userId == 1 ||
+        holder.user.username == "admin"
+    ) {
         throw {
             statusCode: 400,
             error: {

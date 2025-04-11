@@ -1,4 +1,3 @@
-;
 import { lockMethod } from "$/server/utils/common/index.js";
 import { descriptionSuffixRegx, routerSuffixRegx } from "$/server/utils/routersHelpers/matchers.js";
 import cluster from "cluster";
@@ -22,7 +21,6 @@ export type DescriptionProps = {
 export const descriptionsMap = {} as {
     [key: string]: DescriptionProps;
 };
-
 
 const checkType = (typeString: string) => {
     const sourceCode = `type TempType = ${typeString};`;
@@ -58,16 +56,15 @@ export const describe = lockMethod(
             const routeSuffixMatch = routeFileName.match(routerSuffixRegx);
             if (!routeSuffixMatch) {
                 console.error(
-                    'Invalid Route Name, a Route file should end with "' + routerConfig.getRouteSuffix() + '" provided is: ',
+                    'Invalid Route Name, a Route file should end with "' +
+                        routerConfig.getRouteSuffix() +
+                        '" provided is: ',
                     routeFileName,
                 );
                 throw new Error();
             }
 
-            const routeFileNameWithoutExtension = routeFileName.slice(
-                0,
-                routeFileName.indexOf(routeSuffixMatch[0]),
-            );
+            const routeFileNameWithoutExtension = routeFileName.slice(0, routeFileName.indexOf(routeSuffixMatch[0]));
 
             console.log("Event on describe", options.event);
 
@@ -153,7 +150,6 @@ type ExpectedResponseBody = ${options.expectedResponseBodyTypeString || "any"}
                 routeFileNameWithoutExtension == "index"
                     ? routeRelativeDirectory
                     : path.join(routeRelativeDirectory, routeFileNameWithoutExtension);
-
 
             options.descriptionFileFullPath = path.join(routePrecisePath, "/describe");
 

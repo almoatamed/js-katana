@@ -57,7 +57,7 @@ class arrayValidationRule implements RuleBase {
                         return false;
                     }
                 }
-                
+
                 if (options.uniqueValues) {
                     const set = [...new Set(value)];
                     if (set.length != value.length) {

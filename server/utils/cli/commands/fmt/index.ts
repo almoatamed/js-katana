@@ -1,6 +1,6 @@
 import { exec } from "child_process";
-import { appPath } from "../../utils/appPath/index.js";
 import { Command } from "commander";
+import { appPath } from "../../utils/appPath/index.js";
 
 const createCommand = (program: Command) => {
     program

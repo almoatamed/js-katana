@@ -1,4 +1,3 @@
-;
 import { Req } from "$/server/utils/express/index.js";
 import ObjectError from "$/server/utils/ObjectError/index.js";
 import fs from "fs";
@@ -21,7 +20,7 @@ export type DynamicAuthorityDefinition = {
     displayName: string;
     label: string;
     idType: "number" | "string";
-    values?: (string | number)[]
+    values?: (string | number)[];
 };
 
 export type AuthorityDefinition = {
@@ -34,7 +33,7 @@ export type AuthorityDefinition = {
 
 class Authorities {
     authorities = {} as {
-        [key: string]: AuthorityDefinition
+        [key: string]: AuthorityDefinition;
     };
     authoritiesKeys: string[] = [];
     noMore: Boolean = false;
@@ -57,7 +56,7 @@ class Authorities {
             };
         }
         let dynamicAuthorities: null | {
-            [key: string]: DynamicAuthorityDefinition
+            [key: string]: DynamicAuthorityDefinition;
         } = null;
         if (Object.values(authority?.dynamicAuthorities || {})?.length) {
             dynamicAuthorities = {};
@@ -196,7 +195,8 @@ export default {}
 export { Authorities };
 const authorities = new Authorities();
 
-const runSeedAuthorities = (await import("$/server/modules/User/static/utils/authorities/buildAuthorities.js")).seedAuthorities;
+const runSeedAuthorities = (await import("$/server/modules/User/static/utils/authorities/buildAuthorities.js"))
+    .seedAuthorities;
 await runSeedAuthorities(authorities);
 
 export default authorities;

@@ -2,8 +2,6 @@ const client = (await import("../../../instance/index.js")).UserInstanceClient;
 import ObjectError from "$/server/utils/ObjectError/index.js";
 const multirules = (await import("../../../../../utils/rules/multirules.js")).default;
 
-;
-
 type DeactivateProps = {
     userId: number;
 };

@@ -10,9 +10,9 @@ const express = (await import("$/server/utils/express/index.js")).default;
 const router = express.Router();
 
 await describeRoute({
-    fileUrl: import.meta.url, 
-    method: "post", 
-    responseBodyTypeString:`{
+    fileUrl: import.meta.url,
+    method: "post",
+    responseBodyTypeString: `{
     results: {
         createdByUserId: number | null;
         createdByUserUsername: string | null;
@@ -40,8 +40,8 @@ await describeRoute({
         userType: $Enums.usersTypes;
         nearestPoint: string | null;
     }[];
-}`, 
-})
+}`,
+});
 
 router.post(
     "/",
@@ -49,9 +49,7 @@ router.post(
     authorize({
         url: import.meta.url,
         allow: {
-            or: [
-                "changeUserAuthorities",
-            ],
+            or: ["changeUserAuthorities"],
         },
     }),
     async (request, response, next) => {

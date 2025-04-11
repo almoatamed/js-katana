@@ -3,7 +3,6 @@ import { BroadcastOperator, Server, Socket } from "socket.io";
 import { client } from "../../../../modules/index.js";
 import { io } from "../../../channelsBuilder/index.js";
 import { makeThreadedJson } from "../../../dynamicJson/threadedJson.js";
-import { Prisma } from "../../../../../prisma/client/index.js";
 
 type Props<
     HandShakeQueryInfo extends Record<string, any>,
@@ -213,7 +212,6 @@ export const createPresenceTracker = async <
                     recordId: record[props.recordModelIdKey],
                     currentConnectedSocketsIds: recordCurrentPresence?.socketsIds || [],
                     record,
-               
                 });
                 socket
                     .to(`${props.id}-record-presence:${record[props.recordModelIdKey]}`)
@@ -253,7 +251,7 @@ export const createPresenceTracker = async <
                         socketId: socket.id,
                         recordId: record[props.recordModelIdKey],
                         currentConnectedSocketsIds: recordCurrentPresence?.socketsIds || [],
-                        record,                
+                        record,
                     });
                     socket
                         .to(`${props.id}-record-presence:${record[props.recordModelIdKey]}`)

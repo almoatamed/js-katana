@@ -21,5 +21,4 @@ const AddressingStaticClientExtensionArgs = {
 };
 const AddressingStaticClient = AddressingInstanceClient.$extends(AddressingStaticClientExtensionArgs);
 
-export { AddressingStaticClient };
-export { AddressingStaticClientExtensionArgs };
+export { AddressingStaticClient, AddressingStaticClientExtensionArgs };

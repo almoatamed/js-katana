@@ -3,8 +3,8 @@ import { cap } from "$/server/utils/common/index.js";
 import cluster from "cluster";
 import fs from "fs";
 import path from "path";
-import dbModels from "../dynamicConfiguration/dbModels.js";
 import { srcPath } from "../../utils/cli/utils/srcPath/index.js";
+import dbModels from "../dynamicConfiguration/dbModels.js";
 
 const utilsPath = path.join(srcPath, "/utils");
 const client = new PrismaClient({ errorFormat: "minimal" });
@@ -224,7 +224,7 @@ const extendedClient = client
         name: "BaseExtension",
         model: {
             $allModels: {
-             async findOrCreate<T, A>(
+                async findOrCreate<T, A>(
                     this: T,
                     args: Prisma.Exact<A, Prisma.Args<T, "findFirst">> & Prisma.Exact<A, Prisma.Args<T, "create">>,
                 ): Promise<Prisma.Result<T, A, "create">> {

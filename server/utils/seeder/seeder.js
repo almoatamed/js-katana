@@ -1,5 +1,4 @@
 // @ts-nocheck
-;
 const { auth, response } = env;
 
 export default (seedMethod) => async (req, res) => {

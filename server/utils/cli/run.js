@@ -15,8 +15,8 @@ try {
             stdio: "inherit",
         });
     } else {
-        console.error("Please install bunjs runtime it is required to run this framework \"npm i -g bun\"")
-        process.exit(1)
+        console.error('Please install bunjs runtime it is required to run this framework "npm i -g bun"');
+        process.exit(1);
     }
 } catch (error) {
     process.exit(1);

@@ -1,9 +1,8 @@
-;
 import type { ModulesType } from "../../../modules/index.js";
 import type { Translate } from "../index.js";
 import type { RuleBase } from "./base.js";
 
-class uniqueValidationRule implements RuleBase{
+class uniqueValidationRule implements RuleBase {
     errorMsg = "";
     item = null;
     statusCode = 409;
@@ -14,7 +13,7 @@ class uniqueValidationRule implements RuleBase{
             return this.errorMsg.replaceAll("[field]", field);
         }
     }
-    client = {} as ModulesType; 
+    client = {} as ModulesType;
     async rule(value: any, params: _UniqueValidatorParameters) {
         const tx = params?.tx || this.client;
 

@@ -1,8 +1,6 @@
 const client = (await import("../../../instance/index.js")).UserInstanceClient;
 const multirules = (await import("../../../../../utils/rules/multirules.js")).default;
 
-;
-
 export type UpdateParams = {
     userId: number;
     fullName?: string;

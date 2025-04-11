@@ -1,7 +1,6 @@
 // @ts-nocheck
 const createStorage = (await import("./storage.js")).default;
 const multer = (await import("multer")).default;
-;
 const fm = (await import("$/server/middlewares/file.middleware.js")).default;
 
 /**

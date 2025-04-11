@@ -5,8 +5,6 @@ const multirules = (await import("../../../../../utils/rules/multirules.js")).de
 // const pq = (await import("\$/server/database/helpers/promiseQuery.db.js")).default;
 
 // env
-;
-
 //router instance
 const router = express.Router();
 router.servedTypes = ["Http"];

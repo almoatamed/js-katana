@@ -19,7 +19,9 @@ const createCommand = (program: import("commander").Command) => {
                         return false;
                     }
                 };
-                const appPath = path.resolve(path.join(path.dirname(url.fileURLToPath(import.meta.url)), "../../../../../."));
+                const appPath = path.resolve(
+                    path.join(path.dirname(url.fileURLToPath(import.meta.url)), "../../../../../."),
+                );
                 const envPath = path.join(appPath, "server/env.json");
                 const basePath = appPath;
                 const modulesDir = "node_modules";

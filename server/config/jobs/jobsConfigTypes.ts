@@ -7,7 +7,7 @@ export type Job = {
 
 export type JobsConfig = {
     getJobCheckoutIntervalMs(): number;
-  
+
     /**
      *
      * @example

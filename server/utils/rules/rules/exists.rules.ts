@@ -1,4 +1,3 @@
-;
 import dbModels from "../../dynamicConfiguration/dbModels.js";
 import type { Translate } from "../index.js";
 import type { RuleBase } from "./base.js";

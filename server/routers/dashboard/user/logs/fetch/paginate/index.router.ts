@@ -43,7 +43,7 @@ router.post(
                                           contains: request.body.search,
                                       },
                                   },
-                              ].filter(e=>!!e),
+                              ].filter((e) => !!e),
                     },
                 },
                 orderBy: request.body.orderBy || [

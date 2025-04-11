@@ -50,7 +50,7 @@
                                 "type": {
                                     "type": "string"
                                 },
-                                "required":{
+                                "required": {
                                     "type": "boolean"
                                 },
                                 "display": {
@@ -150,10 +150,18 @@
             },
             {
                 "type": "object",
-                "required": ["type", "display", "name", "contentTypeId", "fetchMapper", "fetchedListUrl", "valueMapper"],
+                "required": [
+                    "type",
+                    "display",
+                    "name",
+                    "contentTypeId",
+                    "fetchMapper",
+                    "fetchedListUrl",
+                    "valueMapper"
+                ],
                 "properties": {
                     "type": {
-                        "const":"fetchedList"
+                        "const": "fetchedList"
                     },
                     "name": {
                         "type": "string"
@@ -187,7 +195,7 @@
                 "required": ["type", "display", "name", "contentTypeId", "reading", "writing"],
                 "properties": {
                     "type": {
-                        "const":"deferred"
+                        "const": "deferred"
                     },
                     "name": {
                         "type": "string"

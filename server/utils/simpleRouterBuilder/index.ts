@@ -1,10 +1,8 @@
 import express from "express";
-import path from "path";
 import fs from "fs";
-
-;
-import rootPaths from "../dynamicConfiguration/rootPaths.js";
+import path from "path";
 import { routerConfig } from "../../config/routing/index.js";
+import rootPaths from "../dynamicConfiguration/rootPaths.js";
 
 const appPath = rootPaths.appPath;
 

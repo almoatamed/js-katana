@@ -13,7 +13,9 @@ async function run() {
         return;
     }
 
-    const countries = JSON.parse(fs.readFileSync(resolve("$/server/assets/Addresses/minimalCountriesCities.json"), "utf-8"));
+    const countries = JSON.parse(
+        fs.readFileSync(resolve("$/server/assets/Addresses/minimalCountriesCities.json"), "utf-8"),
+    );
     for (const country of countries) {
         await client.country.create({
             data: {

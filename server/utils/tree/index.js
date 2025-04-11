@@ -1,7 +1,4 @@
-
-class Tree_Error extends Error {
- 
-}
+class Tree_Error extends Error {}
 
 // @ts-ignore
 class Tree {}

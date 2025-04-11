@@ -7,5 +7,4 @@ const AddressingInstanceClientExtensionArgs = {
 
 const AddressingInstanceClient = client.$extends(AddressingInstanceClientExtensionArgs);
 
-export { AddressingInstanceClientExtensionArgs };
-export { AddressingInstanceClient };
+export { AddressingInstanceClient, AddressingInstanceClientExtensionArgs };

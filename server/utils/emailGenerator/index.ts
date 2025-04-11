@@ -49,11 +49,9 @@ class EmailGenerator {
         return Document;
     }
 
-    generateSkeleton(
-        options: EmailGenerateOptions,
-    ): import("$/server/utils/renderEngine/index.js").DocumentSkeleton {
+    generateSkeleton(options: EmailGenerateOptions): import("$/server/utils/renderEngine/index.js").DocumentSkeleton {
         const Document: import("$/server/utils/renderEngine/index.js").DocumentSkeleton = {
-            dontRespond: false, 
+            dontRespond: false,
             content: [
                 {
                     type: "email",
@@ -73,7 +71,7 @@ class EmailGenerator {
             data: {},
             save: this.save as any,
             style: {
-                paper: "A4", 
+                paper: "A4",
                 loadImages: true,
                 loadCss: true,
                 wrap: true,

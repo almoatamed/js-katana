@@ -1,6 +1,10 @@
 const archiver = await import("archiver");
 const fs = (await import("fs")).default;
-export const zipDirectory = async (directoryPath: string, target: string, subdirName: false | string = false): Promise<true> => {
+export const zipDirectory = async (
+    directoryPath: string,
+    target: string,
+    subdirName: false | string = false,
+): Promise<true> => {
     return new Promise(async (resolve, reject) => {
         try {
             console.log("Creating Zip File", directoryPath, target, subdirName);
@@ -20,13 +24,13 @@ export const zipDirectory = async (directoryPath: string, target: string, subdir
             });
 
             const output = fs.createWriteStream(target);
-            
+
             archive.pipe(output);
 
             archive.directory(directoryPath, subdirName);
             console.log("Finalizing Archive");
-            archive.finalize().catch(error=>{
-                console.log("Archive finalize error", error)
+            archive.finalize().catch((error) => {
+                console.log("Archive finalize error", error);
             });
             archive.on("finish", () => {
                 resolve(true);

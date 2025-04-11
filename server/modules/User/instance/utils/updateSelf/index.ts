@@ -1,4 +1,3 @@
-;
 const client = (await import("$/server/utils/database/prisma.js")).default;
 const multirules = (await import("../../../../../utils/rules/multirules.js")).default;
 

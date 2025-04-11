@@ -1,4 +1,3 @@
-;
 import ObjectError from "$/server/utils/ObjectError/index.js";
 import { Requester } from "../../../../../utils/express/index.js";
 
@@ -14,7 +13,9 @@ export interface ProcessedDynamicAuthorityRequest {
 }
 
 export interface ProcessedAuthorityRequest {
-    body: import("$/prisma/client/index.js").Prisma.UserAuthorityCreateInput | import("$/prisma/client/index.js").Prisma.ProfileAuthorityCreateInput;
+    body:
+        | import("$/prisma/client/index.js").Prisma.UserAuthorityCreateInput
+        | import("$/prisma/client/index.js").Prisma.ProfileAuthorityCreateInput;
     dynamicAuthorities?: Array<ProcessedDynamicAuthorityRequest>;
 }
 
@@ -120,7 +121,10 @@ async function addAuthoritiesFromAUserProfile(userId: number, list: import("./us
     }
 }
 
-async function addAuthoritiesFromAnAuthorizationProfile(profileId: number, list: import("./user/grant.js").AuthoritiesRequest) {
+async function addAuthoritiesFromAnAuthorizationProfile(
+    profileId: number,
+    list: import("./user/grant.js").AuthoritiesRequest,
+) {
     const holder: any = {};
     await multirules([
         [

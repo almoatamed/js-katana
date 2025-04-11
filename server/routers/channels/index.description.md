@@ -1,40 +1,43 @@
 <!-- --start-- /channels/ -->
 
-# Route Description 
+# Route Description
+
 The list of channels events available
 
-## Route Path: 
+## Route Path:
+
 /channels/
 
 ## Route Method:
+
 get
 
-
-
-
 ## route Request Headers type definition:
+
 ```ts
-type RequestHeader = any
+type RequestHeader = any;
 ```
 
 ## route Request Params type definition:
+
 ```ts
-type RequestQueryParams = any
+type RequestQueryParams = any;
 ```
 
 ## route Request Body type definition:
+
 ```ts
-type RequestBody = any
+type RequestBody = any;
 ```
 
-## Response Content Mimetype: 
+## Response Content Mimetype:
+
 application/json
 
-## Response Content Type Definition: 
+## Response Content Type Definition:
+
 ```ts
-type Response = string[]
+type Response = string[];
 ```
-
-
 
 <!-- --end-- /channels/ -->

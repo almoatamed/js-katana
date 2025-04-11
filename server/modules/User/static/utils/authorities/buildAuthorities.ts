@@ -38,14 +38,14 @@ async function seedAuthorities(authorities: import("./index.js").Authorities) {
         displayDescription: "Allow the user to Restore Archived Users",
         parentKeyName: "viewArchivedUsers",
     });
-    
+
     authorities.add({
         keyName: "viewUserSettings",
         displayName: "View User Settings Page",
         displayDescription: "Allow the user to See User Settings Page",
         parentKeyName: "viewSettingsPage",
     });
-    
+
     authorities.add({
         keyName: "viewListOfUsers",
         displayName: "View Users Pagination Page",
@@ -108,7 +108,7 @@ async function seedAuthorities(authorities: import("./index.js").Authorities) {
         displayDescription: "Allow the user to View User Activity Logs",
         parentKeyName: "viewListOfUsers",
     });
-    
+
     authorities.add({
         keyName: "changeUserAuthorities",
         displayName: "Change User authorities",

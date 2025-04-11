@@ -1,5 +1,5 @@
-import { archive } from "./utils/index.js";
 import { deactivate } from "./utils/deactivate/index.js";
+import { archive } from "./utils/index.js";
 import { updatePassword, UpdatePasswordProps } from "./utils/updatePassword/index.js";
 import { updateSelf, UpdateSelfParams } from "./utils/updateSelf/index.js";
 
@@ -25,13 +25,16 @@ const UserInstanceClientExtensionArgs = {
             },
             archive: {
                 compute(user: import("$/prisma/client/index.js").User) {
-                    return async (requester: import("$/prisma/client/index.js").User | any = undefined) => archive(requester, user);
+                    return async (requester: import("$/prisma/client/index.js").User | any = undefined) =>
+                        archive(requester, user);
                 },
             },
             updatePassword: {
                 compute(user: import("$/prisma/client/index.js").User) {
-                    return async (params: UpdatePasswordProps, requester: import("$/prisma/client/index.js").User | any = undefined) =>
-                        updatePassword(params, requester, user);
+                    return async (
+                        params: UpdatePasswordProps,
+                        requester: import("$/prisma/client/index.js").User | any = undefined,
+                    ) => updatePassword(params, requester, user);
                 },
             },
             updateSelf: {
@@ -45,5 +48,4 @@ const UserInstanceClientExtensionArgs = {
 
 const UserInstanceClient = client.$extends(UserInstanceClientExtensionArgs);
 
-export { UserInstanceClientExtensionArgs };
-export { UserInstanceClient };
+export { UserInstanceClient, UserInstanceClientExtensionArgs };

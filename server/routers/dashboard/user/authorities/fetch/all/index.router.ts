@@ -3,8 +3,6 @@ const express = (await import("$/server/utils/express/index.js")).default;
 const router = express.Router();
 
 // env
-;
-
 // authorities
 const authorities = (await import("$/server/modules/User/static/utils/authorities/index.js")).default;
 

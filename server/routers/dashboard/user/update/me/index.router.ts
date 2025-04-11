@@ -18,7 +18,7 @@ router.post(
     async (request, response, next) => {
         try {
             const user = await (request as any).user.updateSelf(request.body);
-            
+
             return response
                 .status(200)
                 .json({ result: { msg: "user updated", user } })

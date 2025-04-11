@@ -5,14 +5,17 @@ import { encryptionConfig } from "../../../../../config/encryption/index.js";
 const multirules = (await import("../../../../../utils/rules/multirules.js")).default;
 const bcrypt = (await import("bcrypt")).default;
 
-;
 export type UpdatePasswordProps = {
     password: string;
     confirmPassword: string;
     requireOldPassword: boolean;
     oldPassword?: string;
 };
-export const updatePassword = async (attrs: UpdatePasswordProps, updatedBy: User | undefined | null = undefined, user: User) => {
+export const updatePassword = async (
+    attrs: UpdatePasswordProps,
+    updatedBy: User | undefined | null = undefined,
+    user: User,
+) => {
     await multirules([
         [["required", "password"], attrs.password, "Password"],
         [["required", "password"], attrs.confirmPassword, "Confirm Password"],

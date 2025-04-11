@@ -1,3 +1,3 @@
 export type DbConfig = {
-    getDbName: ()=>string
-} 
+    getDbName: () => string;
+};

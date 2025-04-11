@@ -4,13 +4,10 @@ import { describe } from "../../utils/routersHelpers/describe/index.js";
 const express = (await import("$/server/utils/express/index.js")).default;
 
 const router = express.Router();
-;
-
 router.get("/", async (request, response, next) => {
     try {
-
         const channels = handlers.map((h) => h.path);
-        
+
         return response.status(200).json(channels);
     } catch (error: any) {
         next(error);

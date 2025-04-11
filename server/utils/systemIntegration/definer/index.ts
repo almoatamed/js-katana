@@ -55,8 +55,8 @@ type SystemIntegrationDefinitionProps<
     testConnection: (config: Configuration) => boolean | Promise<boolean>;
 
     /**
-     * define the operation performed on the instance, 
-     * in short what can you do remotely, 
+     * define the operation performed on the instance,
+     * in short what can you do remotely,
      * and why are you building the remote connection in the first place
      *
      * @param props
@@ -142,15 +142,14 @@ main.json
 
     createConfigurationSchema();
 
-    const mainConfigThreadedJson = await makeThreadedJson<
-        MainConfig,
-        JSONSourceFilePath,
-        OptionsNoBroadCast<string>
-    >(getMainConfigFilePath(), {
-        lazy: false,
-        uniqueEventNumber: `systemIntegrationInstance:${systemDefinition.definitionId}`,
-        broadcastOnUpdate: false,
-    });
+    const mainConfigThreadedJson = await makeThreadedJson<MainConfig, JSONSourceFilePath, OptionsNoBroadCast<string>>(
+        getMainConfigFilePath(),
+        {
+            lazy: false,
+            uniqueEventNumber: `systemIntegrationInstance:${systemDefinition.definitionId}`,
+            broadcastOnUpdate: false,
+        },
+    );
 
     async function getMainConfig() {
         const configuration: MainConfig = await mainConfigThreadedJson.get([]);

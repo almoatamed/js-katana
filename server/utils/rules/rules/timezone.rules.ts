@@ -2,14 +2,14 @@ import type { Translate } from "../index.js";
 import type { RuleBase } from "./base.js";
 
 const timezoneConstants = {
-    "min": -720,
-    "max": 840,
-    "default": 120,
-    "defaultName": "Africa/Tripoli"
-}
+    min: -720,
+    max: 840,
+    default: 120,
+    defaultName: "Africa/Tripoli",
+};
 class timestring implements RuleBase {
     timezoneNumber = null as any;
-    
+
     rule(value: any, _, __, t: Translate) {
         if (typeof value == "number") {
             if (value > timezoneConstants.max || value < timezoneConstants.min) {

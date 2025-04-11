@@ -7,8 +7,6 @@ const authorize = (await import("$/server/middlewares/authorize.middleware.js"))
 
 const multirule = (await import("../../../../../../../utils/rules/multirules.js")).default;
 
-;
-
 const express = (await import("$/server/utils/express/index.js")).default;
 
 // authorities
@@ -337,7 +335,7 @@ router.post(
             }
 
             request.body.profile = profile;
-            
+
             return response.status(200).json({
                 result: {
                     msg: "ok",

@@ -21,13 +21,9 @@ const unauthError = new ObjectError({
     statusCode: 401,
 });
 
-type UseTokenOpts = {
-};
+type UseTokenOpts = {};
 
-export const useTokenInSocketToGetUser = async (
-    socket: Socket,
-    opts: UseTokenOpts = {},
-): Promise<prisma.User> => {
+export const useTokenInSocketToGetUser = async (socket: Socket, opts: UseTokenOpts = {}): Promise<prisma.User> => {
     const token = socket.handshake.auth?.token;
     console.log("attempting to authenticate socket connection", socket.handshake);
     if (!token) {
@@ -255,7 +251,6 @@ const obj = {
         const handler = createHandler();
         await handler(req, res, next);
     },
-
 };
 
 export default obj;

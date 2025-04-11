@@ -81,13 +81,13 @@
         {
             "fileMatch": ["*.lang.json"],
             "url": "/.vscode/json_schemas/language_schema/index.json"
-        }, 
+        },
         {
-            "fileMatch": ["package.json"], 
+            "fileMatch": ["package.json"],
             "url": "/.vscode/json_schemas/packageDotJson/index.json"
-        }, 
+        },
         {
-            "fileMatch": ["utils.json"], 
+            "fileMatch": ["utils.json"],
             "url": "/.vscode/json_schemas/verdeUtility/index.json"
         }
     ],
@@ -106,7 +106,7 @@
     },
     "[html]": {
         "editor.defaultFormatter": "vscode.html-language-features"
-    }, 
+    },
     "files.watcherExclude": {
         "**/dist/**": true
     }

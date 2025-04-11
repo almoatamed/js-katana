@@ -2,7 +2,7 @@ import cluster from "cluster";
 import { randomInt } from "crypto";
 import fs from "fs";
 
-import { lockMethod as LockMethod, JSONObject } from "../common/index.js";
+import { JSONObject, lockMethod as LockMethod } from "../common/index.js";
 
 const rs = (await import("$/server/utils/common/index.js")).default.ObjectManipulation.rs;
 
@@ -597,4 +597,4 @@ async function makeThreadedJson<
 }
 
 export default makeThreadedJson;
-export {makeThreadedJson}
+export { makeThreadedJson };

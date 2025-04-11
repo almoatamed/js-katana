@@ -3,9 +3,9 @@ import { activate, archive, deactivate, deleteUser, register, update, updatePass
 import { UserInstanceClient } from "../instance/index.js";
 import { changeNotificationStatus } from "./notifications/changeStatus/index.js";
 import { publishNotification } from "./notifications/publish/index.js";
+import { deleteOneTag } from "./notifications/tags/deleteOne/index.js";
 import { registerTag } from "./notifications/tags/register/index.js";
 import { updateTag } from "./notifications/tags/update/index.js";
-import { deleteOneTag } from "./notifications/tags/deleteOne/index.js";
 import updatePhone from "./utils/updatePhone/index.js";
 
 const AuthExtension = (await import("./auth/index.js")).StaticAuthExtension;
@@ -35,5 +35,4 @@ const UserStaticClientExtensionArgs = {
     },
 };
 const UserStaticClient = UserInstanceClient.$extends(UserStaticClientExtensionArgs);
-export { UserStaticClient };
-export { UserStaticClientExtensionArgs };
+export { UserStaticClient, UserStaticClientExtensionArgs };

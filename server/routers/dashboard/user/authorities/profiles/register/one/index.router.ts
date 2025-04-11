@@ -26,7 +26,7 @@ router.post(
     async (request, response, next) => {
         try {
             // validation
-            
+
             await multirule([
                 [
                     ["required", "title", "unique"],
@@ -118,8 +118,9 @@ router.post(
                 }
 
                 const dynamicAuthoiritiesList = [] as any[];
-                for (const dynamicAuthority of Object.values(authorities.authorities[authority.keyName].dynamicAuthorities || [])) {
-   
+                for (const dynamicAuthority of Object.values(
+                    authorities.authorities[authority.keyName].dynamicAuthorities || [],
+                )) {
                     const dynamicAuthorityBody: any = {
                         createdAt: new Date(),
                         createdByUser: {
@@ -143,7 +144,8 @@ router.post(
                     };
 
                     const profileDynamicAuthority = authority.dynamicAuthoritiesArray.find(
-                        (profileDynamicAuthority) => profileDynamicAuthority.dynamicAuthorityKey == dynamicAuthority.dynamicAuthorityKey,
+                        (profileDynamicAuthority) =>
+                            profileDynamicAuthority.dynamicAuthorityKey == dynamicAuthority.dynamicAuthorityKey,
                     );
                     if (!profileDynamicAuthority) {
                         throw {
@@ -182,12 +184,18 @@ router.post(
                             item = await (client as any)[dynamicAuthority.model].findFirst({
                                 where: {
                                     deleted: false,
-                                    [dynamicAuthority.idKey]: dynamicAuthority.idType == "number" ? Math.floor(Number(value)) : value,
+                                    [dynamicAuthority.idKey]:
+                                        dynamicAuthority.idType == "number" ? Math.floor(Number(value)) : value,
                                 },
                             });
                         } else if (dynamicAuthority.loadResourceCb) {
                             const source = dynamicAuthority.loadResourceCb(request);
-                            item = source.find((item) => ((item[dynamicAuthority.idKey] == (dynamicAuthority.idType == "number" ? Math.floor(Number(value)) : value)))) || null;
+                            item =
+                                source.find(
+                                    (item) =>
+                                        item[dynamicAuthority.idKey] ==
+                                        (dynamicAuthority.idType == "number" ? Math.floor(Number(value)) : value),
+                                ) || null;
                         }
 
                         if (!item) {
@@ -203,9 +211,15 @@ router.post(
                         }
                     }
 
-                    dynamicAuthoiritiesList.push({ dynamicAuthorityBody: dynamicAuthorityBody, values: profileDynamicAuthority.values });
+                    dynamicAuthoiritiesList.push({
+                        dynamicAuthorityBody: dynamicAuthorityBody,
+                        values: profileDynamicAuthority.values,
+                    });
                 }
-                authoritiesList.push({ authorityBody: authorityBody, dynamicAuthoiritiesList: dynamicAuthoiritiesList });
+                authoritiesList.push({
+                    authorityBody: authorityBody,
+                    dynamicAuthoiritiesList: dynamicAuthoiritiesList,
+                });
             }
 
             // insert them

@@ -7,7 +7,6 @@ const bcrypt = (await import("bcrypt")).default;
 
 const generateUserJwtToken = (await import("../../../utils/index.js")).generateUserJwtToken;
 
-;
 type UpdatePasswordProps = {
     userId: string | number;
     password: string;

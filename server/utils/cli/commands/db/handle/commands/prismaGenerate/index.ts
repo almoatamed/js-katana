@@ -1,5 +1,5 @@
-import { appPath } from "../../../../../utils/appPath/index.js";
 import { execSync } from "child_process";
+import { appPath } from "../../../../../utils/appPath/index.js";
 
 const createCommand = (program: import("commander").Command) => {
     program

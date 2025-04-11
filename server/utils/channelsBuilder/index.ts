@@ -1,5 +1,3 @@
-
-
 import cluster from "cluster";
 import { pid } from "process";
 import { Server, Socket } from "socket.io";
@@ -102,7 +100,7 @@ export const perform = async (body: any, respond: Respond | undefined, handler: 
 };
 
 export const registerSocket = async (socket: Socket) => {
-    console.log("socket connection", socket.id)
+    console.log("socket connection", socket.id);
     try {
         let hasHandlers = false;
         const appliedBeforeMountedMiddlewares: {
@@ -314,10 +312,8 @@ export const registerSocket = async (socket: Socket) => {
             const foundEvent = handlers.find((h) => {
                 return h.path == event;
             });
-            console.log("incoming event", event, foundEvent?.path ? "(event found)" : "(event not found)")
+            console.log("incoming event", event, foundEvent?.path ? "(event found)" : "(event not found)");
             if (typeof cb == "function") {
-                
-
                 if (!foundEvent) {
                     console.log(`event not found`, event);
                     cb({
@@ -325,7 +321,7 @@ export const registerSocket = async (socket: Socket) => {
                             msg: "event not found",
                         },
                     });
-                    return
+                    return;
                 }
                 const foundAccessibility = socket.data.accessMap.find((a) => a.path == event);
                 if (foundAccessibility) {

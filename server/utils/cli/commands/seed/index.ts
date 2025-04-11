@@ -26,8 +26,8 @@ function isSeeder(item) {
  * @param {Object.<string,string>} list
  */
 function listSeeders(dirPath = seedersDirectoryPath, list = {}) {
-    if(!fs.existsSync(dirPath)){
-        return {}
+    if (!fs.existsSync(dirPath)) {
+        return {};
     }
     const content = fs.readdirSync(dirPath);
     for (const item of content) {

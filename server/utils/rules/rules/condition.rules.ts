@@ -39,7 +39,7 @@ class conditionValidationRule implements RuleBase {
     set(value: any) {
         return this.conditions[this.translateConditionTo][this.condition];
     }
-    rule(value: any, params: conditionValidatorParameters,  GlobalParams: InternalGeneralOptions, t: Translate) {
+    rule(value: any, params: conditionValidatorParameters, GlobalParams: InternalGeneralOptions, t: Translate) {
         if (!params) {
             params = {};
         }

@@ -1,10 +1,9 @@
-
 import cluster from "cluster";
-import { dashDateFormater } from "../common/index.js";
 import { loggingConfig } from "../../config/logging/index.js";
+import { dashDateFormater } from "../common/index.js";
 
 export const forceLog = console.log;
-(console as any)._Log = console.log
+(console as any)._Log = console.log;
 if (loggingConfig.hideLogs()) {
     console.log = () => {};
     console.warn = () => {};

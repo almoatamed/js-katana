@@ -1,5 +1,5 @@
-import { appPath } from "../../../../../utils/appPath/index.js";
 import { execSync } from "child_process";
+import { appPath } from "../../../../../utils/appPath/index.js";
 
 const createCommand = (program: import("commander").Command) => {
     program
@@ -8,17 +8,15 @@ const createCommand = (program: import("commander").Command) => {
         .description("run prisma migrate")
         .action(() => {
             try {
-               
-            execSync(`prisma migrate dev --schema=./prisma/mainSchema.prisma `, {
-                cwd: appPath,
-                stdio: "inherit",
-            }); 
+                execSync(`prisma migrate dev --schema=./prisma/mainSchema.prisma `, {
+                    cwd: appPath,
+                    stdio: "inherit",
+                });
             } catch (error) {
-             
-            execSync(`npx prisma migrate dev --schema=./prisma/mainSchema.prisma `, {
-                cwd: appPath,
-                stdio: "inherit",
-            });   
+                execSync(`npx prisma migrate dev --schema=./prisma/mainSchema.prisma `, {
+                    cwd: appPath,
+                    stdio: "inherit",
+                });
             }
         });
 };

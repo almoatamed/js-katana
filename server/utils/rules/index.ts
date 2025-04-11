@@ -1,5 +1,4 @@
 import fs from "fs";
-;
 const path = await import("path");
 
 // rules
@@ -7,8 +6,8 @@ import { localLogDecorator } from "$/server/utils/log/index.js";
 import ObjectError from "../ObjectError/index.js";
 
 import type { ModulesType } from "$/server/modules/index.js";
-import rootPaths from "../dynamicConfiguration/rootPaths.js";
 import { resolveTs } from "../common/index.js";
+import rootPaths from "../dynamicConfiguration/rootPaths.js";
 import { t as T } from "../internationalization/index.js";
 import type {
     GeneralOptions,
@@ -142,12 +141,7 @@ export async function validate(
     }
     const requiredValidator = new rulesModules["required"][0]();
     requiredValidator.client = client;
-    const isValueEmpty = !(await requiredValidator.rule(
-        value,
-        args?.["required"] as any,
-        internalGeneralOptions,
-        t,
-    ));
+    const isValueEmpty = !(await requiredValidator.rule(value, args?.["required"] as any, internalGeneralOptions, t));
 
     if (isValueEmpty) {
         if (rules.includes("required")) {
@@ -183,12 +177,7 @@ export async function validate(
                                 },
                             });
                         }
-                        const valid = await ruleValidator.rule(
-                            value,
-                            args?.[rule] as any,
-                            internalGeneralOptions,
-                            t,
-                        );
+                        const valid = await ruleValidator.rule(value, args?.[rule] as any, internalGeneralOptions, t);
                         if (!valid) {
                             throw new ObjectError({
                                 statusCode: ruleValidator.statusCode || 400,

@@ -1,14 +1,13 @@
 import { descriptionSuffixRegx, routerSuffixRegx } from "$/server/utils/routersHelpers/matchers.js";
-import cluster from "cluster";
 import fs from "fs";
 import mime from "mime-types";
 import path from "path";
 import ts from "typescript";
 import url from "url";
-import rootPaths from "../../dynamicConfiguration/rootPaths.js";
+import { routerConfig } from "../../../config/routing/index.js";
 import { AuthorizationOption } from "../../../middlewares/authorize.middleware.js";
 import { lockMethod } from "../../common/index.js";
-import { routerConfig } from "../../../config/routing/index.js";
+import rootPaths from "../../dynamicConfiguration/rootPaths.js";
 export type DescriptionProps = {
     fileUrl: string;
     path?: string;
@@ -87,16 +86,15 @@ export const describe = lockMethod(
             const routeSuffixMatch = routeFileName.match(routerSuffixRegx);
             if (!routeSuffixMatch) {
                 console.error(
-                    'Invalid Route Name, a route file should end with "' + routerConfig.getRouteSuffix() + '" provided is: ',
+                    'Invalid Route Name, a route file should end with "' +
+                        routerConfig.getRouteSuffix() +
+                        '" provided is: ',
                     routeFileName,
                 );
                 throw new Error();
             }
 
-            const routeFileNameWithoutExtension = routeFileName.slice(
-                0,
-                routeFileName.indexOf(routeSuffixMatch[0]),
-            );
+            const routeFileNameWithoutExtension = routeFileName.slice(0, routeFileName.indexOf(routeSuffixMatch[0]));
 
             const routePrecisePath = path.join(
                 routeFileNameWithoutExtension == "index"
@@ -220,4 +218,4 @@ type Response = ${options.responseBodyTypeString || "any"}
     },
 );
 
-export const describeRoute = describe; 
+export const describeRoute = describe;

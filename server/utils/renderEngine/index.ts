@@ -10,8 +10,6 @@ const mimetypes = (await import("mime-types")).default;
 
 const logUtil = await import("$/server/utils/log/index.js");
 
-
-
 const log = await logUtil.localLogDecorator("RENDER-ENGINE", "yellow", true, "Info", true);
 
 const appPath = path.resolve(path.join(path.dirname(url.fileURLToPath(import.meta.url)), "../../../."));
@@ -233,12 +231,10 @@ async function render(section: SectionDescriptor, sectionTemplate: Section, sect
                 if (typeof styleSource == "object") {
                     for (const [key, val] of Object.entries(styleSource)) {
                         if (val) {
-                            style += `${key.replaceAll("_", "-").replace(/[a-z][A-Z]/g, (match)=>{
-                                return match[0] + "-" + match[1].toLowerCase()
+                            style += `${key.replaceAll("_", "-").replace(/[a-z][A-Z]/g, (match) => {
+                                return match[0] + "-" + match[1].toLowerCase();
                             })}: ${val}; `;
-                            
                         }
-
                     }
                 } else if (typeof styleSource == "string") {
                     style = styleSource;
@@ -269,8 +265,8 @@ async function render(section: SectionDescriptor, sectionTemplate: Section, sect
                 if (!!styleSource && typeof styleSource == "object") {
                     for (const [key, val] of Object.entries(styleSource)) {
                         if (val) {
-                            style += `${key.replaceAll("_", "-").replace(/[a-z][A-Z]/g, (match)=>{
-                                return match[0] + "-" + match[1].toLowerCase()
+                            style += `${key.replaceAll("_", "-").replace(/[a-z][A-Z]/g, (match) => {
+                                return match[0] + "-" + match[1].toLowerCase();
                             })}: ${val}; `;
                         }
                     }
@@ -291,7 +287,7 @@ async function render(section: SectionDescriptor, sectionTemplate: Section, sect
 
         // section <
         // 28-> section 29->id 30->section object
-        else if (match[28]) {           
+        else if (match[28]) {
             let subsection;
             try {
                 subsection = await eval(match[30]);
@@ -323,7 +319,7 @@ async function render(section: SectionDescriptor, sectionTemplate: Section, sect
         // 23->forEval 24->content
         else if (match[19]) {
             try {
-                 const elementName = match[21];
+                const elementName = match[21];
                 const indexName = match[22];
                 const array = await eval(match[23]);
                 if (Array.isArray(array)) {
@@ -840,13 +836,12 @@ async function wrap(
     return finalHtml;
 }
 
-
 /**
  *
  * @param {RenderedDocumentSkeleton} skeleton
  */
 async function saveFiles(skeleton: RenderedDocumentSkeleton) {
-    console.log("Saving rendered skeleton", skeleton.save)
+    console.log("Saving rendered skeleton", skeleton.save);
     if (skeleton.save && skeleton.save.dir) {
         /**
          * @type {Array<import("$/server/utils/storage/save.js").File>}
@@ -966,7 +961,6 @@ async function renderDocumentFromSkeleton(
         log("available template sections: ", Object.keys(sections));
         Skeleton.sections = sections;
 
-
         if (
             Skeleton.template.header &&
             typeof Skeleton.template.header == "object" &&
@@ -984,13 +978,10 @@ async function renderDocumentFromSkeleton(
                     loadImagesAsUrls: !!skeleton.style.loadImagesAsUrls,
                 },
             );
-            Skeleton.template.header.heightInPx =
-                Skeleton.template.header.heightInPx ||
-                0;
+            Skeleton.template.header.heightInPx = Skeleton.template.header.heightInPx || 0;
             Skeleton.template.header.heightInCm =
                 Skeleton.template.header.heightInCm ||
-                Math.floor(Skeleton.template.header.heightInPx || 0) *
-                    (Skeleton.template.cmPerPx || 0);
+                Math.floor(Skeleton.template.header.heightInPx || 0) * (Skeleton.template.cmPerPx || 0);
 
             log("loaded header, header height", Skeleton.template.header.heightInCm);
             (Skeleton as any).template.margin.top =
@@ -1016,13 +1007,10 @@ async function renderDocumentFromSkeleton(
                 },
             );
 
-            Skeleton.template.footer.heightInPx =
-                Skeleton.template.footer.heightInPx ||
-                0;
+            Skeleton.template.footer.heightInPx = Skeleton.template.footer.heightInPx || 0;
             Skeleton.template.footer.heightInCm =
                 Skeleton.template.footer.heightInCm ||
-                Math.floor(Skeleton.template.footer.heightInPx) *
-                    (Skeleton.template.cmPerPx || 0);
+                Math.floor(Skeleton.template.footer.heightInPx) * (Skeleton.template.cmPerPx || 0);
 
             (Skeleton as any).template.margin.bottom =
                 Skeleton.template.margin?.bottom ||
@@ -1047,7 +1035,7 @@ async function renderDocumentFromSkeleton(
         return Skeleton;
     } catch (error: any) {
         log.error("Document Render Error:", error);
-        throw error   
+        throw error;
     }
 }
 
@@ -1063,7 +1051,7 @@ export {
     renderSkeleton,
     replaceAsync,
     saveFiles,
-    wrap
+    wrap,
 };
 
 export interface Paper {
@@ -1102,9 +1090,12 @@ export interface Header {
     content?: Content;
     type?: SectionName;
     style?: {
-        [key: string]: {
-            [key: string]: null | string;
-        } | string | null;
+        [key: string]:
+            | {
+                  [key: string]: null | string;
+              }
+            | string
+            | null;
     };
 }
 export interface Footer {
@@ -1114,11 +1105,14 @@ export interface Footer {
     content?: Content;
     type?: SectionName;
     style?: {
-        [key: string]: {
-            [key: string]: null | string;
-        } | string | null;
+        [key: string]:
+            | {
+                  [key: string]: null | string;
+              }
+            | string
+            | null;
     };
-    [key: string]: any
+    [key: string]: any;
 }
 export interface RenderedHeader {
     section?: SectionName;
@@ -1128,9 +1122,12 @@ export interface RenderedHeader {
     content?: Content;
     type?: SectionName;
     style?: {
-        [key: string]: {
-            [key: string]: null | string;
-        } | string | null;
+        [key: string]:
+            | {
+                  [key: string]: null | string;
+              }
+            | string
+            | null;
     };
 }
 export interface RenderedFooter {
@@ -1141,9 +1138,12 @@ export interface RenderedFooter {
     content?: Content;
     type?: SectionName;
     style?: {
-        [key: string]: {
-            [key: string]: null | string;
-        } | string | null;
+        [key: string]:
+            | {
+                  [key: string]: null | string;
+              }
+            | string
+            | null;
     };
 }
 
@@ -1174,11 +1174,14 @@ export interface SectionDescriptor {
     content?: Content;
     type?: SectionName;
     style?: {
-        [key: string]: string | null | {
-            [key: string]: string | null;
-        };
+        [key: string]:
+            | string
+            | null
+            | {
+                  [key: string]: string | null;
+              };
     };
-    [key: string]: any
+    [key: string]: any;
 }
 
 export type Content = Array<SectionDescriptor>;

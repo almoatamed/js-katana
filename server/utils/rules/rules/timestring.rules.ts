@@ -3,7 +3,7 @@ import type { RuleBase } from "./base.js";
 
 class timestring implements RuleBase {
     time = {} as any;
-    rule(value: any,__,  _,t: Translate ) {
+    rule(value: any, __, _, t: Translate) {
         if (typeof value != "string") {
             this.errorMsg = `[field] ${t("as Time-String must be a string in the form of HH:MM:SS")}`;
             return false;

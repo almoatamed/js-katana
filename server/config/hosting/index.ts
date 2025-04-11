@@ -3,7 +3,7 @@ import { HostingConfig } from "./hostingConfig.js";
 
 export const hostingConfig = {
     getServerName() {
-        return getFromEnv("SERVER_NAME") || "localhost"
+        return getFromEnv("SERVER_NAME") || "localhost";
     },
 
     getPort: () => {
@@ -13,4 +13,4 @@ export const hostingConfig = {
         }
         return 3000;
     },
-} satisfies HostingConfig
+} satisfies HostingConfig;

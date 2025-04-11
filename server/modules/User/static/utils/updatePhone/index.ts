@@ -1,6 +1,6 @@
+import client from "$/server/utils/database/prisma.js";
 import { Requester } from "../../../../../utils/express/index.js";
 import multirule from "../../../../../utils/rules/multirules.js";
-import client from "$/server/utils/database/prisma.js";
 
 type Params = {
     requester: Requester;
@@ -12,8 +12,6 @@ export default async function updatePhone(params: Params) {
 
     return await client.$transaction(
         async (tx) => {
-
-
             const updatedUser = await tx.user.update({
                 where: {
                     userId: params.requester.userId,
@@ -22,7 +20,7 @@ export default async function updatePhone(params: Params) {
                     phone: params.nextPhone,
                 },
             });
-            return updatedUser
+            return updatedUser;
         },
         { timeout: 60_000 },
     );

@@ -14,27 +14,26 @@ class numberValidationRule {
             if (params.maxExclusive) {
                 if (math.fixed(value) >= math.fixed(params.max)) {
                     this.errorMsg = `[field] ${t("must be less than")} ${math.fixed(params.max)}`;
-                    return false;        
+                    return false;
                 }
             } else {
                 if (math.fixed(value) > math.fixed(params.max)) {
                     this.errorMsg = `[field] ${t("must be less than or equal to")} ${math.fixed(params.max)}`;
-                    return false;        
+                    return false;
                 }
             }
         }
-
 
         if (!Number.isNaN(Number(params?.min))) {
             if (params.minExclusive) {
                 if (math.fixed(value) <= math.fixed(params.min)) {
                     this.errorMsg = `[field] ${t("must be greater than")} ${math.fixed(params.min)}`;
-                    return false;        
+                    return false;
                 }
             } else {
                 if (math.fixed(value) < math.fixed(params.min)) {
                     this.errorMsg = `[field] ${t("must be greater than or equal to")} ${math.fixed(params.min)}`;
-                    return false;        
+                    return false;
                 }
             }
 

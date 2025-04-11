@@ -1,4 +1,3 @@
-;
 import common from "$/server/utils/common/index.js";
 import { multithreadingConfig } from "../../config/multithreading/index.js";
 
@@ -28,11 +27,11 @@ export { pages };
 
 export type TableData = any;
 export type TableHeader<T> = { text: string; value: string | number | ((row: T, index: number) => any) };
-type Table<T> =  {
+type Table<T> = {
     headers: TableHeader<T>[];
     data: T[];
     colouring?: (item: T) => string[];
-}
+};
 
 function table<T>(table: Table<T>): import("$/server/utils/renderEngine/index.js").SectionDescriptor {
     function readCell(headerSelector, row, index: number) {

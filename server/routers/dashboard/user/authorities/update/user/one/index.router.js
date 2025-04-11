@@ -1,4 +1,3 @@
-;
 import client from "$/server/modules/index.js";
 import overwrite from "$/server/modules/User/static/utils/authorities/user/overwrite.js";
 
@@ -28,7 +27,7 @@ router.post(
                 profileId: request.body.profileId,
                 authorities: request.body.authorities,
                 userId: request.body.userId,
-                requesterUser: request.user,            
+                requesterUser: request.user,
             });
             console.log(request.body);
 

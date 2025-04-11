@@ -1,10 +1,8 @@
 import path from "path";
-import rootPaths from "../dynamicConfiguration/rootPaths.js";
 import { routerConfig } from "../../config/routing/index.js";
+import rootPaths from "../dynamicConfiguration/rootPaths.js";
 
 const fs = (await import("fs")).default;
-;
-
 const appPath = rootPaths.appPath;
 
 const routersMainDirectory = path.join(appPath, "server", "routers");
@@ -28,7 +26,9 @@ const moveIntoFolders = function (directory = routersMainDirectory) {
                     fs.cpSync(itemAbsolutePath, path.join(directory, routerName, item.replace(routerName, "index")));
                     fs.rmSync(itemAbsolutePath);
 
-                    const routerDescriptionRegx = RegExp(`${routerName}${descriptionSuffixRegx.toString().slice(1, -1)}`);
+                    const routerDescriptionRegx = RegExp(
+                        `${routerName}${descriptionSuffixRegx.toString().slice(1, -1)}`,
+                    );
                     const routerDescriptionFile = content.filter((el) => !!el.match(routerDescriptionRegx))[0];
                     if (routerDescriptionFile) {
                         fs.cpSync(

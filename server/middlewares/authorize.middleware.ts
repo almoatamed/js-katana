@@ -1,16 +1,13 @@
-import { R, Req, Requester } from "$/server/utils/express/index.js";
+import { Req, Requester } from "$/server/utils/express/index.js";
 import type { AuthoritiesNames } from "../utils/JsDoc/assets/authorities.js";
 export { AuthoritiesNames };
 const common = (await import("$/server/utils/common/index.js")).default;
-;
 const cluster = (await import("cluster")).default;
 
 const authorities = (await import("$/server/modules/User/static/utils/authorities/index.js")).default;
 
 const getUserAuthoritiesSource = (user: Requester) => {
-    const userAuthoritiesSource =
-        user.authorizationProfile?.profileAuthorities ||
-        user.userAuthorities;
+    const userAuthoritiesSource = user.authorizationProfile?.profileAuthorities || user.userAuthorities;
     return userAuthoritiesSource;
 };
 
@@ -79,8 +76,7 @@ export function userHasAuthority(authority: Authority | AuthoritiesNames, user: 
             const requestLookupCb =
                 dynamicAuthority.requestLookupCb ||
                 (typeof authority != "string" &&
-                    authority?.dynamicAuthorities?.[originalDynamicAuthority.dynamicAuthorityKey]
-                        ?.requestLookupCb) ||
+                    authority?.dynamicAuthorities?.[originalDynamicAuthority.dynamicAuthorityKey]?.requestLookupCb) ||
                 originalDynamicAuthority.requestLookupCb;
             const value = typeof requestLookupCb == "function" ? requestLookupCb(request) : [];
             if (Array.isArray(value)) {

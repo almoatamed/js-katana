@@ -12,7 +12,6 @@ export type BatcherOptions = {
     periodInMs: number;
 };
 
-
 export const createBatcher = <T>(
     cb: (props?: T[]) => any,
     id: string,
@@ -118,7 +117,6 @@ const loadJson = (jsonPath: fs.PathOrFileDescriptor) => {
     json = JSON.parse(json);
     return json;
 };
-
 
 export type BasicTypes = boolean | number | string | null | undefined;
 export type RecursiveReadable =
@@ -507,7 +505,6 @@ export default {
     },
     math: math,
 };
-
 
 export const trimSlashes = (path: string) =>
     path == "/"

@@ -39,5 +39,4 @@ function reloadProxy(proxy, source) {
     }
 }
 
-export { generateValidator };
-export { reloadProxy };
+export { generateValidator, reloadProxy };

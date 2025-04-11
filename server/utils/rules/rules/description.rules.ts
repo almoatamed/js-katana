@@ -1,4 +1,3 @@
-
 class descriptionValidationRule {
     errorMsg = "";
     max = 2000;

@@ -1,10 +1,7 @@
-
 /**
  * @type {any}
  */
 const firebaseAdmin = (await import("firebase-admin")).default;
-;
-
 import fs from "fs";
 import path from "path";
 import rootPaths from "../../dynamicConfiguration/rootPaths.js";

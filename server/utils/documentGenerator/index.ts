@@ -1,9 +1,9 @@
 import common from "$/server/utils/common/index.js";
 import path from "path";
+import { appIdentityConfig } from "../../config/appIdentity/index.js";
 import { corpConfig } from "../../config/corp/index.js";
 import { multithreadingConfig } from "../../config/multithreading/index.js";
 import rootPaths from "../dynamicConfiguration/rootPaths.js";
-import { appIdentityConfig } from "../../config/appIdentity/index.js";
 const rs = common.ObjectManipulation.rs;
 
 const render = multithreadingConfig.workerRenderEngine()
@@ -223,11 +223,11 @@ export type TableData = any;
 
 export type TableHeader<T> = { text: string; value: string | number | ((row: T, index: number) => any) };
 
-type Table<T> =  {
+type Table<T> = {
     headers: TableHeader<T>[];
     data: T[];
     colouring?: (item: T) => string[];
-}
+};
 
 function table<T>(table: Table<T>): import("$/server/utils/renderEngine/index.js").SectionDescriptor {
     function readCell(headerSelector, row, index: number) {
@@ -592,7 +592,11 @@ async function generateDocument(
                                     {
                                         type: "img",
                                         src: appIdentityConfig.getLogo()
-                                            ? path.join(rootPaths.srcPath, "assets/images", appIdentityConfig.getLogo()!)
+                                            ? path.join(
+                                                  rootPaths.srcPath,
+                                                  "assets/images",
+                                                  appIdentityConfig.getLogo()!,
+                                              )
                                             : appIdentityConfig.getLogoUrl(),
                                         style: {
                                             maxHeight: "0.5cm",

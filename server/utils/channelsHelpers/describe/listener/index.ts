@@ -1,14 +1,16 @@
-import rootPaths from "../../../dynamicConfiguration/rootPaths.js";
-;
 import { AuthorizationOption } from "$/server/middlewares/authorize.middleware.js";
 import { lockMethod } from "$/server/utils/common/index.js";
-import { routerSuffixRegx as channelsSuffixRegx, descriptionSuffixRegx } from "$/server/utils/routersHelpers/matchers.js";
+import {
+    routerSuffixRegx as channelsSuffixRegx,
+    descriptionSuffixRegx,
+} from "$/server/utils/routersHelpers/matchers.js";
 import cluster from "cluster";
 import fs from "fs";
 import path from "path";
 import ts from "typescript";
 import url from "url";
 import { routerConfig } from "../../../../config/routing/index.js";
+import rootPaths from "../../../dynamicConfiguration/rootPaths.js";
 export type DescriptionProps = {
     fileUrl: string;
     path?: string;
@@ -24,12 +26,12 @@ export type DescriptionProps = {
     responseBodyTypeString?: string;
     descriptionFileFullPath?: string;
 };
-export type ChannelDescriptionProps = DescriptionProps
+export type ChannelDescriptionProps = DescriptionProps;
 
 export const descriptionsMap = {} as {
     [key: string]: DescriptionProps;
 };
-export const channelsDescriptionsMap = descriptionsMap
+export const channelsDescriptionsMap = descriptionsMap;
 const channelsDirectory = path.join(rootPaths.srcPath, routerConfig.getRouterDirectory());
 
 const checkType = (typeString: string) => {
@@ -48,8 +50,6 @@ export const describe = lockMethod(
             } else {
                 options.requestBodyTypeString = "any";
             }
-
-
 
             if (options.responseBodyTypeString) {
                 checkType(options.responseBodyTypeString);
@@ -71,7 +71,9 @@ export const describe = lockMethod(
             const channelSuffixMatch = channelFileName.match(channelsSuffixRegx);
             if (!channelSuffixMatch) {
                 console.error(
-                    'Invalid Channel Name, a channel file should end with "' + routerConfig.getRouteSuffix() + '" provided is: ',
+                    'Invalid Channel Name, a channel file should end with "' +
+                        routerConfig.getRouteSuffix() +
+                        '" provided is: ',
                     channelFileName,
                 );
                 throw new Error();
@@ -188,4 +190,4 @@ type Response = ${options.responseBodyTypeString || "any"}
         lockName: "settingUpChannelDescriptions",
     },
 );
-export const describeChannel = describe
+export const describeChannel = describe;

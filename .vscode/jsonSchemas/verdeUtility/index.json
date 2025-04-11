@@ -7,9 +7,9 @@
     "required": ["name", "owner", "version", "public_repo", "private"],
     "properties": {
         "name": {
-            "type": "string", 
+            "type": "string",
             "description": "utility name, which will be the repo name also"
-        }, 
+        },
         "owner": {
             "type": "string",
             "description": "owner/organization name on github"
@@ -18,20 +18,20 @@
             "type": "string",
             "pattern": "[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}",
             "description": "target version"
-        }, 
+        },
         "description": {
             "type": "string"
         },
         "hash": {
-            "type": "string", 
+            "type": "string",
             "readOnly": true
-        }, 
+        },
         "public_repo": {
             "type": "boolean",
             "description": "whether the repo is public or not on github.com (can be seen by anyone)"
         },
         "private": {
-            "type": "boolean", 
+            "type": "boolean",
             "description": "whether the local utility code is private for the current project, if it is, it will prevent pushing"
         },
         "deps": {

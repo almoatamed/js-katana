@@ -1,6 +1,5 @@
 import { Requester } from "../../../../../../utils/express/index.js";
 import multirule from "../../../../../../utils/rules/multirules.js";
-import requesterFields from "../../../../../utils/requesterFields/index.js";
 import { register } from "../register/index.js";
 const client = (await import("../../../../instance/index.js")).AddressingInstanceClient;
 

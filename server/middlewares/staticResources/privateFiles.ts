@@ -1,6 +1,5 @@
 import { HandlerFunction as Handler } from "../../utils/express/index.js";
 
-
 // authentication middleware
 const { auth } = (await import("$/server/middlewares/user.middleware.js")).default;
 const { authorize } = (await import("$/server/middlewares/authorize.middleware.js")).default;

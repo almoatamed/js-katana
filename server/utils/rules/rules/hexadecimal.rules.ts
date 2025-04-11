@@ -1,10 +1,10 @@
 import type { RuleBase } from "./base.js";
 
-class addressValidationRule implements RuleBase{
+class addressValidationRule implements RuleBase {
     errorMsg = "";
 
     values = [];
-    allowedCase: hexadecimalValidatorParameters['allowedCharacters'] = "Both";
+    allowedCase: hexadecimalValidatorParameters["allowedCharacters"] = "Both";
     msg(field = "Field") {
         if (!this.errorMsg) {
             return `${field} is not a valid hexadecimal ${
@@ -20,8 +20,8 @@ class addressValidationRule implements RuleBase{
             this.errorMsg = "[field] is not a string";
             return false;
         }
-        if(!params){
-            params = {}
+        if (!params) {
+            params = {};
         }
         if (!params?.allowedCharacters) {
             params.allowedCharacters = "Both";
@@ -39,6 +39,6 @@ class addressValidationRule implements RuleBase{
     }
 }
 
-export type hexadecimalValidatorParameters = { allowedCharacters?: ("UpperCase" | "LowerCase" | "Both"); };
+export type hexadecimalValidatorParameters = { allowedCharacters?: "UpperCase" | "LowerCase" | "Both" };
 export type hexadecimalSetterParameters = null;
 export default [addressValidationRule];

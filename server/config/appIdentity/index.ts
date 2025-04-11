@@ -5,10 +5,10 @@ export const appIdentityConfig = {
     getLogo() {
         return getFromEnv("APP_LOGO_FILE_PATH_FROM_ASSET_IMAGES");
     },
-    getLogoUrl(){
-        return getFromEnv("APP_LOGO_URL") 
+    getLogoUrl() {
+        return getFromEnv("APP_LOGO_URL");
     },
-    getName(){
-        return getFromEnv("APP_NAME")
-    }
+    getName() {
+        return getFromEnv("APP_NAME");
+    },
 } satisfies AppIdentity;

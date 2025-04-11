@@ -623,7 +623,17 @@
     { "name": "Antarctica", "cities": [] },
     {
         "name": "Antigua And Barbuda",
-        "cities": ["All Saints", "Bolands", "Codrington", "Falmouth", "Liberta", "Parham", "Piggotts", "Potters Village", "Saint John’s"]
+        "cities": [
+            "All Saints",
+            "Bolands",
+            "Codrington",
+            "Falmouth",
+            "Liberta",
+            "Parham",
+            "Piggotts",
+            "Potters Village",
+            "Saint John’s"
+        ]
     },
     {
         "name": "Argentina",
@@ -8613,7 +8623,20 @@
             "Zyrya"
         ]
     },
-    { "name": "Bahrain", "cities": ["Al Ḩadd", "Al Muharraq", "Ar Rifā‘", "Dār Kulayb", "Jidd Ḩafş", "Madīnat ‘Īsá", "Madīnat Ḩamad", "Manama", "Sitrah"] },
+    {
+        "name": "Bahrain",
+        "cities": [
+            "Al Ḩadd",
+            "Al Muharraq",
+            "Ar Rifā‘",
+            "Dār Kulayb",
+            "Jidd Ḩafş",
+            "Madīnat ‘Īsá",
+            "Madīnat Ḩamad",
+            "Manama",
+            "Sitrah"
+        ]
+    },
     {
         "name": "Bangladesh",
         "cities": [
@@ -8760,7 +8783,10 @@
             "Uttar Char Fasson"
         ]
     },
-    { "name": "Barbados", "cities": ["Bathsheba", "Bridgetown", "Crane", "Greenland", "Holetown", "Oistins", "Speightstown"] },
+    {
+        "name": "Barbados",
+        "cities": ["Bathsheba", "Bridgetown", "Crane", "Greenland", "Holetown", "Oistins", "Speightstown"]
+    },
     {
         "name": "Belarus",
         "cities": [
@@ -9709,7 +9735,20 @@
             "Tchaourou"
         ]
     },
-    { "name": "Bermuda", "cities": ["Devonshire", "Flatts", "Hamilton", "Paget", "Somerset", "Southampton", "St. George's", "Tucker’s Town", "Warwick"] },
+    {
+        "name": "Bermuda",
+        "cities": [
+            "Devonshire",
+            "Flatts",
+            "Hamilton",
+            "Paget",
+            "Somerset",
+            "Southampton",
+            "St. George's",
+            "Tucker’s Town",
+            "Warwick"
+        ]
+    },
     {
         "name": "Bhutan",
         "cities": [
@@ -9974,7 +10013,16 @@
     },
     {
         "name": "Bonaire, Sint Eustatius and Saba",
-        "cities": ["Boven Bolivia", "Dorp Tera Kora", "Oranjestad", "Rincon", "St. Johns", "The Bottom", "Windwardside", "Zion's Hill"]
+        "cities": [
+            "Boven Bolivia",
+            "Dorp Tera Kora",
+            "Oranjestad",
+            "Rincon",
+            "St. Johns",
+            "The Bottom",
+            "Windwardside",
+            "Zion's Hill"
+        ]
     },
     {
         "name": "Bosnia and Herzegovina",
@@ -15940,7 +15988,20 @@
         ]
     },
     { "name": "British Indian Ocean Territory", "cities": [] },
-    { "name": "Brunei", "cities": ["Bandar Seri Begawan", "Bangar", "Berakas A", "Kapok", "Kuala Belait", "Mentiri", "Serasa", "Seria", "Tutong"] },
+    {
+        "name": "Brunei",
+        "cities": [
+            "Bandar Seri Begawan",
+            "Bangar",
+            "Berakas A",
+            "Kapok",
+            "Kuala Belait",
+            "Mentiri",
+            "Serasa",
+            "Seria",
+            "Tutong"
+        ]
+    },
     {
         "name": "Bulgaria",
         "cities": [
@@ -24028,7 +24089,20 @@
     },
     {
         "name": "Djibouti",
-        "cities": ["'Ali Sabieh", "Alaïli Ḏaḏḏa‘", "Arta", "Dikhil", "Djibouti", "Dorra", "Gâlâfi", "Goubétto", "Holhol", "Loyada", "Obock", "Tadjourah"]
+        "cities": [
+            "'Ali Sabieh",
+            "Alaïli Ḏaḏḏa‘",
+            "Arta",
+            "Dikhil",
+            "Djibouti",
+            "Dorra",
+            "Gâlâfi",
+            "Goubétto",
+            "Holhol",
+            "Loyada",
+            "Obock",
+            "Tadjourah"
+        ]
     },
     {
         "name": "Dominica",
@@ -24735,7 +24809,22 @@
             "Santiago de Baney"
         ]
     },
-    { "name": "Eritrea", "cities": ["Adi Keyh", "Ak’ordat", "Asmara", "Assab", "Barentu", "Dek’emhāre", "Edd", "Keren", "Massawa", "Mendefera", "Teseney"] },
+    {
+        "name": "Eritrea",
+        "cities": [
+            "Adi Keyh",
+            "Ak’ordat",
+            "Asmara",
+            "Assab",
+            "Barentu",
+            "Dek’emhāre",
+            "Edd",
+            "Keren",
+            "Massawa",
+            "Mendefera",
+            "Teseney"
+        ]
+    },
     {
         "name": "Estonia",
         "cities": [
@@ -42956,7 +43045,10 @@
         ]
     },
     { "name": "Greenland", "cities": [] },
-    { "name": "Grenada", "cities": ["Gouyave", "Grenville", "Hillsborough", "Saint David’s", "Saint George's", "Sauteurs", "Victoria"] },
+    {
+        "name": "Grenada",
+        "cities": ["Gouyave", "Grenville", "Hillsborough", "Saint David’s", "Saint George's", "Sauteurs", "Victoria"]
+    },
     { "name": "Guadeloupe", "cities": [] },
     { "name": "Guam", "cities": [] },
     {
@@ -66371,7 +66463,19 @@
     },
     {
         "name": "Liechtenstein",
-        "cities": ["Balzers", "Eschen", "Gamprin", "Mauren", "Planken", "Ruggell", "Schaan", "Schellenberg", "Triesen", "Triesenberg", "Vaduz"]
+        "cities": [
+            "Balzers",
+            "Eschen",
+            "Gamprin",
+            "Mauren",
+            "Planken",
+            "Ruggell",
+            "Schaan",
+            "Schellenberg",
+            "Triesen",
+            "Triesenberg",
+            "Vaduz"
+        ]
     },
     {
         "name": "Lithuania",
@@ -66659,7 +66763,17 @@
     { "name": "Macau S.A.R.", "cities": [] },
     {
         "name": "Madagascar",
-        "cities": ["Ampasimanolotra", "Andovoranto", "Mahanoro", "Mahavelona", "Marolambo", "Toamasina", "Toamasina I", "Toamasina II", "Vohibinany"]
+        "cities": [
+            "Ampasimanolotra",
+            "Andovoranto",
+            "Mahanoro",
+            "Mahavelona",
+            "Marolambo",
+            "Toamasina",
+            "Toamasina I",
+            "Toamasina II",
+            "Vohibinany"
+        ]
     },
     {
         "name": "Malawi",
@@ -78995,7 +79109,21 @@
             "Zwolle"
         ]
     },
-    { "name": "New Caledonia", "cities": ["Bourail", "Dumbéa", "Houaïlou", "Koné", "Le Mont-Dore", "Lifou", "Maré", "Nouméa", "Païta", "Poindimié"] },
+    {
+        "name": "New Caledonia",
+        "cities": [
+            "Bourail",
+            "Dumbéa",
+            "Houaïlou",
+            "Koné",
+            "Le Mont-Dore",
+            "Lifou",
+            "Maré",
+            "Nouméa",
+            "Païta",
+            "Poindimié"
+        ]
+    },
     {
         "name": "New Zealand",
         "cities": [
@@ -107753,7 +107881,17 @@
     { "name": "Saint Pierre and Miquelon", "cities": [] },
     {
         "name": "Saint Vincent And The Grenadines",
-        "cities": ["Barrouallie", "Biabou", "Byera Village", "Chateaubelair", "Georgetown", "Kingstown", "Kingstown Park", "Layou", "Port Elizabeth"]
+        "cities": [
+            "Barrouallie",
+            "Biabou",
+            "Byera Village",
+            "Chateaubelair",
+            "Georgetown",
+            "Kingstown",
+            "Kingstown Park",
+            "Layou",
+            "Port Elizabeth"
+        ]
     },
     { "name": "Saint-Barthelemy", "cities": [] },
     { "name": "Saint-Martin (French part)", "cities": [] },
@@ -107784,9 +107922,22 @@
     },
     {
         "name": "San Marino",
-        "cities": ["Acquaviva", "Borgo Maggiore", "Domagnano", "Faetano", "Fiorentino", "Monte Giardino", "Poggio di Chiesanuova", "San Marino", "Serravalle"]
+        "cities": [
+            "Acquaviva",
+            "Borgo Maggiore",
+            "Domagnano",
+            "Faetano",
+            "Fiorentino",
+            "Monte Giardino",
+            "Poggio di Chiesanuova",
+            "San Marino",
+            "Serravalle"
+        ]
     },
-    { "name": "Sao Tome and Principe", "cities": ["Cantagalo District", "Caué District", "Santo António", "São Tomé", "Trindade"] },
+    {
+        "name": "Sao Tome and Principe",
+        "cities": ["Cantagalo District", "Caué District", "Santo António", "São Tomé", "Trindade"]
+    },
     {
         "name": "Saudi Arabia",
         "cities": [
@@ -108591,7 +108742,19 @@
             "Zvečka"
         ]
     },
-    { "name": "Seychelles", "cities": ["Anse Boileau", "Anse Royale", "Beau Vallon", "Bel Ombre", "Cascade", "Port Glaud", "Takamaka", "Victoria"] },
+    {
+        "name": "Seychelles",
+        "cities": [
+            "Anse Boileau",
+            "Anse Royale",
+            "Beau Vallon",
+            "Bel Ombre",
+            "Cascade",
+            "Port Glaud",
+            "Takamaka",
+            "Victoria"
+        ]
+    },
     {
         "name": "Sierra Leone",
         "cities": [
@@ -122872,7 +123035,10 @@
         ]
     },
     { "name": "Tokelau", "cities": [] },
-    { "name": "Tonga", "cities": ["‘Ohonua", "Haveluloto", "Hihifo", "Kolonga", "Neiafu", "Nuku‘alofa", "Pangai", "Vaini"] },
+    {
+        "name": "Tonga",
+        "cities": ["‘Ohonua", "Haveluloto", "Hihifo", "Kolonga", "Neiafu", "Nuku‘alofa", "Pangai", "Vaini"]
+    },
     {
         "name": "Trinidad And Tobago",
         "cities": [

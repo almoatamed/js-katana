@@ -1,7 +1,5 @@
 import { $Enums } from "../../../../../../prisma/client/index.js";
 
-;
-
 const express = (await import("$/server/utils/express/index.js")).default;
 
 const router = express.Router();
@@ -27,7 +25,7 @@ router.post(
             response
                 .status(200)
                 .json({
-                    results: Object.values($Enums.UserType)
+                    results: Object.values($Enums.UserType),
                 })
                 .end();
         } catch (error) {

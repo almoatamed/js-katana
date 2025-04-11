@@ -12,7 +12,7 @@ class addressValidationRule implements RuleBase {
         }
     };
 
-    rule(value: any, params: null,  globalOptions: InternalGeneralOptions, t: Translate){
+    rule(value: any, params: null, globalOptions: InternalGeneralOptions, t: Translate) {
         if (typeof value != "string") {
             this.errorMsg = "[field] must be a string";
             return false;

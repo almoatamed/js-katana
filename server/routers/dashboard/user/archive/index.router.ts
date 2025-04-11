@@ -5,8 +5,6 @@ const authorize = (await import("$/server/middlewares/authorize.middleware.js"))
 
 const multirule = (await import("../../../../utils/rules/multirules.js")).default;
 
-;
-
 const express = (await import("$/server/utils/express/index.js")).default;
 
 const bcrypt = (await import("bcrypt")).default;

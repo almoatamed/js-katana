@@ -14,7 +14,6 @@ type OdooConfiguration = {
     apiKey: string;
 };
 
-
 const stockPickingMoveLineSample = {
     id: 38,
     pickingId: [5, "WH/OUT/00005"],
@@ -161,7 +160,7 @@ export const odoo = await define({
             console.log(url);
             return url;
         }
-    
+
         let clientCache = null as null | ReturnType<typeof createOdooXmlrpcClient>;
         let clientConfigCache: {
             db: string;
@@ -171,7 +170,7 @@ export const odoo = await define({
             port: number;
             secure: boolean;
         } | null = null;
-        
+
         async function getXmlRpcClient() {
             const config = await props.getConfiguration();
             const url = await getUrl();
@@ -191,13 +190,13 @@ export const odoo = await define({
             clientCache = odooClient;
             return odooClient;
         }
-    
+
         async function version() {
             const client = await getXmlRpcClient();
             const versionInfo = await client.version();
             return versionInfo;
         }
-    
+
         const stockPickingTypeBarcodeToIdMap = {
             "WH-DELIVERY": 2,
             "WH-RECEIPTS": 1,
@@ -209,10 +208,10 @@ export const odoo = await define({
             "CHIC1-DELIVERY": 7,
             "CHIC1-PICK": 8,
         };
-    
+
         async function getStockPickingByName(name: string, type?: keyof typeof stockPickingTypeBarcodeToIdMap) {
             const client = await getXmlRpcClient();
-    
+
             const pickingRecord = (
                 await client.executeKw({
                     method: "searchRead",
@@ -227,7 +226,7 @@ export const odoo = await define({
                     ],
                 })
             )?.[0] as typeof stockPickingSample;
-    
+
             const movesRecords: (typeof pickingMoveSample)[] = await client.executeKw({
                 method: "searchRead",
                 model: "stock.move",
@@ -235,7 +234,7 @@ export const odoo = await define({
                     [[["id", "in", pickingRecord.moveIds]].filter((e) => !!e)], // domain query
                 ],
             });
-    
+
             const movesWithLinesRecords = await Promise.all(
                 movesRecords.map(async (m) => {
                     const lines: (typeof stockPickingMoveLineSample)[] = await client.executeKw({
@@ -245,20 +244,20 @@ export const odoo = await define({
                             [[["id", "in", m.moveLineIds]].filter((e) => !!e)], // domain query
                         ],
                     });
-    
+
                     return {
                         ...m,
                         lines: lines,
                     };
                 }),
             );
-    
+
             return {
                 ...pickingRecord,
                 moves: movesWithLinesRecords,
             };
         }
-    
+
         return {
             getXmlRpcClient,
             version,

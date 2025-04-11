@@ -22,13 +22,17 @@ if (cluster.isPrimary) {
     }
 }
 
-const store = await makeThreadedJson<{
-    db: {
-        models: { [key: string]: string };
-        modelsArray: string[];
-        capModelsArray: string[];
-    };
-}, JSONSourceFilePath, Options<JSONSourceFilePath>>(jsonPath as JSONSourceFilePath, {
+const store = await makeThreadedJson<
+    {
+        db: {
+            models: { [key: string]: string };
+            modelsArray: string[];
+            capModelsArray: string[];
+        };
+    },
+    JSONSourceFilePath,
+    Options<JSONSourceFilePath>
+>(jsonPath as JSONSourceFilePath, {
     uniqueEventNumber: "dbModels",
     broadcastOnUpdate: true,
     lazy: false,

@@ -11,6 +11,7 @@
 
 import { HandlerFunction, R } from "$/server/utils/express/index.js";
 import zlib from "zlib";
+import { routerConfig } from "../../config/routing/index.js";
 import {
     ChannelDirectoryAliasDefaultExport,
     ChannelHandlerBeforeMounted,
@@ -26,7 +27,6 @@ import {
     middlewareSuffixRegx,
     routerSuffixRegx,
 } from "../routersHelpers/matchers.js";
-import { routerConfig } from "../../config/routing/index.js";
 const rootPaths = (await import("../dynamicConfiguration/rootPaths.js")).default;
 const express = (await import("$/server/utils/express/index.js")).default;
 const path = (await import("path")).default;
@@ -40,17 +40,19 @@ const aliases = [] as any;
 
 export async function getMiddlewaresArray(routerDirectory: string): Promise<HandlerFunction[]> {
     const content = fs.readdirSync(routerDirectory);
-    const middlewares = (await Promise.all(
-        content
-            .filter((f) => {
-                const fileStats = fs.statSync(path.join(routerDirectory, f));
-                return fileStats.isFile() && !!f.match(middlewareSuffixRegx);
-            })
-            .map(async (f) => {
-                const fullPath = path.join(routerDirectory, f);
-                return (await import(fullPath)).default;
-            }),
-    )).filter(e=>!!e);
+    const middlewares = (
+        await Promise.all(
+            content
+                .filter((f) => {
+                    const fileStats = fs.statSync(path.join(routerDirectory, f));
+                    return fileStats.isFile() && !!f.match(middlewareSuffixRegx);
+                })
+                .map(async (f) => {
+                    const fullPath = path.join(routerDirectory, f);
+                    return (await import(fullPath)).default;
+                }),
+        )
+    ).filter((e) => !!e);
     return middlewares;
 }
 
@@ -78,8 +80,8 @@ export default async function buildRouter(
                 false,
                 path.join(fullPrefix, item),
             );
-            const middlewares = (await getMiddlewaresArray(path.join(routerDirectory, item))).filter(e=>!!e);
-            
+            const middlewares = (await getMiddlewaresArray(path.join(routerDirectory, item))).filter((e) => !!e);
+
             if (middlewares?.length) {
                 router.use(`/${item}`, middlewares, subRouter);
             } else {
@@ -95,7 +97,7 @@ export default async function buildRouter(
                 if (routerName == "index") {
                     const routerInstance = (await import(routeFullPath)).default;
                     if (routerInstance) {
-                        console.log("route", path.join(Prefix))
+                        console.log("route", path.join(Prefix));
                         router.use(`/`, routerInstance);
                     }
 
@@ -116,7 +118,7 @@ export default async function buildRouter(
                 } else {
                     const subRouter = (await import(path.join(routerDirectory, item))).default;
                     if (subRouter) {
-                        console.log("route", path.join(Prefix, routerName))
+                        console.log("route", path.join(Prefix, routerName));
                         router.use(`/${routerName}`, subRouter);
                     }
                     const routerDescriptionRegx = RegExp(
@@ -316,9 +318,7 @@ async function processRouterForChannels(
         const loadedMiddlewares = await getChannelMiddlewaresArray(router.directoryFullPath);
         for (const middleware of loadedMiddlewares || []) {
             if (middleware.channelBeforeMounted) {
-                const foundBeforeMountedMiddleware = beforeMountedMiddlewares.find(
-                    (pbmm) => pbmm.path == fullPrefix,
-                );
+                const foundBeforeMountedMiddleware = beforeMountedMiddlewares.find((pbmm) => pbmm.path == fullPrefix);
                 if (foundBeforeMountedMiddleware) {
                     foundBeforeMountedMiddleware.middleware.push(middleware.channelBeforeMounted);
                 } else {

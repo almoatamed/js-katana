@@ -8,7 +8,33 @@ log("starting");
 const rules = (await import("./index.js")).default;
 log("imported rules util");
 
-export type RuleName = "title" | "number" | "datestring" | "email" | "name" | "timestamp" | "address" | "array" | "boolean" | "condition" | "description" | "exists" | "unique" | "json" | "latitude" | "longitude" | "phone" | "url" | "required" | "password" | "timestring" | "timezone" | "username" | "weekdaystring" | "in" | "hexadecimal";
+export type RuleName =
+    | "title"
+    | "number"
+    | "datestring"
+    | "email"
+    | "name"
+    | "timestamp"
+    | "address"
+    | "array"
+    | "boolean"
+    | "condition"
+    | "description"
+    | "exists"
+    | "unique"
+    | "json"
+    | "latitude"
+    | "longitude"
+    | "phone"
+    | "url"
+    | "required"
+    | "password"
+    | "timestring"
+    | "timezone"
+    | "username"
+    | "weekdaystring"
+    | "in"
+    | "hexadecimal";
 
 export type JSONRuleArray = [Array<RuleName>, String, String, RuleValidationParameters?, RuleSetterParameters?];
 
@@ -101,7 +127,11 @@ export interface GeneralOptions {
     lang?: import("$/server/utils/internationalization/index.js").LanguagesKey;
 }
 
-const multirule = async (validators: Multirules, options: undefined | GeneralOptions = undefined, _Recursive: boolean | null | undefined = false) => {
+const multirule = async (
+    validators: Multirules,
+    options: undefined | GeneralOptions = undefined,
+    _Recursive: boolean | null | undefined = false,
+) => {
     for (const validator of validators) {
         await rules({
             Rules: validator[0],
@@ -116,6 +146,6 @@ const multirule = async (validators: Multirules, options: undefined | GeneralOpt
     }
     return { valid: true, msg: "" };
 };
-export type MultirulesFunction = typeof multirule
+export type MultirulesFunction = typeof multirule;
 
 export default multirule;

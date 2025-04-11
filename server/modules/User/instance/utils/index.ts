@@ -1,7 +1,7 @@
-import { archive } from "./archive/index.js";
-import { updatePassword } from "./updatePassword/index.js";
-import { deactivate } from "./deactivate/index.js";
-import { updateSelf } from "./updateSelf/index.js";
 import { activateUser } from "./activate/index.js";
+import { archive } from "./archive/index.js";
+import { deactivate } from "./deactivate/index.js";
+import { updatePassword } from "./updatePassword/index.js";
+import { updateSelf } from "./updateSelf/index.js";
 
-export { archive, updatePassword, deactivate, updateSelf, activateUser, };
+export { activateUser, archive, deactivate, updatePassword, updateSelf };

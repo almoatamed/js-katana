@@ -9,8 +9,6 @@ const client = (await import("$/server/utils/database/prisma.js")).default;
 const multirules = (await import("../../../../../../../utils/rules/multirules.js")).default;
 
 // env
-;
-
 // authorities
 const authorities = (await import("$/server/modules/User/static/utils/authorities/index.js")).default;
 

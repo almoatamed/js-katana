@@ -3,8 +3,6 @@ import { recursiveSelect as rs } from "$/server/utils/common/index.js";
 import ExcelJS from "exceljs";
 import path from "path";
 
-
-
 const theme = {
     success: "#4CAF50",
     black: "#000000",
@@ -59,12 +57,7 @@ const theme = {
     accent: "#e91e63",
 };
 
-
-
-function processDataFromHeaders<T>(
-    data: T[],
-    headers: Array<Header<T>> | null,
-): XLSXData {
+function processDataFromHeaders<T>(data: T[], headers: Array<Header<T>> | null): XLSXData {
     const processedData: any[] = [];
     for (const row of data || []) {
         const processedRow = {} as any;
@@ -88,25 +81,24 @@ function processDataFromHeaders<T>(
 
 export interface Header<T = any> {
     text?: string;
-    boolean?: boolean; 
-    required?: boolean; 
-    number?: boolean; 
+    boolean?: boolean;
+    required?: boolean;
+    number?: boolean;
     list?: string[];
     href?: string | ((row: any) => string);
     value?: string | ((row: T) => string | number);
 }
 
-
 async function downloadXlsx<T>({
-    data, 
-    headers, 
+    data,
+    headers,
     fileName,
-    parentDirFullPath
+    parentDirFullPath,
 }: {
     headers?: Array<Header<T>> | null;
     fileName: string;
     data?: T[];
-    parentDirFullPath: string; 
+    parentDirFullPath: string;
 }) {
     const wb = new ExcelJS.Workbook();
 
@@ -183,12 +175,12 @@ async function downloadXlsx<T>({
             });
         }
     });
-    
+
     if (data) {
         if (headers?.length) {
             const processed = processDataFromHeaders<T>(data, headers);
-            worksheet.addRows(processed);            
-        }else{
+            worksheet.addRows(processed);
+        } else {
             worksheet.addRows(data);
         }
     }
@@ -199,10 +191,10 @@ async function downloadXlsx<T>({
             col.width = Number(col.width) > String(cell.value).length ? col.width : String(cell.value).length + 4;
         });
     });
-    const fullFilePath = path.join(parentDirFullPath,fileName )
-    await wb.xlsx.writeFile( fullFilePath, {
-        filename: fileName
-    } );
+    const fullFilePath = path.join(parentDirFullPath, fileName);
+    await wb.xlsx.writeFile(fullFilePath, {
+        filename: fileName,
+    });
 }
 
 type XLSXData = Array<{ [key: string | number]: string | number }>;

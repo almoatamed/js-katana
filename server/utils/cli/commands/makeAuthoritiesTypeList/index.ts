@@ -1,4 +1,3 @@
-
 const createCommand = (program: import("commander").Command) => {
     program
         .command("@authoritiesTypes")

@@ -1,4 +1,3 @@
-;
 import { Requester } from "../../../../../../utils/express/index.js";
 import grant from "./grant.js";
 

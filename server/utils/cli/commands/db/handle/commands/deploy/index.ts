@@ -26,7 +26,7 @@ const createCommand = (program: import("commander").Command) => {
             execSync(`rest db pg`, {
                 cwd: appPath,
                 stdio: "inherit",
-            }); 
+            });
         });
 };
 export { createCommand };

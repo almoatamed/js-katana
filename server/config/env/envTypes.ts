@@ -1,3 +1,3 @@
 export type EnvConfigType = {
-    getEnv(): "development" | "production"
-} 
+    getEnv(): "development" | "production";
+};

@@ -1,6 +1,6 @@
 import { encryptionConfig } from "../../config/encryption/index.js";
 import { HandlerFunction } from "../../utils/express/index.js";
-const multirules = (await import("../../utils/rules/multirules.js")).default
+const multirules = (await import("../../utils/rules/multirules.js")).default;
 
 const handlers: HandlerFunction[] = [
     async (request, response, next) => {
@@ -17,10 +17,10 @@ const handlers: HandlerFunction[] = [
                     },
                 ],
             ]);
-            next()
+            next();
         } catch (error: any) {
             next(error);
         }
     },
 ];
-export default handlers
+export default handlers;

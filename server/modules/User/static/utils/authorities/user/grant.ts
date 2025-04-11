@@ -1,4 +1,3 @@
-;
 import ObjectError from "$/server/utils/ObjectError/index.js";
 import { Requester } from "../../../../../../utils/express/index.js";
 import requesterFields from "../../../../../utils/requesterFields/index.js";

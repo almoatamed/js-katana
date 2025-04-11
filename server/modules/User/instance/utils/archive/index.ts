@@ -1,6 +1,5 @@
 import { User } from "$/prisma/client/index.js";
 
-;
 const client = (await import("$/server/utils/database/prisma.js")).default;
 
 export const archive = async (archivedBy: User | undefined | null = undefined, user: User) => {

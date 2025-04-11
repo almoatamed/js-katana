@@ -5,13 +5,10 @@ const fs = (await import("fs")).default;
 const url = (await import("url")).default;
 const path = (await import("path")).default;
 const cluster = (await import("cluster")).default;
-;
-
 const srcPath = rootPaths.srcPath;
 
 const loadStartup = async function (app, root = path.join(srcPath, "startup")) {
     const directoryContent = fs.readdirSync(root).sort();
-
 
     for (const item of directoryContent) {
         const itemAbsolutePath = path.join(root, item);

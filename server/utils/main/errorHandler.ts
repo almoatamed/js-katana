@@ -1,4 +1,3 @@
-;
 import { ErrorRequestHandler } from "express";
 import * as logUtil from "../log/index.js";
 import rm from "../storage/rm.js";
