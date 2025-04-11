@@ -8,6 +8,12 @@ export const envConfig: EnvConfigType = {
         if (isDev) {
             return "development";
         }
-        return "production";
+
+        const isProd = !!["prod", "p", "production", "produc","pro", "pr"].includes(env.toLowerCase());
+        if (isProd) {
+            return "production";
+        }
+
+        return "development";
     },
 };
