@@ -25,7 +25,9 @@ export const encryptionConfig: EncryptionConfig = {
         if (result) {
             return result;
         }
-        console.error("there is no description secret in your environment, please set DESCRIPTIONS_SECRET in your .env");
+        console.error(
+            "there is no description secret in your environment, please set DESCRIPTIONS_SECRET in your .env",
+        );
         process.exit(1);
     },
     getJwtOptions() {
@@ -34,5 +36,5 @@ export const encryptionConfig: EncryptionConfig = {
         };
     },
 };
-encryptionConfig.getJwtSecret()
-encryptionConfig.getDescriptionsSecret()
+encryptionConfig.getJwtSecret();
+encryptionConfig.getDescriptionsSecret();

@@ -141,8 +141,8 @@ export default async function buildRouter(
                 if (!!directoryAliasMatch) {
                     aliases.push(async () => {
                         let routerAlias = (await import(path.join(routerDirectory, item))).default;
-                        if(!routerAlias.startsWith("/")){
-                            routerAlias = "/" + routerAlias
+                        if (!routerAlias.startsWith("/")) {
+                            routerAlias = "/" + routerAlias;
                         }
                         const dirRouter = directoryRoutersAlieses[routerAlias];
                         if (!dirRouter) {

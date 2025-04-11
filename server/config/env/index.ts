@@ -9,11 +9,11 @@ export const envConfig: EnvConfigType = {
             return "development";
         }
 
-        const isProd = !!["prod", "p", "production", "produc","pro", "pr"].includes(env.toLowerCase());
+        const isProd = !!["prod", "p", "production", "produc", "pro", "pr"].includes(env.toLowerCase());
         if (isProd) {
             return "production";
         }
-        console.warn("ENV variable not set in environment variables")
+        console.warn("ENV variable not set in environment variables");
         return "development";
     },
 };

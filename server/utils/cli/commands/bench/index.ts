@@ -8,9 +8,9 @@ const createCommand = (program: import("commander").Command) => {
         .description("use it to run performance benchmarks")
         .option("-p, --pattern <value>", "pattern to filter benchmarks with with", "")
         .action(async ({ pattern }) => {
-            if(!pattern){
-                console.error("No pattern provided")
-                return
+            if (!pattern) {
+                console.error("No pattern provided");
+                return;
             }
             execSync(`rest l && NODE_ENV=test npx vitest bench ${pattern} --watch=false`, {
                 stdio: "inherit",
