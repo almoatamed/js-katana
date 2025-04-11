@@ -13,7 +13,7 @@ export const envConfig: EnvConfigType = {
         if (isProd) {
             return "production";
         }
-
+        console.warn("ENV variable not set in environment variables")
         return "development";
     },
 };
