@@ -1,41 +1,36 @@
 <!-- --start-- /dashboard/user/fetch/all/ -->
 
-# Route Description
-
+# Route Description 
 No description Text Provided
 
-## Route Path:
-
+## Route Path: 
 /dashboard/user/fetch/all/
 
 ## Route Method:
-
 post
 
-## route Request Headers type definition:
 
+
+
+## route Request Headers type definition:
 ```ts
-type RequestHeader = any;
+type RequestHeader = any
 ```
 
 ## route Request Params type definition:
-
 ```ts
-type RequestQueryParams = any;
+type RequestQueryParams = any
 ```
 
 ## route Request Body type definition:
-
 ```ts
-type RequestBody = any;
+type RequestBody = any
 ```
 
-## Response Content Mimetype:
-
+## Response Content Mimetype: 
 application/json
 
-## Response Content Type Definition:
-
+## Response Content Type Definition: 
 ```ts
 type Response = {
     results: {
@@ -65,7 +60,9 @@ type Response = {
         userType: $Enums.usersTypes;
         nearestPoint: string | null;
     }[];
-};
+}
 ```
+
+
 
 <!-- --end-- /dashboard/user/fetch/all/ -->

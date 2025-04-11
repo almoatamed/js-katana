@@ -25,7 +25,7 @@ const createCommand = (program: import("commander").Command) => {
         .description("use it to remove all markdown descriptions file for routers")
         .action(async () => {
             const routerFullDirectoryPath = path.join(srcPath, routerConfig.getRouterDirectory());
-            const descriptionRegex = RegExp(routerConfig.getRouterSuffixRegx());
+            const descriptionRegex = RegExp(routerConfig.getDescriptionSuffixRegx());
             removeMarkdownDescriptions(routerFullDirectoryPath, descriptionRegex);
 
             process.exit(0);
