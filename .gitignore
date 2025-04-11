@@ -60,4 +60,4 @@ server/public/uploads
 
 
 prisma/client
-prisma/main_schema.prisma
+prisma/mainSchema.prisma
