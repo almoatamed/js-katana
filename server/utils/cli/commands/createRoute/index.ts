@@ -7,7 +7,7 @@ const fs = (await import("fs")).default;
 
 const srcPath = path.resolve(path.join(path.dirname(url.fileURLToPath(import.meta.url)), "../../../../."));
 
-const routerDirPath = path.join(srcPath, routerConfig.getEmptyRoutePath());
+const routerDirPath = path.join(srcPath, routerConfig.getRouterDirectory());
 const emptyRoutePath = !routerConfig.getEmptyRoutePath() ? path.join(routerDirPath, "emptyRoute.ts") : path.join(srcPath, routerConfig.getEmptyRoutePath());
 
 const createCommand = (program: import("commander").Command) => {
