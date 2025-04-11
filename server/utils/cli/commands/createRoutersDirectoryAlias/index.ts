@@ -3,11 +3,11 @@ import { InvalidArgumentError } from "commander";
 import path from "path";
 import { routerConfig } from "../../../../config/routing/index.js";
 import logger from "../../logger.js";
-import { appPath } from "../../utils/appPath/index.js";
+import { srcPath } from "../../utils/srcPath/index.js";
 
 const fs = (await import("fs")).default;
 
-const routerDirPath = path.join(appPath, routerConfig.getRouterDirectory());
+const routerDirPath = path.join(srcPath, routerConfig.getRouterDirectory());
 
 /**
  *
@@ -35,7 +35,7 @@ const createCommand = (program: import("commander").Command) => {
 
                 if (!fs.existsSync(fullSourceRouterDirectory)) {
                     throw new InvalidArgumentError(
-                        `${sourceRouterDirectory} does not exists, please make sure its valid`,
+                        `${fullSourceRouterDirectory} does not exists, please make sure its valid`,
                     );
                 }
 
