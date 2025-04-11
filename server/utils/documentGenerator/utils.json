@@ -1,0 +1,17 @@
+{
+    "name": "rest-document_generator",
+    "deps": {
+        "rest-common": {
+            "owner": "tripoliDevs",
+            "repo": "rest-common",
+            "update_policy": "major",
+            "version": "0.3.2"
+        }
+    },
+    "public_repo": false,
+    "owner": "tripoliDevs",
+    "private": false,
+    "hash": "h-04n9Apl0u_kDT4ldqXkD2KkyPNqsu9W8so8o8D2tQ",
+    "version": "0.3.0",
+    "description": ""
+}

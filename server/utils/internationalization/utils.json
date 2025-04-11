@@ -1,0 +1,17 @@
+{
+    "name": "rest-internationalization",
+    "owner": "tripoliDevs",
+    "deps": {
+        "rest-common": {
+            "owner": "tripoliDevs",
+            "repo": "rest-common",
+            "update_policy": "major",
+            "version": "0.2.0"
+        }
+    },
+    "public_repo": false,
+    "private": false,
+    "hash": "6G79bYqTuHBjwArRtdweow546OunAJqUn0YPhSB5tjQ",
+    "version": "0.4.0",
+    "description": ""
+}

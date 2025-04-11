@@ -1,0 +1,23 @@
+{
+    "name": "rest-render_engine",
+    "deps": {
+        "rest-storage": {
+            "owner": "tripoliDevs",
+            "repo": "rest-storage",
+            "version": "0.2.0",
+            "update_policy": "minor"
+        },
+        "rest-log": {
+            "owner": "tripoliDevs",
+            "repo": "rest-log",
+            "update_policy": "major",
+            "version": "0.1.0"
+        }
+    },
+    "public_repo": false,
+    "private": false,
+    "owner": "tripoliDevs",
+    "hash": "lfxperKq0h6nL1FMQjQucid0UNCevmtpnjw0R3cMCTo",
+    "version": "0.5.0",
+    "description": ""
+}

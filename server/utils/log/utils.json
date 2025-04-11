@@ -1,0 +1,29 @@
+{
+    "name": "rest-log",
+    "deps": {
+        "rest-log": {
+            "owner": "tripoliDevs",
+            "repo": "rest-log",
+            "update_policy": "major",
+            "version": "0.1.0"
+        },
+        "rest-common": {
+            "owner": "tripoliDevs",
+            "repo": "rest-common",
+            "update_policy": "major",
+            "version": "0.1.0"
+        },
+        "rest-ObjectError": {
+            "owner": "tripoliDevs",
+            "repo": "rest-ObjectError",
+            "update_policy": "major",
+            "version": "0.1.0"
+        }
+    },
+    "owner": "tripoliDevs",
+    "private": false,
+    "public_repo": false,
+    "hash": "EDr-mSmgEvZSTDNIxu_0LyEK3ew2B-fW37B7G1IUkaw",
+    "version": "0.3.0",
+    "description": ""
+}

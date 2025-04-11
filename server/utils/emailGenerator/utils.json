@@ -1,0 +1,17 @@
+{
+    "name": "rest-email_generator",
+    "deps": {
+        "rest-render_engine": {
+            "owner": "tripoliDevs",
+            "repo": "rest-render_engine",
+            "update_policy": "major",
+            "version": "0.1.0"
+        }
+    },
+    "owner": "tripoliDevs",
+    "private": false,
+    "public_repo": false,
+    "hash": "NLDwRI2P02aFCoqR6SJYfvSjxk1UjatfauQvBUg5dmA",
+    "version": "0.2.2",
+    "description": ""
+}

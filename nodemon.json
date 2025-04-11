@@ -1,0 +1,6 @@
+{
+    "ignore": ["*.json", "notes/*", "prisma/*", "nginx/*", ".vscode/*", "node_modules/*", "JsDoc/*", "public/*", "assets/*"],
+    "watch": ["server"],
+    "ext": ".ts,.js",
+    "exec": "bun ./server/index.ts"
+}

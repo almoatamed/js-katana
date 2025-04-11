@@ -1,0 +1,401 @@
+<!DOCTYPE HTML
+    PUBLIC "-//W3C//DTD XHTML 1.0 Transitional //EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml"
+    xmlns:o="urn:schemas-microsoft-com:office:office">
+
+<head>
+    <!-- [if gte mso 9]>
+            <xml>
+                <o:OfficeDocumentSettings>
+                    <o:AllowPNG/>
+                    <o:PixelsPerInch>96</o:PixelsPerInch>
+                </o:OfficeDocumentSettings>
+            </xml>
+        <![endif] -->
+
+    <!--[if !mso]><!-->
+    <!--<![endif]-->
+
+
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="x-apple-disable-message-reformatting">
+    <!--[if !mso]><!-->
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <!--<![endif]-->
+    <title></title>
+
+    <style type="text/css">
+        @media print {
+
+
+
+
+
+            body,
+            html {
+                print-color-adjust: exact;
+                -webkit-print-color-adjust: exact;
+            }
+
+            .pagebreak {
+                display: block;
+                height: 0.01cm;
+                page-break-inside: avoid;
+                page-break-before: avoid;
+                page-break-after: always;
+            }
+
+
+            p {
+                margin: 0;
+            }
+
+
+            * {
+                line-height: inherit;
+            }
+
+            a[x-apple-data-detectors='true'] {
+                color: inherit !important;
+                text-decoration: none !important;
+            }
+
+            .cover-page {
+                height: 100%;
+                width: 100%;
+                position: relative;
+            }
+
+            .cover-page>* {
+                margin: 0;
+                height: 100%;
+                width: 100%;
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+            }
+
+            .card {
+                width: 100%;
+                padding: 4px;
+            }
+
+            .card .title {
+                text-align: left;
+                width: 100%;
+            }
+
+
+            .pagebreak {
+                display: block;
+                height: 0.01cm;
+                page-break-inside: avoid;
+                page-break-after: always;
+            }
+        }
+
+        .page {
+            padding: 0px;
+
+            display: flex;
+            flex-direction: column;
+        }
+
+
+        .table {
+            position: relative;
+            border-collapse: collapse;
+            border-radius: 8px;
+            margin-top: 8px;
+            margin-bottom: 16px;
+            width: 100%;
+        }
+
+
+        .table-header {
+            background: #e9e9eB
+        }
+
+        .table-header th:first-of-type {
+            border-top-right-radius: 12px
+        }
+
+        .table-header th {
+            padding: 8px 8px;
+            font-size: 13px;
+            line-height: 14px;
+            color: #2F3640;
+            font-weight: 600;
+            border-left: solid rgba(0, 0, 0, 0.2) 1px
+        }
+
+        .table-header th>div {
+            display: flex;
+            align-content: center;
+            justify-content: center;
+            width: 100%;
+        }
+
+        .table-header th>div .v-input--checkbox {
+            margin: 0px;
+            margin-bottom: 4px;
+            margin-right: 4px;
+        }
+
+        .table-header th:last-of-type {
+            border-top-left-radius: 12px;
+            border-left: none;
+        }
+
+
+        .table-row {
+            break-inside: avoid;
+        }
+
+        .table-row td {
+            break-inside: avoid;
+            padding: 4px;
+            border-left: solid rgba(0, 0, 0, 0.2) 1px;
+            border-bottom: solid rgba(0, 0, 0, 0.2) 1px;
+        }
+
+
+        .table-row td * {
+            font-size: 12px;
+            line-height: 13px;
+        }
+
+        .table-row td>div {
+            font-size: 12px;
+            line-height: 13px;
+            display: flex;
+            align-content: center;
+            justify-content: center;
+            width: 100%;
+        }
+
+        .table-row td>div .v-input--checkbox {
+            margin: 0px;
+            margin-bottom: 4px;
+            margin-right: 4px;
+        }
+
+        .table-row td:last-of-type {
+            border-left: none;
+        }
+
+        * {
+            word-wrap: normal;
+            line-break: loose;
+            -ms-line-break: normal;
+        }
+
+
+        .table-row-red {
+            background-color: #ff000022;
+        }
+
+        .table-row-yellow {
+            background-color: #ffff0022;
+        }
+
+        .table-row-blue {
+            background-color: #064c7022;
+        }
+
+        .table-row-green {
+            background-color: #00ff0022;
+        }
+    </style>
+
+
+
+</head>
+
+<body class="">
+
+    <a-define-section [table]>
+        <table class="table" %%style [$.style, true] %%>
+            <thead>
+                <tr class="table-header">
+                    <a-for [header] array="$.headers">
+                        <th>
+                            {{ $.header.text }}
+                        </th>
+                    </a-for>
+                </tr>
+            </thead>
+
+            <tbody>
+                <a-for1 [item] array="$.data">
+                    <tr class="table-row {{($.item.classes || []).join(' ')}}">
+                        <a-for2 [header] array="$.root.headers">
+                            <td>
+                                <a-if condition="$.header.href">
+                                    <div>
+                                        <a style="
+                                                text-transform: uppercase;
+                                                text-decoration: none;
+                                                color: #427fed;
+                                            " href="{{$.root.item[$.header.text]}}" target="_blank">
+                                            {{ $.header.text}}
+                                        </a>
+                                    </div>
+                                    <a-else />
+                                    <div>
+                                        <span>
+                                            {{$.root.item[$.header.text]}}
+                                        </span>
+                                    </div>
+                                </a-if>
+                            </td>
+                        </a-for2>
+                    </tr>
+                </a-for1>
+            </tbody>
+        </table>
+    </a-define-section [table]>
+
+    <a-define-section [header]>
+        <div %%style [$.style.main, true ] %%>
+            <a-if condition="!!$.hrTop">
+                <hr %%style [$.style.hr , true] %%>
+            </a-if>
+            <div %%style [$.style.container, true ] %%>
+                <div %%style [$.style.left, true ] %%>
+                    <a-if condition="!!$.left && Array.isArray($.left)">
+                        <a-section [$.left]>
+                    </a-if>
+                </div>
+                <div %%style [$.style.center, true ] %%>
+                    <a-if condition="!!$.center && Array.isArray($.center)">
+                        <a-section [$.center]>
+                    </a-if>
+                </div>
+                <div %%style [$.style.right, true ] %%>
+                    <a-if condition="!!$.right && Array.isArray($.right)">
+                        <a-section [$.right]>
+                    </a-if>
+                </div>
+            </div>
+            <a-if condition="!!$.hrBottom">
+                <hr %%style [$.style.hr , true] %%>
+            </a-if>
+
+        </div>
+    </a-define-section [header]>
+
+    <a-define-section [page-div]>
+        <a-if condition="!!$.header">
+            <a-section [$.header]>
+        </a-if>
+        <a-for [page, i] array="$.pages">
+            <div class="page" %%style [($.page.style || $.root.style?.pageContent ), true ] %%>
+                <a-section [$.page.content]>
+            </div>
+
+            <a-if condition="$.i < $.root.pages.length - 1">
+                <div class="pagebreak"></div>
+                <a-else />
+                <a-section [$.root.footer]>
+            </a-if>
+        </a-for>
+    </a-define-section [page-div]>
+
+    <a-define-section [h1]>
+        <h1 %%style [$.style, true ] %%>
+            {{$.text}}
+        </h1>
+    </a-define-section [h1]>
+
+    <a-define-section [hr]>
+        <hr %%style [$.style , true] %%>
+    </a-define-section [hr]>
+
+
+    <a-define-section [newline]>
+        <a-for [line] array="Array($.style.count || 1)">
+            <br>
+        </a-for>
+    </a-define-section [newline]>
+
+    <a-define-section [title]>
+        <div %%style [$.style, true] %%>
+            <p>{{$.data.text}}</p>
+        </div>
+    </a-define-section [title]>
+
+
+    <a-define-section [p]>
+        <p %%style [$.style, true] %% class="{{($.classes || []).join(' ')}}">
+            {{$.text || ''}}
+        </p>
+    </a-define-section [p]>
+
+
+    <a-define-section [img]>
+        <img %%style [$.style, true] %% src="{{$.src}}" title="{{$.title || ''}}"
+            class="{{($.classes || []).join(' ')}}" />
+    </a-define-section [img]>
+
+    <a-define-section [span]>
+        <span %%style [$.style, true] %% class="{{($.classes || []).join(' ')}}">
+            {{$.text || ''}}
+        </span>
+    </a-define-section [span]>
+
+
+    <a-define-section [div]>
+        <div %%style [$.style, true] %%>
+            <a-section [$.content]>
+        </div>
+    </a-define-section [div]>
+
+    <a-define-section [tfoot]>
+        <tfoot %%style [$.style, true] %%>
+            <a-section [$.content]>
+        </tfoot>
+    </a-define-section [tfoot]>
+
+
+    <a-define-section [thead]>
+        <thead %%style [$.style, true] %%>
+            <a-section [$.content]>
+        </thead>
+    </a-define-section [thead]>
+
+    <a-define-section [tbody]>
+        <tbody %%style [$.style, true] %%>
+            <a-section [$.content]>
+        </tbody>
+    </a-define-section [tbody]>
+
+    <a-define-section [td]>
+        <td %%style [$.style, true] %%>
+            <a-section [$.content]>
+        </td>
+    </a-define-section [td]>
+
+    <a-define-section [th]>
+        <th %%style [$.style, true] %%>
+            <a-section [$.content]>
+        </th>
+    </a-define-section [th]>
+
+
+    <a-define-section [tr]>
+        <tr %%style [$.style, true] %%>
+            <a-section [$.content]>
+        </tr>
+    </a-define-section [tr]>
+
+
+
+    <a-define-section [pageBreak]>
+        <div class="pagebreak"></div>
+    </a-define-section [pageBreak]>
+</body>
+
+</html>

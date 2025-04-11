@@ -1,0 +1,19 @@
+{
+    "extends": "@tsconfig/node23/tsconfig.json",
+    "compilerOptions": {
+        "allowJs": true,
+        "resolveJsonModule": true,
+        "checkJs": true,
+        "outDir": "dist",
+        "rootDir": "server",
+        "module": "NodeNext",
+        "moduleResolution": "NodeNext",
+        "noImplicitAny": false,
+        "skipLibCheck": true,
+        "forceConsistentCasingInFileNames": true,
+        "declaration": true,     
+        "types": ["bun-types"]
+    },
+    "include": ["server/**/*"],
+    "exclude": ["node_modules", ".env.json", "server/**/*.test.ts", "server/**/*.test.js", "dist"]
+}

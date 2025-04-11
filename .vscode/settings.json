@@ -1,0 +1,113 @@
+{
+    "cSpell.words": [
+        "abmm",
+        "alhakeem",
+        "alieses",
+        "aram",
+        "argb",
+        "ARRAYAGG",
+        "autoincrement",
+        "basetag",
+        "bunx",
+        "clampedmodel",
+        "color",
+        "datasource",
+        "dataurl",
+        "datestring",
+        "datetime",
+        "doesnt",
+        "dont",
+        "elmotamed",
+        "epcs",
+        "exceljs",
+        "fkey",
+        "fmaiconsecondary",
+        "fmared",
+        "fmasecondary",
+        "formater",
+        "freezed",
+        "honepage",
+        "htmls",
+        "ibfk",
+        "jspdf",
+        "Kufi",
+        "llog",
+        "lockb",
+        "mimetypes",
+        "mqtt",
+        "msedge",
+        "multirule",
+        "multirules",
+        "mysqlstring",
+        "nocheck",
+        "noice",
+        "otps",
+        "packagings",
+        "pbmm",
+        "prismock",
+        "Reem",
+        "regx",
+        "rmrmd",
+        "salesreps",
+        "salwa",
+        "Sema",
+        "startdate",
+        "swcconfig",
+        "swcrc",
+        "tarif",
+        "tarifs",
+        "timedatectl",
+        "timestring",
+        "timezone",
+        "Tousers",
+        "transportations",
+        "TripoliDevs",
+        "unauth",
+        "uncancel",
+        "unfreezed",
+        "Unfreezed",
+        "uroot",
+        "weekdaystring",
+        "wifi",
+        "wkhtmltox",
+        "رواتب",
+        "فاتورة"
+    ],
+    "json.schemas": [
+        {
+            "fileMatch": ["env.json"],
+            "url": "/.vscode/json_schemas/env_schema/index.json"
+        },
+        {
+            "fileMatch": ["*.lang.json"],
+            "url": "/.vscode/json_schemas/language_schema/index.json"
+        }, 
+        {
+            "fileMatch": ["package.json"], 
+            "url": "/.vscode/json_schemas/packageDotJson/index.json"
+        }, 
+        {
+            "fileMatch": ["utils.json"], 
+            "url": "/.vscode/json_schemas/verdeUtility/index.json"
+        }
+    ],
+    "cSpell.enableFiletypes": ["prisma"],
+    "cSpell.language": "ar,en-GB",
+    "cSpell.ignoreWords": ["Odoo", "asdfkljghasdfoigasioygdfaosigfio", "ydsftg"],
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "[prisma]": {
+        "editor.defaultFormatter": "Prisma.prisma"
+    },
+    "[json]": {
+        "editor.defaultFormatter": "esbenp.prettier-vscode"
+    },
+    "[typescript]": {
+        "editor.defaultFormatter": "esbenp.prettier-vscode"
+    },
+    "[html]": {
+        "editor.defaultFormatter": "vscode.html-language-features"
+    }, 
+    "files.watcherExclude": {
+        "**/dist/**": true
+    }
+}

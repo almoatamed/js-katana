@@ -1,0 +1,17 @@
+{
+    "name": "rest-dynamic_json",
+    "deps": {
+        "rest-common": {
+            "owner": "tripoliDevs",
+            "repo": "rest-common",
+            "update_policy": "major",
+            "version": "0.3.2"
+        }
+    },
+    "public_repo": false,
+    "private": false,
+    "owner": "tripoliDevs",
+    "hash": "Oqg1ZquS1KUdgIEZOoZd-Z3KLnO8mNIyhva0TPNzYLw",
+    "version": "0.2.2",
+    "description": ""
+}

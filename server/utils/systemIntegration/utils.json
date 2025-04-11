@@ -1,0 +1,41 @@
+{
+    "name": "rest-system_integration",
+    "deps": {
+        "rest-log": {
+            "owner": "tripoliDevs",
+            "repo": "rest-log",
+            "update_policy": "major",
+            "version": "0.1.0"
+        },
+        "rest-cli": {
+            "owner": "tripoliDevs",
+            "repo": "rest-cli",
+            "update_policy": "major",
+            "version": "0.1.0"
+        },
+        "rest-crypto": {
+            "owner": "tripoliDevs",
+            "repo": "rest-crypto",
+            "update_policy": "major",
+            "version": "0.1.0"
+        },
+        "rest-ObjectError": {
+            "owner": "tripoliDevs",
+            "repo": "rest-ObjectError",
+            "update_policy": "major",
+            "version": "0.1.0"
+        },
+        "rest-use_api": {
+            "owner": "tripoliDevs",
+            "repo": "rest-use_api",
+            "update_policy": "major",
+            "version": "0.1.0"
+        }
+    },
+    "private": false,
+    "owner": "tripoliDevs",
+    "hash": "AM4HKd_FPtZAmazBHllX4cGbBwArlnKWPlKHtMc9E-M",
+    "version": "0.2.2",
+    "public_repo": false,
+    "description": ""
+}

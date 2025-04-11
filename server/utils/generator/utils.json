@@ -1,0 +1,17 @@
+{
+    "name": "rest-generator",
+    "deps": {
+        "rest-utility_builder": {
+            "owner": "tripoliDevs",
+            "repo": "rest-utility_builder",
+            "update_policy": "major",
+            "version": "0.2.0"
+        }
+    },
+    "public_repo": false,
+    "owner": "tripoliDevs",
+    "private": false,
+    "hash": "EyJnxU2_hq077Qw9cMVZr2tCqAZ29BpLX9vjOxgA9Lk",
+    "version": "0.2.2",
+    "description": ""
+}

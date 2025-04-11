@@ -1,0 +1,63 @@
+.DS_Store
+node_modules
+node_modules/*
+# /dist
+/scripts
+/.now
+dist
+/database/backup/*.sql
+# Tests
+/tests/e2e/videos/
+.env.json
+/tests/e2e/screenshots/
+# /*.test
+# **/test.*
+# *.test.* 
+# test.*
+# local env files
+**/*.ignore
+!.ignore
+server/scripts
+
+# Tempor
+**/temp_*
+**/temp.*
+**/temporary*
+
+
+# env
+.env
+.env.local
+.env.*.local
+
+# Email
+email.conf.js
+nohup.out
+# Log files
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Editor directories and files
+.idea
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw*
+.release-it.json
+now.json
+
+*/**/JsDoc/assets/*
+/dist/utils/JsDoc/assets/*.js
+
+.vercel
+temporary*
+
+
+server/public/uploads/*
+server/public/uploads
+
+
+prisma/client
+prisma/main_schema.prisma
