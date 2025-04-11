@@ -27,9 +27,11 @@ class ObjectError extends Error {
      *   }} error
      * @param {import("../internationalization/index.js").LanguagesKey} [languageKey]
      */
-    constructor(error, languageKey) {
+    constructor(error, languageKey, dontLog=false) {
         super();
-        console.log(error);
+        if(!dontLog){
+            console.log(error);            
+        }
         try {
             if (error?.error) {
                 if (languageKey) {

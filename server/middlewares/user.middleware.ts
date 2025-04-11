@@ -7,7 +7,6 @@ import User from "../modules/User/index.js";
 import ObjectError from "../utils/ObjectError/index.js";
 
 const jwt = (await import("$/server/utils/jwt/index.js")).default;
-// ;
 
 export type AuthenticatedUser = Requester;
 
@@ -16,10 +15,14 @@ interface AuthOptions {
     reject?: Array<prisma.UserType>;
 }
 
-const unauthError = new ObjectError({
-    error: { name: "unauthorized", msg: "unauthorized action" },
-    statusCode: 401,
-});
+const unauthError = new ObjectError(
+    {
+        error: { name: "unauthorized", msg: "unauthorized action" },
+        statusCode: 401,
+    },
+    undefined,
+    true,
+);
 
 type UseTokenOpts = {};
 
@@ -244,7 +247,7 @@ const obj = {
         next: NextFunction,
     ): Promise<HandlerFunction | void> {
         if (arguments.length == 1) {
-            return createHandler(options as any);
+            return createHandler(arguments[0]);
         }
 
         const req = arguments[0];
