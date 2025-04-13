@@ -33,7 +33,7 @@ const store = await makeThreadedJson<
     JSONSourceFilePath,
     Options<JSONSourceFilePath>
 >(jsonPath as JSONSourceFilePath, {
-    uniqueEventNumber: "dbModels",
+    uniqueEventId: "dbModels",
     broadcastOnUpdate: true,
     lazy: false,
 });

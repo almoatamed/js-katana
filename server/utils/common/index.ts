@@ -4,6 +4,7 @@ import path from "path";
 import URL from "url";
 import { ArgumentsType } from "vitest";
 import { routerConfig } from "../../config/routing/index.js";
+import { UnwrapPromise } from "../../../prisma/client/runtime/library.js";
 const axios = (await import("axios")).default;
 
 export const numberToI32Hex = (number: number) => number.toString(16).slice(-8).padStart(8, "0");
@@ -207,7 +208,7 @@ export const lockMethod = function <T extends (...args: any[]) => any>(
         lockName: string;
         lockTimeout?: number;
     },
-): (...args: ArgumentsType<T>) => Promise<ReturnType<T>> {
+): (...args: ArgumentsType<T>) => Promise<UnwrapPromise<ReturnType<T>>> {
     const originalMethod = method;
     return async function (...args: any[]) {
         return new Promise(async (resolve, reject) => {

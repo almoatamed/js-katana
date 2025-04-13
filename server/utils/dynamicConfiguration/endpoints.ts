@@ -2,7 +2,7 @@ import makeThreadedJson, { JSONSourceFilePath, Options } from "$/server/utils/dy
 import cluster from "cluster";
 import fs from "fs";
 import url from "url";
-const jsonPath = url.fileURLToPath(new url.URL(`./endpoints.json`, import.meta.url));
+const jsonPath = url.fileURLToPath(new url.URL(`./endpoints.json`, import.meta.url)) as JSONSourceFilePath;
 
 if (cluster.isPrimary) {
     if (!fs.existsSync(jsonPath)) {
@@ -31,8 +31,8 @@ const store = await makeThreadedJson<
     },
     JSONSourceFilePath,
     Options<JSONSourceFilePath>
->(jsonPath as JSONSourceFilePath, {
-    uniqueEventNumber: "endPoints",
+>(jsonPath, {
+    uniqueEventId: "endPoints",
     broadcastOnUpdate: true,
     lazy: false,
 });

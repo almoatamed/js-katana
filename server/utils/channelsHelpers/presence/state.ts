@@ -38,7 +38,7 @@ const initialUsersSocketsState = {
 
 const usersSocketsState = await makeThreadedJson(initialUsersSocketsState, {
     lazy: true,
-    uniqueEventNumber: "usersSocketState",
+    uniqueEventId: "usersSocketState",
     broadcastOnUpdate: false,
 });
 

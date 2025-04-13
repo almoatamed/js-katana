@@ -146,7 +146,7 @@ main.json
         getMainConfigFilePath(),
         {
             lazy: false,
-            uniqueEventNumber: `systemIntegrationInstance:${systemDefinition.definitionId}`,
+            uniqueEventId: `systemIntegrationInstance:${systemDefinition.definitionId}`,
             broadcastOnUpdate: false,
         },
     );
@@ -240,7 +240,7 @@ main.json
         const instancePaths = getInstanceConfigurationFilePath(id);
         const instanceConfigThreadedJson = await makeThreadedJson(instancePaths.configFullPath, {
             broadcastOnUpdate: false,
-            uniqueEventNumber: `connectionInstance:${systemDefinition.definitionId}:${id}:config`,
+            uniqueEventId: `connectionInstance:${systemDefinition.definitionId}:${id}:config`,
         });
         const instanceStatusThreadedJson = await makeThreadedJson(
             {
@@ -248,7 +248,7 @@ main.json
             },
             {
                 filePath: path.join(instancePaths.directory, "status.json") as JSONSourceFilePath,
-                uniqueEventNumber: `connectionInstance:${systemDefinition.definitionId}:${id}:status`,
+                uniqueEventId: `connectionInstance:${systemDefinition.definitionId}:${id}:status`,
                 lazy: false,
                 broadcastOnUpdate: false,
             },

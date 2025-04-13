@@ -104,7 +104,7 @@ export const createPresenceTracker = async <
     };
 
     const recordsState = await makeThreadedJson(initialRecordsState, {
-        uniqueEventNumber: props.id,
+        uniqueEventId: props.id,
         broadcastOnUpdate: false,
         lazy: true,
     });

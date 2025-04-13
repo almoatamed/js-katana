@@ -1,10 +1,14 @@
+import { createAdapter as createRedisAdapter } from "@socket.io/redis-adapter";
 import cluster from "cluster";
+import http from "http";
 import { pid } from "process";
 import { Server, Socket } from "socket.io";
 import { fileURLToPath } from "url";
+import { redisConfig } from "../../config/redis/index.js";
 import { routerConfig } from "../../config/routing/index.js";
+import { redisClient } from "../redis/index.js";
 const { setupMaster, setupWorker } = await import("@socket.io/sticky");
-const { createAdapter, setupPrimary } = await import("@socket.io/cluster-adapter");
+const { createAdapter: createClusterAdapter, setupPrimary } = await import("@socket.io/cluster-adapter");
 
 const path = (await import("path")).default;
 const fs = (await import("fs")).default;
@@ -372,7 +376,7 @@ export const emitToRoom = (room: string, event: string, ...arg: any[]) => {
     io.to(room).emit(event, ...arg);
 };
 
-export const run = (httpServer) => {
+export const run = (httpServer: http.Server) => {
     io = new Server(httpServer, {
         path: routerConfig.getSocketPrefix(),
         cors: {
@@ -391,11 +395,16 @@ export const run = (httpServer) => {
             },
         },
     });
+    if (redisConfig.useRedis()) {
+        const pub = redisClient.duplicate();
+        const sub = redisClient.duplicate();
+        io.adapter(createRedisAdapter(pub, sub));
+    }
     io.on("connection", async (socket) => {
         await registerSocket(socket);
     });
 };
-export const runThreaded = (httpServer) => {
+export const runThreaded = (httpServer: http.Server) => {
     if (cluster.isPrimary) {
         setupMaster(httpServer, {
             loadBalancingMethod: "least-connection",
@@ -421,8 +430,14 @@ export const runThreaded = (httpServer) => {
                 },
             },
         });
-        io.adapter(createAdapter());
-
+        
+        io.adapter(createClusterAdapter());
+        
+        if (redisConfig.useRedis()) {
+            const pub = redisClient.duplicate();
+            const sub = redisClient.duplicate();
+            io.adapter(createRedisAdapter(pub, sub));
+        }
         setupWorker(io);
 
         io.on("connection", async (socket) => {
