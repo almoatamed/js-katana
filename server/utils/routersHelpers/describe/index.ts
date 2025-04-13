@@ -102,8 +102,6 @@ export const describe = lockMethod(
                     : path.join(routeRelativeDirectory, routeFileNameWithoutExtension),
                 options.path || "",
             );
-            console.log("Route Full path on describe", routePrecisePath);
-
             const routeDirectoryContent = fs.readdirSync(routeDirectory);
             const routeDescriptionRegx = RegExp(
                 `${routeFileNameWithoutExtension}${descriptionSuffixRegx.toString().slice(1, -1)}`,

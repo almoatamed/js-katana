@@ -90,14 +90,12 @@ export default async function buildRouter(
         } else {
             const routerMatch = item.match(routerSuffixRegx);
             if (!!routerMatch) {
-                console.log("Route", routerDirectory);
                 const routerName = item.slice(0, item.indexOf(routerMatch[0]));
                 const routeFullPath = path.join(routerDirectory, item);
                 router.routeFullPath = routeFullPath;
                 if (routerName == "index") {
                     const routerInstance = (await import(routeFullPath)).default;
                     if (routerInstance) {
-                        console.log("route", path.join(Prefix));
                         router.use(`/`, routerInstance);
                     }
 
@@ -118,7 +116,6 @@ export default async function buildRouter(
                 } else {
                     const subRouter = (await import(path.join(routerDirectory, item))).default;
                     if (subRouter) {
-                        console.log("route", path.join(Prefix, routerName));
                         router.use(`/${routerName}`, subRouter);
                     }
                     const routerDescriptionRegx = RegExp(

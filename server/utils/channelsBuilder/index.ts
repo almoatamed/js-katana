@@ -528,7 +528,6 @@ export default async function buildChannelling(
         } else {
             const channelMatch = item.match(channelSuffixRegx);
             if (!!channelMatch) {
-                // process.env.NODE_ENV !== "test" && console.log("Route", currentChannelsDirectory);
                 const routerName = item.slice(0, item.indexOf(channelMatch[0]));
                 if (routerName == "index") {
                     const handlerPath = resolveTs(path.join(currentChannelsDirectory, item));

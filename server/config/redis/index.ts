@@ -9,7 +9,7 @@ export const redisConfig: RedisConfig = {
         return getFromEnv("REDIS_PASSWORD");
     },
     getRedisPort() {
-        return getFromEnv("REDIS_PASSWORD") || undefined;
+        return getFromEnv("REDIS_PORT") || undefined;
     },
     useRedis() {
         return !!(this.getRedisHost() && this.getRedisPort());
