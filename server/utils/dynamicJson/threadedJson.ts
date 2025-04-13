@@ -89,8 +89,9 @@ async function makeThreadedJson<JSONDefinition extends any>({
                     } finally {
                         release();
                     }
+                } else {
+                    throw new Error("failed to acquire redis Lock " + uniqueEventId);
                 }
-                throw new Error("failed to acquire redis Lock");
             }) as T,
             {
                 lockName: uniqueEventId,
