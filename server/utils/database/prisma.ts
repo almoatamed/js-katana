@@ -4,7 +4,6 @@ import cluster from "cluster";
 import fs from "fs";
 import path from "path";
 import { srcPath } from "../../utils/cli/utils/srcPath/index.js";
-import dbModels from "../dynamicConfiguration/dbModels.js";
 
 const utilsPath = path.join(srcPath, "/utils");
 const client = new PrismaClient({ errorFormat: "minimal" });
@@ -78,29 +77,25 @@ client.$use(async (params, next) => {
     }
     return next(params);
 });
-
-if (cluster.isPrimary && process.env.NODE_ENV !== "test") {
-    await dbModels.set("db", "models", {});
-
-    const models: string[] = [];
-    const capModels: string[] = [];
-    for (const model in client) {
-        if (typeof client[model] == "object" && !!client[model].findFirst) {
-            await dbModels.set("db.models", model, model);
-            models.push(model);
-            capModels.push(cap(model));
-        }
+const dbModels = {
+    models: {} as { [key: string]: string },
+    modelsArray: [] as string[],
+    capModelsArray: [] as string[],
+};
+for (const model in client) {
+    if (typeof client[model] == "object" && !!client[model].findFirst) {
+        dbModels.models[model] = model;
+        dbModels.modelsArray.push(model);
+        dbModels.capModelsArray.push(cap(model));
     }
-
-    await dbModels.set("db", "modelsArray", models);
-    await dbModels.set("db", "capModelsArray", capModels);
-
+}
+if (cluster.isPrimary && process.env.NODE_ENV !== "test") {
     fs.writeFileSync(
         `${utilsPath}/JsDoc/assets/models.js`,
         `
 
 /**
- * @typedef {${Object.values(dbModels.db.models)
+ * @typedef {${Object.values(dbModels.models)
      .map((el) => `"${el}"`)
      .join("|")}} Model
  * 
@@ -116,7 +111,7 @@ export default {}
 
 /**
  * @typedef {Object} Where
-${Object.values(dbModels.db.capModelsArray)
+${Object.values(dbModels.capModelsArray)
     .map((el) => ` * @property {Prisma.${el}WhereInput} [${cap(el)}]`)
     .join("\n")}
  * 
@@ -171,7 +166,7 @@ export default {}
 
 /**
  * @typedef {Object} Include
-${Object.values(dbModels.db.capModelsArray)
+${Object.values(dbModels.capModelsArray)
     .map((el) => ` * @property {Prisma.${el}Include} [${cap(el)}]`)
     .join("\n")}
  * 
@@ -188,7 +183,7 @@ export default {}
 
 /**
  * @typedef {Object} Select
-${Object.values(dbModels.db.capModelsArray)
+${Object.values(dbModels.capModelsArray)
     .map((el) => ` * @property {Prisma.${el}Select} [${cap(el)}]`)
     .join("\n")}
  * 
@@ -252,3 +247,4 @@ const extendedClient = client
 
 await extendedClient.$connect();
 export default extendedClient;
+export { dbModels };

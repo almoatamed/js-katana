@@ -1,4 +1,4 @@
-import makeThreadedJson, { JSONSourceFilePath, Options } from "$/server/utils/dynamicJson/threadedJson.js";
+import makeThreadedJson, { JSONSourceFilePath } from "$/server/utils/dynamicJson/threadedJson.js";
 import cluster from "cluster";
 import fs from "fs";
 import url from "url";
@@ -19,22 +19,11 @@ if (cluster.isPrimary) {
     }
 }
 
-const store = await makeThreadedJson<
-    {
-        endpoints: {
-            methods: {
-                [key: string]: true;
-            };
-            path: string;
-            handlers: string[];
-        }[];
-    },
-    JSONSourceFilePath,
-    Options<JSONSourceFilePath>
->(jsonPath, {
-    uniqueEventId: "endPoints",
-    broadcastOnUpdate: true,
-    lazy: false,
+const store = await makeThreadedJson({
+    source: {
+        type: "jsonFile", 
+        fileFullPath: jsonPath, 
+    }
 });
 
 const endpoints = store;

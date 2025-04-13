@@ -1,4 +1,4 @@
-import dbModels from "../../dynamicConfiguration/dbModels.js";
+import { dbModels } from "$/server/utils/database/prisma.js";
 import type { Translate } from "../index.js";
 import type { RuleBase } from "./base.js";
 const client = (await import("$/server/utils/database/prisma.js")).default;
@@ -15,11 +15,11 @@ class existsValidationRule implements RuleBase {
             return this.errorMsg.replaceAll("[field]", field);
         }
     }
-
     async rule(value: any, params: existsValidatorParameters, _, t: Translate) {
+        const models = dbModels.capModelsArray
         if (params.include) {
             for (const key of Object.keys(params.include)) {
-                if (dbModels.db.capModelsArray.includes(key)) {
+                if ((models).includes(key)) {
                     params.include = {
                         ...params.include,
                         ...params.include?.[key],
@@ -31,7 +31,7 @@ class existsValidationRule implements RuleBase {
         }
         if (params.select) {
             for (const key of Object.keys(params.select)) {
-                if (dbModels.db.capModelsArray.includes(key)) {
+                if (dbModels.capModelsArray.includes(key)) {
                     params.select = {
                         ...params.select,
                         ...params.select?.[key],
@@ -43,7 +43,7 @@ class existsValidationRule implements RuleBase {
         }
         if (params.where) {
             for (const key of Object.keys(params.where)) {
-                if (dbModels.db.capModelsArray.includes(key)) {
+                if (dbModels.capModelsArray.includes(key)) {
                     params.where = {
                         ...params.where,
                         ...params.where?.[key],

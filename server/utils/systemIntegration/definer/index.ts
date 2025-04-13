@@ -1,13 +1,8 @@
-import fs from "fs";
 import path from "path";
+import { redisConfig } from "../../../config/redis/index.js";
 import ObjectError from "../../ObjectError/index.js";
 import { JSONObject } from "../../common/index.js";
-import { hashWithSHA256 } from "../../crypto/hash.js";
-import makeThreadedJson, {
-    JSONSourceFilePath,
-    OptionsNoBroadCast,
-    ThreadedJson,
-} from "../../dynamicJson/threadedJson.js";
+import makeThreadedJson, { JSONSourceFilePath } from "../../dynamicJson/threadedJson.js";
 type SystemIntegrationRegistrationProps<Configuration extends { [key: string]: any }> = {
     connectionId: string;
     config: Configuration;
@@ -24,11 +19,6 @@ type Instance<
     testConnection: () => Promise<boolean>;
     deactivate: () => Promise<void>;
     activate: () => Promise<void>;
-    instancePaths: {
-        directory: string;
-        configFullPath: JSONSourceFilePath;
-    };
-    instanceConfigThreadedJson: ThreadedJson<JSONSourceFilePath, unknown>;
     getConfig: () => Promise<Configuration>;
     updateConfig(newConfig: Configuration): Promise<void>;
 };
@@ -79,7 +69,7 @@ export const define = async <
         definitionId: string;
         instances: {
             [instanceId: string]: {
-                instanceConfigurationPath: string;
+                config: SystemIntegrationRegistrationProps<Configuration>;
                 active: boolean;
             };
         };
@@ -90,86 +80,21 @@ export const define = async <
         return definitionJsonPath as JSONSourceFilePath;
     }
 
-    function getInstancesDirPath() {
-        return path.join(systemDefinition.definitionPath, "instances");
-    }
-
-    function createConfigurationSchema() {
-        const configPath = getMainConfigFilePath();
-        const configFileExists = fs.existsSync(configPath);
-        if (!configFileExists) {
-            const configPathDir = path.dirname(configPath);
-            if (!fs.existsSync(configPathDir)) {
-                fs.mkdirSync(configPathDir, {
-                    recursive: true,
-                });
-            }
-            fs.writeFileSync(
-                path.join(configPathDir, ".gitignore"),
-                `
-main.json
-
-
-!**/.gitignore
-`,
-            );
-
-            fs.writeFileSync(
-                configPath,
-                JSON.stringify(
-                    {
-                        definitionId: systemDefinition.definitionId,
-                        instances: {},
-                    },
-                    null,
-                    4,
-                ),
-            );
-
-            const instancesDirPath = getInstancesDirPath();
-            fs.mkdirSync(instancesDirPath, { recursive: true });
-            fs.writeFileSync(
-                path.join(instancesDirPath, ".gitignore"),
-                `
-*.*
-**/*.*
-
-!**/.gitignore
-`,
-            );
-        }
-    }
-
-    createConfigurationSchema();
-
-    const mainConfigThreadedJson = await makeThreadedJson<MainConfig, JSONSourceFilePath, OptionsNoBroadCast<string>>(
-        getMainConfigFilePath(),
-        {
-            lazy: false,
-            uniqueEventId: `systemIntegrationInstance:${systemDefinition.definitionId}`,
-            broadcastOnUpdate: false,
-        },
-    );
+    const mainConfigThreadedJson = await makeThreadedJson({
+        source: redisConfig.useRedis()
+            ? {
+                  type: "redis",
+                  uniqueIdentifier: `systemIntegrationInstance:${systemDefinition.definitionId}`,
+              }
+            : {
+                  fileFullPath: getMainConfigFilePath(),
+                  type: "jsonFile",
+              },
+    });
 
     async function getMainConfig() {
         const configuration: MainConfig = await mainConfigThreadedJson.get([]);
         return configuration;
-    }
-
-    function getInstanceConfigurationFilePath(id: string) {
-        if (id.length < 3) {
-            throw new ObjectError({
-                error: {
-                    msg: "Connection instance identifier must be longer than 3 characters",
-                },
-                statusCode: 400,
-            });
-        }
-        const fileName = hashWithSHA256(id);
-        return {
-            directory: path.join(getInstancesDirPath(), fileName),
-            configFullPath: path.join(getInstancesDirPath(), fileName, `config.json`) as JSONSourceFilePath,
-        };
     }
 
     async function updateMainConfig(mainConfig: MainConfig) {
@@ -177,9 +102,7 @@ main.json
     }
 
     async function registerInstanceConfiguration(props: SystemIntegrationRegistrationProps<Configuration>) {
-        const mainConfig = await getMainConfig();
-
-        if (mainConfig.instances[props.connectionId]) {
+        if (await mainConfigThreadedJson.get(["instances", props.connectionId])) {
             throw new ObjectError({
                 statusCode: 400,
                 error: {
@@ -187,19 +110,14 @@ main.json
                 },
             });
         }
-        const instanceConfigurationFilePath = getInstanceConfigurationFilePath(props.connectionId);
-        mainConfig.instances[props.connectionId] = {
-            instanceConfigurationPath: instanceConfigurationFilePath.configFullPath,
+        await mainConfigThreadedJson.set(["instances"], props.connectionId, {
+            config: props,
             active: true,
-        };
-        await updateMainConfig(mainConfig);
-        fs.mkdirSync(instanceConfigurationFilePath.directory, { recursive: true });
-        fs.writeFileSync(instanceConfigurationFilePath.configFullPath, JSON.stringify(props.config));
+        });
     }
 
     async function updateInstanceConfiguration(id: string, newConfiguration: Configuration) {
-        const mainConfig = await getMainConfig();
-        if (!mainConfig.instances[id]) {
+        if (!(await mainConfigThreadedJson.get(["instances", id]))) {
             throw new ObjectError({
                 error: {
                     msg: "integration instance with id " + id + " is not registered",
@@ -207,29 +125,23 @@ main.json
                 statusCode: 404,
             });
         }
-        const instanceConfigurationFilePath = getInstanceConfigurationFilePath(id);
-        fs.mkdirSync(instanceConfigurationFilePath.directory, { recursive: true });
-        fs.writeFileSync(instanceConfigurationFilePath.configFullPath, JSON.stringify(newConfiguration));
+        await mainConfigThreadedJson.set(["mainConfig", "instances", id, "config"], "config", newConfiguration);
     }
 
-    function getInstanceConfiguration(id: string): Configuration | null {
-        const configPath = getInstanceConfigurationFilePath(id);
-        if (!fs.existsSync(configPath.configFullPath)) {
-            return null;
-        }
-        return JSON.parse(fs.readFileSync(configPath.configFullPath, "utf-8")) as Configuration;
+    async function getInstanceConfiguration(
+        id: string,
+    ): Promise<SystemIntegrationRegistrationProps<Configuration> | null> {
+        return mainConfigThreadedJson.get(["instances", id, "config"]) || null;
     }
 
     async function isInstanceActive(id: string) {
-        const mainConfig = await getMainConfig();
-        return !!mainConfig.instances[id]?.active;
+        return await mainConfigThreadedJson.get(["instances", id, "active"]);
     }
 
     const instancesMap = {} as Record<string, Instance<OperationsType, Configuration>>;
 
     async function getInstance(id: string): Promise<Instance<OperationsType, Configuration> | null> {
-        const mainConfig = await getMainConfig();
-        if (!mainConfig.instances[id]) {
+        if (!(await mainConfigThreadedJson.get(["instances", id]))) {
             return null;
         }
 
@@ -237,22 +149,15 @@ main.json
             return instancesMap[id];
         }
 
-        const instancePaths = getInstanceConfigurationFilePath(id);
-        const instanceConfigThreadedJson = await makeThreadedJson(instancePaths.configFullPath, {
-            broadcastOnUpdate: false,
-            uniqueEventId: `connectionInstance:${systemDefinition.definitionId}:${id}:config`,
-        });
-        const instanceStatusThreadedJson = await makeThreadedJson(
-            {
+        const instanceStatusThreadedJson = await makeThreadedJson({
+            initialContent: {
                 lastKnownStatus: "unknown" as "working" | "not-working" | "unknown",
             },
-            {
-                filePath: path.join(instancePaths.directory, "status.json") as JSONSourceFilePath,
-                uniqueEventId: `connectionInstance:${systemDefinition.definitionId}:${id}:status`,
-                lazy: false,
-                broadcastOnUpdate: false,
+            source: {
+                type: "inMemory",
+                uniqueIdentifier: `connectionInstance:${systemDefinition.definitionId}:${id}:status`,
             },
-        );
+        });
 
         const updateLastKnownStatus = async (status: "working" | "not-working" | "unknown") => {
             await instanceStatusThreadedJson.set([], "lastKnownStatus", status);
@@ -269,10 +174,14 @@ main.json
                 });
             }
         };
+
+        const getConfig = async () => {
+            return (await getInstanceConfiguration(id))?.config as Configuration;
+        };
         const wrappedOperations = Object.fromEntries(
             Object.entries(
                 await systemDefinition.buildOperations({
-                    getConfiguration: () => instanceConfigThreadedJson.get([]) as Promise<Configuration>,
+                    getConfiguration: getConfig,
                 }),
             ).map(([key, operation]) => {
                 return [
@@ -291,9 +200,6 @@ main.json
                 ];
             }),
         );
-        const getConfig = async () => {
-            return (await instanceConfigThreadedJson.get([])) as Configuration;
-        };
         async function testConnection() {
             await validateIsActive();
             const success = systemDefinition.testConnection(await getConfig());
@@ -302,30 +208,17 @@ main.json
         }
         const instance: Instance<OperationsType, Configuration> = {
             async updateConfig(newConfig: Configuration) {
-                return await instanceConfigThreadedJson.updateJsonFromProvided(newConfig);
+                return await updateInstanceConfiguration(id, newConfig);
             },
             activate: async () => {
-                const mainConfig = await getMainConfig();
-                if (mainConfig.instances[id]) {
-                    if (!mainConfig.instances[id].active) {
-                        mainConfig.instances[id].active = true;
-                        await updateMainConfig(mainConfig);
-                    }
-                }
+                await mainConfigThreadedJson.set(["instances", id], "active", true);
+            },
+            deactivate: async () => {
+                await mainConfigThreadedJson.set(["instances", id], "active", false);
             },
             isActive: () => isInstanceActive(id),
             getConfig,
-            instancePaths,
-            instanceConfigThreadedJson,
-            deactivate: async () => {
-                const mainConfig = await getMainConfig();
-                if (mainConfig.instances[id]) {
-                    if (mainConfig.instances[id].active) {
-                        mainConfig.instances[id].active = false;
-                        await updateMainConfig(mainConfig);
-                    }
-                }
-            },
+
             testConnection,
             operations: wrappedOperations as OperationsType,
         };
@@ -374,7 +267,6 @@ main.json
         register,
         getOrRegisterInstance,
         getInstance,
-        mainConfigThreadedJson,
         updateMainConfig,
         updateInstanceConfiguration,
         isInstanceActive,

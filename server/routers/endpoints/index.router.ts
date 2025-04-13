@@ -8,7 +8,7 @@ router.all("/", async (request, response, next) => {
     try {
         return response.status(200).json({
             result: {
-                endpoints: endpoints.endpoints,
+                endpoints: await endpoints.get("endpoints"),
             },
         });
     } catch (error) {

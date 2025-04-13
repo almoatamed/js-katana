@@ -1,5 +1,6 @@
 import logger from "$/server/utils/log/index.js";
 import { BroadcastOperator, Server, Socket } from "socket.io";
+import { redisConfig } from "../../../../config/redis/index.js";
 import { client } from "../../../../modules/index.js";
 import { io } from "../../../channelsBuilder/index.js";
 import { makeThreadedJson } from "../../../dynamicJson/threadedJson.js";
@@ -70,7 +71,7 @@ export const createPresenceTracker = async <
         return scope;
     };
 
-    const validateScopeParamter = (scope: string | undefined, requiredScope: string) => {
+    const validateScopeParameter = (scope: string | undefined, requiredScope: string) => {
         if (scope != requiredScope) {
             if (scope) {
                 return "region Access 'x-app' parameter is not for this section of the api";
@@ -103,10 +104,17 @@ export const createPresenceTracker = async <
         ...(await (props as any).initialState()),
     };
 
-    const recordsState = await makeThreadedJson(initialRecordsState, {
-        uniqueEventId: props.id,
-        broadcastOnUpdate: false,
-        lazy: true,
+    const recordsState = await makeThreadedJson({
+        initialContent: initialRecordsState,
+        source: redisConfig.useRedis()
+            ? {
+                  type: "redis",
+                  uniqueIdentifier: props.id,
+              }
+            : {
+                  type: "inMemory",
+                  uniqueIdentifier: props.id,
+              },
     });
 
     const selectRecordPresence = async (
@@ -276,12 +284,12 @@ export const createPresenceTracker = async <
         }
     };
 
-    const createScopingAndPresenseTrackingMiddleware = (middleWareProps?: { requiredScope?: string }) => {
+    const createScopingAndPresenceTrackingMiddleware = (middleWareProps?: { requiredScope?: string }) => {
         return async (socket: RecordSocket) => {
             const scope = extractScope(socket);
 
             if (middleWareProps?.requiredScope) {
-                const result = validateScopeParamter(scope, middleWareProps.requiredScope);
+                const result = validateScopeParameter(scope, middleWareProps.requiredScope);
                 if (isMiddlewareRejected(result)) {
                     log.warning("socket scope is not valid", result);
                     return result;
@@ -307,6 +315,6 @@ export const createPresenceTracker = async <
 
     return {
         sendEventToRecord,
-        createScopingAndPresenseTrackingMiddleware,
+        createScopingAndPresenceTrackingMiddleware,
     };
 };
