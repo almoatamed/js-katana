@@ -1,6 +1,7 @@
 build
 coverage
 dist
-
+**/*.description.md
+*.description.md
 **/*.html
 *.html
