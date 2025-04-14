@@ -22,9 +22,8 @@ export class DistributedLock {
         retryDelay: number = 100,
         maxRetries: number = 30,
     ): Promise<string | null> {
-        
         ttl = ttl > 0 ? ttl + Math.random() * 30 : 0;
-        retryDelay = retryDelay + Math.random() * 30
+        retryDelay = retryDelay + Math.random() * 30;
 
         const lockId = Math.random().toString(36).substring(2, 15);
         const key = `lock:${lockName}`;

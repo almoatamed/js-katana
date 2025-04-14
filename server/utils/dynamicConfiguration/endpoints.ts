@@ -21,9 +21,9 @@ if (cluster.isPrimary) {
 
 const store = await makeThreadedJson({
     source: {
-        type: "jsonFile", 
-        fileFullPath: jsonPath, 
-    }
+        type: "jsonFile",
+        fileFullPath: jsonPath,
+    },
 });
 
 const endpoints = store;

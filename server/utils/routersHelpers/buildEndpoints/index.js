@@ -9,14 +9,13 @@ function routesLister(router, path = "", routes = endPoints, root = true) {
     if (router.stack) {
         for (const layer of router.stack) {
             if (layer.route) {
-                const routePath = `${path}${layer.route.path}`.replace("\\", "")
+                const routePath = `${path}${layer.route.path}`.replace("\\", "");
                 routes.push({
                     methods: layer.route.methods,
                     path: routePath,
                     handlersName: layer.route.stack.map((handler) => handler?.name),
                 });
-                console.log("Route", routePath)
-
+                console.log("Route", routePath);
             }
             if (layer?.handle?.stack) {
                 const subPath = String(layer.regexp)

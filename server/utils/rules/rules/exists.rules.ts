@@ -16,10 +16,10 @@ class existsValidationRule implements RuleBase {
         }
     }
     async rule(value: any, params: existsValidatorParameters, _, t: Translate) {
-        const models = dbModels.capModelsArray
+        const models = dbModels.capModelsArray;
         if (params.include) {
             for (const key of Object.keys(params.include)) {
-                if ((models).includes(key)) {
+                if (models.includes(key)) {
                     params.include = {
                         ...params.include,
                         ...params.include?.[key],

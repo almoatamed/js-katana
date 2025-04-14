@@ -3,8 +3,8 @@ import fs from "fs";
 import path from "path";
 import URL from "url";
 import { ArgumentsType } from "vitest";
-import { routerConfig } from "../../config/routing/index.js";
 import { UnwrapPromise } from "../../../prisma/client/runtime/library.js";
+import { routerConfig } from "../../config/routing/index.js";
 const axios = (await import("axios")).default;
 
 export const numberToI32Hex = (number: number) => number.toString(16).slice(-8).padStart(8, "0");

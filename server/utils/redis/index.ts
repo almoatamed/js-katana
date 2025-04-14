@@ -6,4 +6,3 @@ export const redisClient = new Redis({
     host: redisConfig.getRedisHost(),
     port: redisConfig.getRedisPort(),
 });
-

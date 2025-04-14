@@ -430,9 +430,9 @@ export const runThreaded = (httpServer: http.Server) => {
                 },
             },
         });
-        
+
         io.adapter(createClusterAdapter());
-        
+
         if (redisConfig.useRedis()) {
             const pub = redisClient.duplicate();
             const sub = redisClient.duplicate();
