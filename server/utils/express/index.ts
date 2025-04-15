@@ -1,7 +1,6 @@
 import { Prisma } from "$/prisma/client/index.js";
 import User from "../../modules/User/index.js";
 
-import { FingerprintResult } from "express-fingerprint";
 
 import * as prisma from "$/prisma/client/index.js";
 import { Router } from "express";
@@ -112,7 +111,6 @@ export type Req = import("express").Request & {
     user: Requester;
     fingerprint?: {
         hash: string;
-        sd: FingerprintResult;
     };
     Modules: typeof Modules;
     client: typeof Modules;

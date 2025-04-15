@@ -1,8 +1,8 @@
 import path from "path";
-import { srcPath } from "../../../cli/utils/srcPath/index.js";
 import { compareShallowRecord } from "../../../common/index.js";
 import { define } from "../../definer/index.js";
 import { createOdooXmlrpcClient } from "./xmlrpcAdapter/index.js";
+import rootPaths from "../../../dynamicConfiguration/rootPaths.js";
 
 type OdooConfiguration = {
     host: string;
@@ -265,7 +265,7 @@ export const odoo = await define({
         };
     },
     definitionId: "OdooErp",
-    definitionPath: path.join(srcPath, "systems/odoo"),
+    definitionPath: path.join(rootPaths.srcPath, "systems/odoo"),
     testConnection: () => {
         return true;
     },

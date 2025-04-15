@@ -1,4 +1,3 @@
-import Logger from "$/server/utils/cli/logger.js";
 import { execSync } from "child_process";
 import { getTimezone } from "../../config/timezone/index.js";
 
@@ -14,7 +13,7 @@ if (!currentTimezone || currentTimezone != defaultTimezone) {
         encoding: "utf-8",
         stdio: "inherit",
     });
-    Logger.success(`> changed time zone to ${defaultTimezone}`);
+    console.log(`> changed time zone to ${defaultTimezone}`);
 } else {
-    Logger.warning(`> timezone is already ${currentTimezone}`);
+    console.warn(`> timezone is already ${currentTimezone}`);
 }

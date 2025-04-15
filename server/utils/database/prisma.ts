@@ -3,9 +3,9 @@ import { cap } from "$/server/utils/common/index.js";
 import cluster from "cluster";
 import fs from "fs";
 import path from "path";
-import { srcPath } from "../../utils/cli/utils/srcPath/index.js";
+import rootPaths from "../dynamicConfiguration/rootPaths.js";
 
-const utilsPath = path.join(srcPath, "/utils");
+const utilsPath = path.join(rootPaths.srcPath, "/utils");
 const client = new PrismaClient({ errorFormat: "minimal" });
 
 export type Client = any;
