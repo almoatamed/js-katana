@@ -78,23 +78,21 @@
     ],
     "json.schemas": [
         {
-            "fileMatch": ["env.json"],
-            "url": "/.vscode/json_schemas/env_schema/index.json"
-        },
-        {
             "fileMatch": ["*.lang.json"],
-            "url": "/.vscode/json_schemas/language_schema/index.json"
+            "url": "/.vscode/jsonSchemas/languageSchema/index.json"
         },
         {
             "fileMatch": ["package.json"],
-            "url": "/.vscode/json_schemas/packageDotJson/index.json"
+            "url": "/.vscode/jsonSchemas/packageDotJson/index.json"
         },
         {
             "fileMatch": ["utils.json"],
-            "url": "/.vscode/json_schemas/verdeUtility/index.json"
+            "url": "/.vscode/jsonSchemas/verdeUtility/index.json"
         }
     ],
-    "cSpell.enableFiletypes": ["prisma"],
+    "cSpell.enabledFileTypes": {
+        "prisma": true
+    },
     "cSpell.language": "ar,en-GB",
     "cSpell.ignoreWords": ["Odoo", "asdfkljghasdfoigasioygdfaosigfio", "ydsftg"],
     "editor.defaultFormatter": "esbenp.prettier-vscode",
