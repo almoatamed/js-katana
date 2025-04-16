@@ -34,7 +34,7 @@
         "zlib": "^1.0.5",
       },
       "devDependencies": {
-        "@js-katana/cli": "^2.6.0",
+        "@js-katana/cli": "^2.10.0",
         "@tsconfig/node21": "",
         "@tsconfig/node22": "^22.0.1",
         "@tsconfig/node23": "^23.0.1",
@@ -113,7 +113,7 @@
 
     "@jridgewell/sourcemap-codec": ["@jridgewell/sourcemap-codec@1.5.0", "", {}, "sha512-gv3ZRaISU3fjPAgNsriBRqGWQL6quFx04YMPW/zD8XMLsU32mhCCbfbO6KZFLjvYpCZ8zyDEgqsgf+PwPaM7GQ=="],
 
-    "@js-katana/cli": ["@js-katana/cli@2.7.0", "", { "dependencies": { "@octokit/rest": "^21.0.2", "async-lock": "^1.4.1", "axios": "^1.7.4", "commander": "^12.1.0", "cryptr": "^6.3.0", "enquirer": "^2.4.1", "extract-zip": "^2.0.1", "fs-extra": "^11.3.0", "globby": "^14.0.2", "install": "^0.13.0", "ora": "^8.0.1", "unzipper": "^0.12.3" }, "peerDependencies": { "typescript": "^5.0.0" }, "bin": { "ki": "dist/main.js" } }, "sha512-0iRPci19rGwpRiLe+PTbSV+Hol24/WmZsqKYrkiW+lzpnhlh+N77yv/13M5r+Qa+FK5w7ZBtaqSTBTbtzo1dng=="],
+    "@js-katana/cli": ["@js-katana/cli@2.10.0", "", { "dependencies": { "@octokit/rest": "^21.0.2", "async-lock": "^1.4.1", "axios": "^1.7.4", "commander": "^12.1.0", "cryptr": "^6.3.0", "enquirer": "^2.4.1", "extract-zip": "^2.0.1", "fs-extra": "^11.2.0", "globby": "^14.0.2", "install": "^0.13.0", "ora": "^8.0.1", "unzipper": "^0.12.3" }, "peerDependencies": { "typescript": "^5.0.0" }, "bin": { "ki": "dist/main.js" } }, "sha512-NRC1bQ7Gi0XBkj1HaGfpUhf4V482SnwUmqqRnwnga1NGFvXBhGM2eCoGrCn2IjvX9E4c2Hz7OXuz4+c0A4NcHA=="],
 
     "@mapbox/node-pre-gyp": ["@mapbox/node-pre-gyp@1.0.11", "", { "dependencies": { "detect-libc": "^2.0.0", "https-proxy-agent": "^5.0.0", "make-dir": "^3.1.0", "node-fetch": "^2.6.7", "nopt": "^5.0.0", "npmlog": "^5.0.1", "rimraf": "^3.0.2", "semver": "^7.3.5", "tar": "^6.1.11" }, "bin": { "node-pre-gyp": "bin/node-pre-gyp" } }, "sha512-Yhlar6v9WQgUp/He7BdgzOz8lqMQ8sU+jkCq7Wx8Myc5YFJLbEe7lgui/V7G1qB1DJykHSGwreceSaD60Y0PUQ=="],
 

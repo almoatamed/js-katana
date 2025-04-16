@@ -7,8 +7,8 @@
     "scripts": {
         "rest": "npx rest",
         "install_rest": "npm install -g tsx && npm link",
-        "postinstall": "rest pi",
-        "test": "npx rest l && NODE_ENV=test npx vitest --watch=false"
+        "postinstall": "ki l",
+        "test": "ki l && NODE_ENV=test npx vitest --watch=false"
     },
     "author": "salem elmotamed",
     "license": "ISC",
