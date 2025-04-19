@@ -2,7 +2,6 @@ import AsyncLock from "async-lock";
 import fs from "fs";
 import path from "path";
 import URL from "url";
-import { ArgumentsType } from "vitest";
 import { UnwrapPromise } from "../../../prisma/client/runtime/library.js";
 import { routerConfig } from "../../config/routing/index.js";
 const axios = (await import("axios")).default;
@@ -199,6 +198,8 @@ const srcPath = path.resolve(path.join(path.dirname(URL.fileURLToPath(import.met
 
 const lock = new AsyncLock({ maxExecutionTime: 5e3 });
 
+type ArgumentsExtract<T> = T extends (...args: (infer R))=>any ? R : never
+
 export const lockMethod = function <T extends (...args: any[]) => any>(
     method: T,
     {
@@ -208,7 +209,7 @@ export const lockMethod = function <T extends (...args: any[]) => any>(
         lockName: string;
         lockTimeout?: number;
     },
-): (...args: ArgumentsType<T>) => Promise<UnwrapPromise<ReturnType<T>>> {
+): (...args: ArgumentsExtract<T>) => Promise<UnwrapPromise<ReturnType<T>>> {
     const originalMethod = method;
     return async function (...args: any[]) {
         return new Promise(async (resolve, reject) => {
@@ -233,7 +234,7 @@ export const lockMethod = function <T extends (...args: any[]) => any>(
     };
 };
 
-export function resolvePath(relativePath, baseUrl) {
+export function resolvePath(relativePath: string, baseUrl: string) {
     return URL.fileURLToPath(new URL.URL(relativePath, baseUrl));
 }
 
@@ -252,9 +253,7 @@ export function createPathResolver(baseUrl: string) {
 
 export async function downloadFile(url: string, body: any, outputPath: string): Promise<boolean> {
     const writer = fs.createWriteStream(outputPath);
-
-    const ax = axios as any;
-
+    const ax = axios;
     return ax({
         method: "post",
         url: url,
@@ -273,8 +272,6 @@ export async function downloadFile(url: string, body: any, outputPath: string): 
                 if (!error) {
                     resolve(true);
                 }
-                //no need to call the reject here, as it will have been called in the
-                //'error' stream;
             });
         });
     });
