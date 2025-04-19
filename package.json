@@ -5,10 +5,8 @@
     "main": "server/index.ts",
     "type": "module",
     "scripts": {
-        "rest": "npx rest",
-        "install_rest": "npm install -g tsx && npm link",
-        "postinstall": "ki l",
-        "test": "ki l && NODE_ENV=test npx vitest --watch=false"
+        "dev": "ki dev",
+        "build": "ki b"
     },
     "author": "salem elmotamed",
     "license": "ISC",

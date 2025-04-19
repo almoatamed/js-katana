@@ -81,14 +81,6 @@
             "fileMatch": ["*.lang.json"],
             "url": "/.vscode/jsonSchemas/languageSchema/index.json"
         },
-        {
-            "fileMatch": ["package.json"],
-            "url": "/.vscode/jsonSchemas/packageDotJson/index.json"
-        },
-        {
-            "fileMatch": ["utils.json"],
-            "url": "/.vscode/jsonSchemas/verdeUtility/index.json"
-        }
     ],
     "cSpell.enabledFileTypes": {
         "prisma": true
