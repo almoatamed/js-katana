@@ -1,52 +1,138 @@
-import { HandlerFunction, clientModifierMiddleware as clientModifier } from "$/server/utils/express/index.js";
 import { createServer } from "http";
-import { routerConfig } from "../../config/routing/index.js";
-import buildChannelling, { run, runThreaded } from "../channelsBuilder/index.js";
-import rootPaths from "../dynamicConfiguration/rootPaths.js";
+import { run, runThreaded } from "../channelsBuilder/index.js";
+import { createLogger } from "kt-logger";
+import express from "express";
+import path from "path";
+import cors from "cors";
+
+import { getApiPrefix, getCorsOptions, getMaxJsonSize, getSourceDir, getStaticDirs } from "../loadConfig/index.js";
+import compression from "compression";
+import { routesRegistryMap } from "../mainRouterBuilder/index.js";
+import { extractRequestError, HandlerContext, throwRequestError } from "../router/index.js";
 
 export async function createApp(multithreading = false) {
-    const logUtil = await import("../log/index.js");
-    const llog = await logUtil.localLogDecorator("MAIN_SERVER", "red", true, "Info");
-    const path = (await import("path")).default;
-    const express = (await import("$/server/utils/express/index.js")).default;
-    const cors = (await import("cors")).default;
-    const srcPath = rootPaths.srcPath;
+    const llog = await createLogger({
+        color: "red",
+        logLevel: "Info",
+        name: "SERVER",
+        worker: true,
+    });
+
+    const srcPath = await getSourceDir();
 
     const app = express();
-
-    const compression = (await import("compression")).default;
     app.use(compression());
-
-    app.use(express.json({ limit: "10mb" }));
+    app.use(express.json({ limit: await getMaxJsonSize() }));
     app.use(express.urlencoded({ extended: false }));
-    app.use(cors());
-    const middlewares: HandlerFunction[] = [];
-    app.use((await import("./requestLogger.js")).requestLogger);
 
-    if (routerConfig.embedModifiedVersionOfModulesInRequest()) {
-        app.use(clientModifier as any);
-        middlewares.push(clientModifier);
-    }
+    const corsConfig = await getCorsOptions();
+    app.use(cors(corsConfig));
+
+    app.use((await import("./requestLogger.js")).requestLogger);
 
     // router
     llog("started building routers");
-    app.use(
-        routerConfig.getApiPrefix(),
-        (await (await import("../mainRouterBuilder/index.js")).default("/", middlewares))._Router,
-    );
+    await (await import("../mainRouterBuilder/index.js")).default();
+
+    const router = express.Router();
+    for (const [path, route] of Object.entries(routesRegistryMap)) {
+        router[
+            route.method == "GET"
+                ? "get"
+                : route.method == "PUT"
+                ? "put"
+                : route.method == "POST"
+                ? "post"
+                : route.method == "ALL"
+                ? "all"
+                : "delete"
+        ](path, async (request, response) => {
+            let responded = false;
+            try {
+                const query = request.query || {};
+                const params = request.params || {};
+                const headers = request.headers || {};
+
+                const context: HandlerContext = {
+                    locale: {},
+                    respond: {
+                        async file(fullPath) {
+                            response.sendFile(fullPath);
+                            responded = true;
+                            return {
+                                path: fullPath,
+                            };
+                        },
+                        html: (text) => {
+                            response.send(text);
+                            responded = true;
+
+                            return text;
+                        },
+                        text: (text) => {
+                            response.send(text);
+                            responded = true;
+
+                            return text;
+                        },
+                        json: (data: any) => {
+                            response.json(data);
+                            responded = true;
+                            return data;
+                        },
+                    },
+                    body: request.body,
+                    headers,
+                    params,
+                    query,
+                    setStatus(_statusCode) {
+                        response.status(_statusCode);
+                        return context;
+                    },
+                };
+
+                for (const middleware of route.middleWares) {
+                    await middleware(context);
+                }
+
+                await route.handler(context);
+                if (!responded) {
+                    console.warn("You Did not respond properly to the request on", route.method, path);
+                    response.json?.({
+                        msg: "OK",
+                    });
+                }
+            } catch (error) {
+                if (responded) {
+                    return;
+                }
+                const requestError = extractRequestError(error);
+                if (requestError) {
+                    response.status(requestError.statusCode).json(requestError);
+                    return;
+                }
+                response.status(500).json(
+                    throwRequestError(500, [
+                        {
+                            error: "Unknown server error",
+                            data: error,
+                        },
+                    ])
+                );
+            }
+        });
+    }
+
+    app.use(await getApiPrefix(), router);
     llog("finished building routers");
 
     // Set static folder
-    for (const staticResource of routerConfig.getStaticDirs()) {
+    for (const staticResource of await getStaticDirs()) {
         const root = path.join(srcPath, staticResource.local);
         const remotePrefix = staticResource.remote;
         llog("created static file server", root, remotePrefix);
         if (staticResource.middleware) {
-            app.use(
-                remotePrefix,
-                (await import(path.join(srcPath, staticResource.middleware))).default,
-                express.static(root),
-            );
+            app.use(remotePrefix, staticResource.middleware, express.static(root));
         } else {
             app.use(remotePrefix, express.static(root));
         }
@@ -55,16 +141,15 @@ export async function createApp(multithreading = false) {
     const { errorHandler } = await import("./errorHandler.js");
     app.use(errorHandler);
 
-    await buildChannelling(app);
     return {
         app,
         makeServer: async () => {
             const httpServer = createServer(app);
 
             if (multithreading) {
-                runThreaded(httpServer);
+                await runThreaded(httpServer);
             } else {
-                run(httpServer);
+                await run(httpServer);
             }
 
             return httpServer;

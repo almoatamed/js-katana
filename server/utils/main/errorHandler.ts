@@ -1,8 +1,12 @@
 import { ErrorRequestHandler } from "express";
-import * as logUtil from "../log/index.js";
-import rm from "../storage/rm.js";
+import { createLogger } from "kt-logger";
 
-const llogYellow = await logUtil.localLogDecorator("Request Error", "yellow", true, "Info");
+const log = await createLogger({
+    color: "yellow",
+    logLevel: "Info",
+    name: "Request Error",
+    worker: true,
+});
 
 // error handling
 /**
@@ -14,13 +18,13 @@ const llogYellow = await logUtil.localLogDecorator("Request Error", "yellow", tr
  *  }
  * }
  */
-export const errorHandler: ErrorRequestHandler = async (origialError, req, res, next) => {
+export const errorHandler: ErrorRequestHandler = async (originalError, req, res, _next) => {
     try {
         let error: any;
-        if (origialError?.response?.status) {
-            error = origialError?.response?.data;
+        if (originalError?.response?.status) {
+            error = originalError?.response?.data;
         } else {
-            error = origialError;
+            error = originalError;
         }
         const msg: string = String(
             (typeof error == "string" ? error : null) ||
@@ -29,18 +33,17 @@ export const errorHandler: ErrorRequestHandler = async (origialError, req, res, 
                 error?.error?.message ||
                 error?.error?.msg ||
                 error ||
-                "Unknown",
+                "Unknown"
         );
 
-        process.env.NODE_ENV !== "test" && console.trace(msg);
-
         let statusCode: number;
-        if (error?.statusCode) {
+        if (typeof error?.statusCode == "number") {
             statusCode = error.statusCode;
         } else {
             statusCode = 500;
         }
-        rm.array(req);
+
+        log(`Request: ${res.locals.logId}`, `statusCode: ${statusCode}`, msg);
 
         if (!res.headersSent) {
             const errorJson = {
@@ -53,6 +56,6 @@ export const errorHandler: ErrorRequestHandler = async (origialError, req, res, 
             res.status(statusCode).json(errorJson);
         }
     } catch (error: any) {
-        llogYellow.error(error, "Error", "Failed To Handle Error on Error Middleware", origialError);
+        log.error(error, "Error", "Failed To Handle Error on Error Middleware", originalError);
     }
 };

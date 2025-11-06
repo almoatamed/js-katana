@@ -3,44 +3,29 @@ import cluster from "cluster";
 import http from "http";
 import { pid } from "process";
 import { Server, Socket } from "socket.io";
-import { fileURLToPath } from "url";
-import { redisConfig } from "../../config/redis/index.js";
-import { routerConfig } from "../../config/routing/index.js";
-import { redisClient } from "../redis/index.js";
+import { createLogger } from "kt-logger";
+import { gerRedisClient, getSocketPrefix } from "../loadConfig/index.js";
+import { createRequestError, extractRequestError } from "../router/index.js";
 const { setupMaster, setupWorker } = await import("@socket.io/sticky");
 const { createAdapter: createClusterAdapter, setupPrimary } = await import("@socket.io/cluster-adapter");
 
-const path = (await import("path")).default;
-const fs = (await import("fs")).default;
-const logUtil = await import("$/server/utils/log/index.js");
-const log = await logUtil.localLogDecorator("channelsBuilder", "yellow", true, "Info", false);
-
-const directoryAliasSuffixRegx = RegExp(routerConfig.getDirectoryAliasSuffixRegx());
-const channelSuffixRegx = RegExp(routerConfig.getChannelSuffixRegx());
-const middlewareSuffixRegx = RegExp(routerConfig.getMiddlewareSuffixRegx());
-const descriptionSuffixRegx = RegExp(routerConfig.getDescriptionSuffixRegx());
-
-const aliases: Function[] = [];
-
-const srcPath = path.resolve(path.join(path.dirname(fileURLToPath(import.meta.url)), "../../."));
-
-const resolveTs = (path: string) => {
-    if (path.endsWith(".ts")) {
-        path = path.replace(/\.ts$/, ".js");
-    }
-    return path;
-};
+const log = await createLogger({
+    worker: false,
+    color: "yellow",
+    logLevel: "Info",
+    name: "Channels-Manager",
+});
 
 export type Respond = (response: any) => void;
 
 export type ChannelHandlerBeforeMounted = (
-    socket: Socket,
+    socket: Socket
 ) => null | undefined | void | string | boolean | Promise<null | undefined | void | string | boolean>;
 export type ChannelHandlerBuilder = (
-    socket: Socket,
+    socket: Socket
 ) => ChannelHandler | null | void | undefined | string | Promise<ChannelHandler | string | void | null | undefined>;
 export type ChannelHandlerMounted = (
-    socket: Socket,
+    socket: Socket
 ) => null | undefined | void | string | Promise<null | undefined | void | string>;
 
 export type ChannelHandlerFunction = (body: any, respond: Respond | undefined, ev: string) => any;
@@ -50,27 +35,6 @@ export type ChannelDirectoryAliasDefaultExport = {
     targetDirectory: string;
     includeTargetMiddlewares: boolean;
 };
-
-export async function getMiddlewaresArray(
-    currentChannelsDirectory: string,
-): Promise<
-    { default?: ChannelHandlerBuilder; mounted?: ChannelHandlerMounted; beforeMounted?: ChannelHandlerBeforeMounted }[]
-> {
-    const content = fs.readdirSync(currentChannelsDirectory);
-    const middlewares = await Promise.all(
-        content
-            .filter((f) => {
-                const fileStats = fs.statSync(path.join(currentChannelsDirectory, f));
-                return fileStats.isFile() && !!f.match(middlewareSuffixRegx);
-            })
-            .map(async (f) => {
-                let fullPath = path.join(currentChannelsDirectory, f);
-
-                return await import(resolveTs(fullPath));
-            }),
-    );
-    return middlewares;
-}
 
 export const handlers: {
     path: string;
@@ -123,7 +87,7 @@ export const registerSocket = async (socket: Socket) => {
             if (handler.beforeMountedMiddlewares?.length) {
                 for (const beforeMountedMiddleware of handler.beforeMountedMiddlewares) {
                     const foundApplied = appliedBeforeMountedMiddlewares.find(
-                        (abmm) => abmm.path == beforeMountedMiddleware.path,
+                        (abmm) => abmm.path == beforeMountedMiddleware.path
                     );
                     if (!foundApplied) {
                         let beforeMountedMiddlewaresAccepted = true;
@@ -264,25 +228,19 @@ export const registerSocket = async (socket: Socket) => {
                     try {
                         await perform(body, cb, handlers, handler.path);
                     } catch (error: any) {
-                        console.log(error);
+                        const e = extractRequestError(error)
                         log.error("Channel Error", handler.path, error);
                         if (cb) {
-                            if (error?.httpError) {
-                                error = {
-                                    message: error.message,
-                                    response: {
-                                        data: error,
-                                    },
-                                };
-                            }
-                            if (error?.error) {
-                                cb({
-                                    error: error.error,
-                                });
+
+                            if (e) {
+                                cb(e);
                             } else {
-                                cb({
-                                    error: error,
-                                });
+                                cb(createRequestError(500, [
+                                    {
+                                        error: "Unknown Socket error", 
+                                        data: error, 
+                                    }
+                                ]));
                             }
                         }
                     }
@@ -293,6 +251,7 @@ export const registerSocket = async (socket: Socket) => {
                     accessible: false,
                     rejectionReason: typeof mainHandlers == "string" ? mainHandlers : "this event not accessible",
                 });
+                continue;
             }
 
             if (handler.mounted) {
@@ -376,9 +335,9 @@ export const emitToRoom = (room: string, event: string, ...arg: any[]) => {
     io.to(room).emit(event, ...arg);
 };
 
-export const run = (httpServer: http.Server) => {
+export const run = async (httpServer: http.Server) => {
     io = new Server(httpServer, {
-        path: routerConfig.getSocketPrefix(),
+        path: await getSocketPrefix(),
         cors: {
             origin: "*",
             methods: ["GET", "POST"],
@@ -395,7 +354,8 @@ export const run = (httpServer: http.Server) => {
             },
         },
     });
-    if (redisConfig.useRedis()) {
+    const redisClient = await gerRedisClient();
+    if (redisClient) {
         const pub = redisClient.duplicate();
         const sub = redisClient.duplicate();
         io.adapter(createRedisAdapter(pub, sub));
@@ -404,7 +364,7 @@ export const run = (httpServer: http.Server) => {
         await registerSocket(socket);
     });
 };
-export const runThreaded = (httpServer: http.Server) => {
+export const runThreaded = async (httpServer: http.Server) => {
     if (cluster.isPrimary) {
         setupMaster(httpServer, {
             loadBalancingMethod: "least-connection",
@@ -413,7 +373,7 @@ export const runThreaded = (httpServer: http.Server) => {
         log("setup primary cluster done");
     } else {
         io = new Server(httpServer, {
-            path: routerConfig.getSocketPrefix(),
+            path: await getSocketPrefix(),
             cors: {
                 origin: "*",
                 methods: ["GET", "POST"],
@@ -432,211 +392,16 @@ export const runThreaded = (httpServer: http.Server) => {
         });
 
         io.adapter(createClusterAdapter());
-
-        if (redisConfig.useRedis()) {
+        const redisClient = await gerRedisClient();
+        if (redisClient) {
             const pub = redisClient.duplicate();
             const sub = redisClient.duplicate();
             io.adapter(createRedisAdapter(pub, sub));
         }
         setupWorker(io);
-
         io.on("connection", async (socket) => {
             console.log("connected", socket.id, pid);
             await registerSocket(socket);
         });
     }
 };
-
-export default async function buildChannelling(
-    app: any,
-    currentChannelsDirectory = path.join(srcPath, routerConfig.getChannelsDirectory()),
-    root = true,
-    fullPrefix = "/",
-    providedBeforeMountedMiddlewares: {
-        middleware: ChannelHandlerBeforeMounted[];
-        path: string;
-    }[] = [],
-    providedMiddlewares: {
-        middleware: ChannelHandlerBuilder[];
-        path: string;
-    }[] = [],
-    providedMountedMiddlewares: {
-        middleware: ChannelHandlerMounted[];
-        path: string;
-    }[] = [],
-) {
-    const content = fs.readdirSync(currentChannelsDirectory);
-    root && log("Building Channels", currentChannelsDirectory);
-
-    const beforeMountedMiddlewares = [...(providedBeforeMountedMiddlewares || [])];
-    const middlewares = [...(providedMiddlewares || [])];
-    const mountedMiddlewares = [...(providedMountedMiddlewares || [])];
-
-    const loadedMiddlewares = await getMiddlewaresArray(currentChannelsDirectory);
-
-    for (const middleware of loadedMiddlewares || []) {
-        if (middleware.beforeMounted) {
-            const foundBeforeMountedMiddleware = beforeMountedMiddlewares.find((pbmm) => pbmm.path == fullPrefix);
-            if (foundBeforeMountedMiddleware) {
-                foundBeforeMountedMiddleware.middleware.push(middleware.beforeMounted);
-            } else {
-                beforeMountedMiddlewares.push({
-                    middleware: [middleware.beforeMounted],
-                    path: fullPrefix,
-                });
-            }
-        }
-
-        if (middleware.default) {
-            const foundMiddleware = middlewares.find((pm) => pm.path == fullPrefix);
-            if (foundMiddleware) {
-                foundMiddleware.middleware.push(middleware.default);
-            } else {
-                middlewares.push({
-                    middleware: [middleware.default],
-                    path: fullPrefix,
-                });
-            }
-        }
-
-        if (middleware.mounted) {
-            const foundMountedMiddleware = mountedMiddlewares.find((pbmm) => pbmm.path == fullPrefix);
-            if (foundMountedMiddleware) {
-                foundMountedMiddleware.middleware.push(middleware.mounted);
-            } else {
-                mountedMiddlewares.push({
-                    middleware: [middleware.mounted],
-                    path: fullPrefix,
-                });
-            }
-        }
-    }
-
-    for (const item of content) {
-        const itemStat = fs.statSync(path.join(currentChannelsDirectory, item));
-
-        if (itemStat.isDirectory()) {
-            await buildChannelling(
-                app,
-                path.join(currentChannelsDirectory, item),
-                false,
-                path.join(fullPrefix, item),
-                beforeMountedMiddlewares,
-                middlewares,
-                mountedMiddlewares,
-            );
-        } else {
-            const channelMatch = item.match(channelSuffixRegx);
-            if (!!channelMatch) {
-                const routerName = item.slice(0, item.indexOf(channelMatch[0]));
-                if (routerName == "index") {
-                    const handlerPath = resolveTs(path.join(currentChannelsDirectory, item));
-                    const { default: handler, mounted, beforeMounted } = await import(handlerPath);
-                    const routerDescriptionRegx = RegExp(
-                        `${routerName}${descriptionSuffixRegx.toString().slice(1, -1)}`,
-                    );
-                    const routerDescriptionFile = content.filter((el) => !!el.match(routerDescriptionRegx))[0];
-                    handlers.push({
-                        path: fullPrefix,
-
-                        beforeMounted,
-                        handler,
-                        mounted,
-
-                        middlewares: [...middlewares],
-                        mountedMiddlewares: [...mountedMiddlewares],
-                        beforeMountedMiddlewares: [...beforeMountedMiddlewares],
-                    });
-                    routerDescriptionFile &&
-                        app.get(path.join("channelling", fullPrefix, "describe"), async (request, response, next) => {
-                            try {
-                                response.sendFile(
-                                    path.join(currentChannelsDirectory, routerDescriptionFile),
-                                    (error) => {
-                                        !!error && next(error);
-                                    },
-                                );
-                            } catch (error: any) {
-                                next(error);
-                            }
-                        });
-                } else {
-                    const handlerPath = resolveTs(path.join(currentChannelsDirectory, item));
-                    const { default: handler, mounted, beforeMounted } = await import(handlerPath);
-                    const routerDescriptionRegx = RegExp(
-                        `${routerName}${descriptionSuffixRegx.toString().slice(1, -1)}`,
-                    );
-                    const routerDescriptionFile = content.filter((el) => !!el.match(routerDescriptionRegx))[0];
-                    const channelPath = path.join(fullPrefix, routerName);
-                    handlers.push({
-                        path: channelPath,
-
-                        mounted,
-                        handler,
-                        beforeMounted,
-
-                        middlewares: [...middlewares],
-                        mountedMiddlewares: [...mountedMiddlewares],
-                        beforeMountedMiddlewares: [...beforeMountedMiddlewares],
-                    });
-                    routerDescriptionFile &&
-                        app.get(path.join("channelling", channelPath, "describe"), async (request, response, next) => {
-                            try {
-                                response.sendFile(
-                                    path.join(currentChannelsDirectory, routerDescriptionFile),
-                                    (error) => {
-                                        !!error && next(error);
-                                    },
-                                );
-                            } catch (error: any) {
-                                next(error);
-                            }
-                        });
-                }
-            } else {
-                const directoryAliasMatch = item.match(directoryAliasSuffixRegx);
-                if (!!directoryAliasMatch) {
-                    aliases.push(async () => {
-                        const routerAlias: ChannelDirectoryAliasDefaultExport = (
-                            await import(path.join(currentChannelsDirectory, item))
-                        ).default;
-                        const routerName = item.slice(0, item.indexOf(directoryAliasMatch[0]));
-                        const aliases = handlers
-                            .filter((h) => {
-                                return h.path.startsWith(routerAlias.targetDirectory);
-                            })
-                            .map((h) => {
-                                const newHandler = { ...h };
-                                newHandler.path = newHandler.path.replace(
-                                    RegExp(`^${routerAlias.targetDirectory.replaceAll("/", "\\/")}`),
-                                    path.join(fullPrefix, routerName),
-                                );
-                                if (routerAlias.includeTargetMiddlewares) {
-                                    newHandler.beforeMountedMiddlewares = [
-                                        ...beforeMountedMiddlewares,
-                                        ...(newHandler.beforeMountedMiddlewares || []),
-                                    ];
-                                    newHandler.middlewares = [...middlewares, ...(newHandler.middlewares || [])];
-                                    newHandler.mountedMiddlewares = [
-                                        ...mountedMiddlewares,
-                                        ...(newHandler.mountedMiddlewares || []),
-                                    ];
-                                } else {
-                                    newHandler.beforeMountedMiddlewares = [...beforeMountedMiddlewares];
-                                    newHandler.middlewares = [...middlewares];
-                                    newHandler.mountedMiddlewares = [...mountedMiddlewares];
-                                }
-                                return newHandler;
-                            });
-                        handlers.push(...aliases);
-                    });
-                }
-            }
-        }
-    }
-
-    if (root) {
-        await Promise.all(aliases.map((f) => f()));
-    }
-    root && log("finished", currentChannelsDirectory);
-}

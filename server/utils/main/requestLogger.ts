@@ -1,33 +1,49 @@
 import { Handler } from "express";
 import moment from "moment";
-import * as logUtil from "../log/index.js";
-
-const llog = await logUtil.localLogDecorator("Request Logger", "red", true, "Info", true);
-const llogBlue = await logUtil.localLogDecorator("Request Logger", "blue", true, "Info", true);
+import { createLogger } from "kt-logger";
+const requestStartLogger = await createLogger({
+    color: "red",
+    logLevel: "Info",
+    name: "Request Logger: Request",
+    worker: true,
+});
+const requestEndLogger = await createLogger({
+    color: "blue",
+    logLevel: "Info",
+    name: "Request Logger: Response",
+    worker: true,
+});
 
 export const requestLogger: Handler = async (req, res, next) => {
     try {
-        llog();
-
+        requestStartLogger();
+        const logId = Math.floor(Math.random() * 1e10).toString(36);
+        res.locals.logId = logId;
         const text = `
+        request Id:${logId}
         method: ${req.method} 
         url: ${req.protocol}://${req.get("host")}${req.originalUrl} 
-        Authentication: ${!!req.headers["authorization"] ? "Has JWT" : "Doesn't have JWT"}
+        Authentication: ${
+            req.headers["authorization"]
+                ? "Has Authorization Info in headers"
+                : "Doesn't have Authorization Info in headers"
+        }
         started at: ${moment()} 
         `;
-        llog(text, "Info", "Http Request");
+        requestStartLogger(text);
 
         res.once("close", () => {
             try {
                 const text = `
+        request Id:${logId}
         method: ${req.method}
         url: ${req.protocol}://${req.get("host")}${req.originalUrl} 
         status code: ${res.statusCode}
         Ended at: ${moment()} 
         `;
-                llogBlue(text, "Info", "Http Response");
+                requestEndLogger(text);
             } catch (error: any) {
-                llog.error(error);
+                requestEndLogger.error(error);
             }
         });
 
