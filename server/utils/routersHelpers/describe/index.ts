@@ -1,24 +1,18 @@
-import { descriptionSuffixRegx, routerSuffixRegx } from "$/server/utils/routersHelpers/matchers.js";
+import { descriptionSuffixRegx, routerSuffixRegx } from "../../routersHelpers/matchers.js";
 import fs from "fs";
+import { lockMethod } from "kt-common";
 import mime from "mime-types";
 import path from "path";
 import ts from "typescript";
 import url from "url";
-import { routerConfig } from "../../../config/routing/index.js";
-import { AuthorizationOption } from "../../../middlewares/authorize.middleware.js";
-import { lockMethod } from "../../common/index.js";
-import rootPaths from "../../dynamicConfiguration/rootPaths.js";
+import { getDescriptionPreExtensionSuffix, getRouterDirectory, getRouteSuffix } from "../../loadConfig/index.js";
+
 export type DescriptionProps = {
     fileUrl: string;
     path?: string;
     fullRoutePath?: string;
-    requiresAuth?: boolean;
-    requiresAuthorities?: {
-        allow?: AuthorizationOption;
-        reject?: AuthorizationOption;
-    };
     descriptionText?: string;
-    method: "all" | "get" | "put" | "post" | "delete";
+    method: "ALL" | "GET" | "PUT" | "POST" | "DELETE" | "PATCH";
     requestParamsTypeString?: string;
     requestBodyTypeString?: string;
     requestHeadersTypeString?: string;
@@ -27,15 +21,21 @@ export type DescriptionProps = {
     responseBodyTypeString?: string;
     descriptionFileFullPath?: string;
 };
+
 export const descriptionsMap = {} as {
     [key: string]: DescriptionProps;
 };
-const routerDirectory = path.join(rootPaths.srcPath, routerConfig.getRouterDirectory());
+
+const routerDirectory = await getRouterDirectory();
 
 const checkType = (typeString: string) => {
     const sourceCode = `type TempType = ${typeString};`;
+    // oxlint-disable-next-line no-eval
     eval(ts.transpile(sourceCode));
 };
+
+const descriptionPreExtensionSuffix = await getDescriptionPreExtensionSuffix();
+const routerSuffix = await getRouteSuffix();
 
 export const describe = lockMethod(
     (options: DescriptionProps) => {
@@ -86,10 +86,8 @@ export const describe = lockMethod(
             const routeSuffixMatch = routeFileName.match(routerSuffixRegx);
             if (!routeSuffixMatch) {
                 console.error(
-                    'Invalid Route Name, a route file should end with "' +
-                        routerConfig.getRouteSuffix() +
-                        '" provided is: ',
-                    routeFileName,
+                    'Invalid Route Name, a route file should end with "' + routerSuffix + '" provided is: ',
+                    routeFileName
                 );
                 throw new Error();
             }
@@ -100,11 +98,11 @@ export const describe = lockMethod(
                 routeFileNameWithoutExtension == "index"
                     ? routeRelativeDirectory
                     : path.join(routeRelativeDirectory, routeFileNameWithoutExtension),
-                options.path || "",
+                options.path || ""
             );
             const routeDirectoryContent = fs.readdirSync(routeDirectory);
             const routeDescriptionRegx = RegExp(
-                `${routeFileNameWithoutExtension}${descriptionSuffixRegx.toString().slice(1, -1)}`,
+                `${routeFileNameWithoutExtension}${descriptionSuffixRegx.toString().slice(1, -1)}`
             );
 
             const descriptionFileName = routeDirectoryContent.find((item) => {
@@ -117,10 +115,7 @@ export const describe = lockMethod(
                 return false;
             });
             const descriptionFileFullPath = !descriptionFileName
-                ? path.join(
-                      routeDirectory,
-                      routeFileNameWithoutExtension + routerConfig.getDescriptionPreExtensionSuffix() + ".md",
-                  )
+                ? path.join(routeDirectory, routeFileNameWithoutExtension + descriptionPreExtensionSuffix + ".md")
                 : path.join(routeDirectory, descriptionFileName);
             const routeDescriptionContent = `<!-- --start-- ${routePrecisePath} -->
 
@@ -182,10 +177,13 @@ type Response = ${options.responseBodyTypeString || "any"}
                         descriptionFileFullPath,
                         content.replace(
                             RegExp(
-                                `\\<\\!-- --start-- ${routePrecisePath.replaceAll("/", "\\/")} --\\>(.|\n)*?\\<\\!-- --end-- ${routePrecisePath.replaceAll("/", "\\/")} --\\>`,
+                                `\\<\\!-- --start-- ${routePrecisePath.replaceAll(
+                                    "/",
+                                    "\\/"
+                                )} --\\>(.|\n)*?\\<\\!-- --end-- ${routePrecisePath.replaceAll("/", "\\/")} --\\>`
                             ),
-                            routeDescriptionContent,
-                        ),
+                            routeDescriptionContent
+                        )
                     );
                 }
             }
@@ -194,14 +192,13 @@ type Response = ${options.responseBodyTypeString || "any"}
             options.descriptionFileFullPath = path.join(routePrecisePath, "/describe");
 
             if (descriptionsMap[options.fullRoutePath]) {
-                console.error(
-                    "Route Descriptor Already Registered",
-                    "\nNew Registeration:",
+                console.warn(
+                    "Route Descriptor Already Registered: overriding previous registration.",
+                    "\nNew Registration:",
                     options,
-                    "\nOld Registeration:",
-                    descriptionsMap[options.fullRoutePath],
+                    "\nOld Registration:",
+                    descriptionsMap[options.fullRoutePath]
                 );
-                throw new Error();
             }
             options.fileUrl = options.fullRoutePath;
             descriptionsMap[options.fullRoutePath] = options;
@@ -213,7 +210,7 @@ type Response = ${options.responseBodyTypeString || "any"}
     },
     {
         lockName: "settingUpRouteDescriptions",
-    },
+    }
 );
 
 export const describeRoute = describe;

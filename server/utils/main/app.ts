@@ -53,7 +53,7 @@ export async function createApp(multithreading = false) {
                 const params = request.params || {};
                 const headers = request.headers || {};
 
-                const context: HandlerContext = {
+                const context: HandlerContext<any, any, any, any> = {
                     locale: {},
                     respond: {
                         async file(fullPath) {
@@ -92,10 +92,10 @@ export async function createApp(multithreading = false) {
                 };
 
                 for (const middleware of route.middleWares) {
-                    await middleware(context);
+                    await middleware(context, request.body, query, params, headers);
                 }
 
-                await route.handler(context);
+                await route.handler(context, request.body, query, params, headers);
                 if (!responded) {
                     console.warn("You Did not respond properly to the request on", route.method, path);
                     response.json?.({

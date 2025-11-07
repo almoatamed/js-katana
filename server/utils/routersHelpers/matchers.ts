@@ -1,11 +1,15 @@
-import { loadConfig } from "../loadConfig/index.js";
+import { loadConfig, valueOf } from "../loadConfig/index.js";
 
 const routerConfig = await loadConfig();
 
 export const directoryAliasSuffixRegx = RegExp(
-    routerConfig.getDirectoryAliasSuffixRegx?.() || "\\.directoryAlias\\.(?:js|ts)$"
+    (await valueOf(routerConfig.getDirectoryAliasSuffixRegx)) || "\\.directoryAlias\\.(?:js|ts)$"
 );
 
-export const routerSuffixRegx = RegExp(routerConfig.getRouterSuffixRegx?.() || "\\.router\\.(?:js|ts)$");
-export const descriptionSuffixRegx = RegExp(routerConfig.getDescriptionSuffixRegx?.() || "\\.description\\.[a-zA-Z]{1,10}$");
-export const middlewareSuffixRegx = RegExp(routerConfig.getMiddlewareSuffixRegx?.() || "\\.middleware\\.(?:js|ts)$");
+export const routerSuffixRegx = RegExp((await valueOf(routerConfig.getRouterSuffixRegx)) || "\\.router\\.(?:js|ts)$");
+export const descriptionSuffixRegx = RegExp(
+    (await valueOf(routerConfig.getDescriptionSuffixRegx)) || "\\.description\\.[a-zA-Z]{1,10}$"
+);
+export const middlewareSuffixRegx = RegExp(
+    (await valueOf(routerConfig.getMiddlewareSuffixRegx)) || "\\.middleware\\.(?:js|ts)$"
+);

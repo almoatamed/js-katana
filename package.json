@@ -1,9 +1,9 @@
 {
-    "name": "",
+    "name": "js-kt",
     "description": "",
     "version": "1.0.0",
     "type": "module",
-    "license": "MID",
+    "license": "MIT",
     "devDependencies": {
         "@js-katana/cli": "^2.10.0",
         "@tsconfig/node23": "^23.0.1",

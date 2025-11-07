@@ -1,25 +1,22 @@
-import { AuthorizationOption } from "$/server/middlewares/authorize.middleware.js";
-import { lockMethod } from "$/server/utils/common/index.js";
-import {
-    routerSuffixRegx as channelsSuffixRegx,
-    descriptionSuffixRegx,
-} from "$/server/utils/routersHelpers/matchers.js";
+import { routerSuffixRegx as channelsSuffixRegx, descriptionSuffixRegx } from "../../../routersHelpers/matchers.js";
 import cluster from "cluster";
 import fs from "fs";
 import path from "path";
 import ts from "typescript";
 import url from "url";
-import { routerConfig } from "../../../../config/routing/index.js";
-import rootPaths from "../../../dynamicConfiguration/rootPaths.js";
+import { getDescriptionPreExtensionSuffix, getRouterDirectory, getRouteSuffix } from "../../../loadConfig/index.js";
+import { lockMethod } from "kt-common";
+
+
+
+const descriptionPreExtensionSuffix = await getDescriptionPreExtensionSuffix();
+const routerSuffix = await getRouteSuffix();
+
 export type DescriptionProps = {
     fileUrl: string;
     path?: string;
     fullChannelPath?: string;
     requiresAuth?: boolean;
-    requiresAuthorities?: {
-        allow?: AuthorizationOption;
-        reject?: AuthorizationOption;
-    };
     descriptionText?: string;
     requestBodyTypeString?: string;
     additionalTypes?: string;
@@ -31,11 +28,14 @@ export type ChannelDescriptionProps = DescriptionProps;
 export const descriptionsMap = {} as {
     [key: string]: DescriptionProps;
 };
-export const channelsDescriptionsMap = descriptionsMap;
-const channelsDirectory = path.join(rootPaths.srcPath, routerConfig.getRouterDirectory());
+
+const routesDir = await getRouterDirectory();
+
+const channelsDirectory = routesDir;
 
 const checkType = (typeString: string) => {
     const sourceCode = `type TempType = ${typeString};`;
+    // oxlint-disable-next-line no-eval
     eval(ts.transpile(sourceCode));
 };
 
@@ -72,29 +72,29 @@ export const describe = lockMethod(
             if (!channelSuffixMatch) {
                 console.error(
                     'Invalid Channel Name, a channel file should end with "' +
-                        routerConfig.getRouteSuffix() +
+                        routerSuffix +
                         '" provided is: ',
-                    channelFileName,
+                    channelFileName
                 );
                 throw new Error();
             }
 
             const channelFileNameWithoutExtension = channelFileName.slice(
                 0,
-                channelFileName.indexOf(channelSuffixMatch[0]),
+                channelFileName.indexOf(channelSuffixMatch[0])
             );
 
             const channelPrecisePath = path.join(
                 channelFileNameWithoutExtension == "index"
                     ? channelRelativeDirectory
                     : path.join(channelRelativeDirectory, channelFileNameWithoutExtension),
-                options.path || "",
+                options.path || ""
             );
             console.log("Channel Full path on describe", channelPrecisePath);
 
             const channelDirectoryContent = fs.readdirSync(channelDirectory);
             const channelDescriptionRegx = RegExp(
-                `${channelFileNameWithoutExtension}${descriptionSuffixRegx.toString().slice(1, -1)}`,
+                `${channelFileNameWithoutExtension}${descriptionSuffixRegx.toString().slice(1, -1)}`
             );
 
             const descriptionFileName = channelDirectoryContent.find((item) => {
@@ -109,7 +109,7 @@ export const describe = lockMethod(
             const descriptionFileFullPath = !descriptionFileName
                 ? path.join(
                       channelDirectory,
-                      channelFileNameWithoutExtension + routerConfig.getDescriptionPreExtensionSuffix() + ".md",
+                      channelFileNameWithoutExtension + descriptionPreExtensionSuffix + ".md"
                   )
                 : path.join(channelDirectory, descriptionFileName);
             const channelDescriptionContent = `<!-- --start--channel-- ${channelPrecisePath} -->
@@ -157,10 +157,16 @@ type Response = ${options.responseBodyTypeString || "any"}
                         descriptionFileFullPath,
                         content.replace(
                             RegExp(
-                                `\\<\\!-- --start--channel-- ${channelPrecisePath.replaceAll("/", "\\/")} --\\>(.|\n)*?\\<\\!-- --end--channel-- ${channelPrecisePath.replaceAll("/", "\\/")} --\\>`,
+                                `\\<\\!-- --start--channel-- ${channelPrecisePath.replaceAll(
+                                    "/",
+                                    "\\/"
+                                )} --\\>(.|\n)*?\\<\\!-- --end--channel-- ${channelPrecisePath.replaceAll(
+                                    "/",
+                                    "\\/"
+                                )} --\\>`
                             ),
-                            channelDescriptionContent,
-                        ),
+                            channelDescriptionContent
+                        )
                     );
                 }
             }
@@ -174,7 +180,7 @@ type Response = ${options.responseBodyTypeString || "any"}
                     "\nNew Registration:",
                     options,
                     "\nOld Registration:",
-                    descriptionsMap[options.fullChannelPath],
+                    descriptionsMap[options.fullChannelPath]
                 );
                 throw new Error();
             }
@@ -188,6 +194,6 @@ type Response = ${options.responseBodyTypeString || "any"}
     },
     {
         lockName: "settingUpChannelDescriptions",
-    },
+    }
 );
 export const describeChannel = describe;

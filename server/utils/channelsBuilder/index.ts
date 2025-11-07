@@ -16,21 +16,65 @@ const log = await createLogger({
     name: "Channels-Manager",
 });
 
-export type Respond = (response: any) => void;
+export type Respond<T> = (response: T) => void;
 
 export type ChannelHandlerBeforeMounted = (
     socket: Socket
 ) => null | undefined | void | string | boolean | Promise<null | undefined | void | string | boolean>;
-export type ChannelHandlerBuilder = (
+const defineChannelBeforeMounted = (definition: ChannelHandlerBeforeMounted) => definition;
+export const channelBeforeMountedSymbol = Symbol("Channel Before Mounted");
+defineChannelBeforeMounted.__symbol = channelBeforeMountedSymbol;
+export { defineChannelBeforeMounted };
+
+export type ChannelHandlerBuilder<B, R> = (
     socket: Socket
-) => ChannelHandler | null | void | undefined | string | Promise<ChannelHandler | string | void | null | undefined>;
+) =>
+    | ChannelHandler<B, R>
+    | null
+    | void
+    | undefined
+    | string
+    | Promise<ChannelHandler<B, R> | string | void | null | undefined>;
+
+// handler shape (very important: respond is an *optional param*, not a union)
+type ChannelHandlerSimple<B, R> = (body: B, respond: (response: R) => void | undefined, ev: string) => unknown;
+
+// defineChannelHandler with generics that will be inferred from `definition`
+const defineChannelHandler = <B, R>(
+    definition: (socket: Socket) =>
+        | {
+              middlewares?: ChannelHandlerSimple<B, R>[];
+              handler: ChannelHandlerSimple<B, R>;
+          }
+        | Promise<{
+              middlewares?: ChannelHandlerSimple<B, R>[];
+              handler: ChannelHandlerSimple<B, R>;
+          }>
+): ChannelHandlerBuilder<B, R> => {
+    return async (socket) => {
+        const result = await definition(socket);
+        if (result && typeof result !== "string") {
+            return [...(result.middlewares ?? []), result.handler];
+        }
+        return result as any;
+    };
+};
+export const channelHandlerSymbol = Symbol("Channel Handler Builder");
+defineChannelHandler.__symbol = channelHandlerSymbol;
+export { defineChannelHandler };
+
 export type ChannelHandlerMounted = (
     socket: Socket
 ) => null | undefined | void | string | Promise<null | undefined | void | string>;
 
-export type ChannelHandlerFunction = (body: any, respond: Respond | undefined, ev: string) => any;
-export type _ChannelHandler = ChannelHandler[];
-export type ChannelHandler = ChannelHandlerFunction | _ChannelHandler;
+const defineChannelMounted = (definition: ChannelHandlerMounted) => definition;
+export const channelMountedSymbol = Symbol("Channel Mounted");
+defineChannelMounted.__symbol = channelMountedSymbol;
+export { defineChannelMounted };
+
+export type ChannelHandlerFunction<B, R> = (body: B, respond: ((response: R) => void) | undefined, ev: string) => any;
+export type _ChannelHandler<B, R> = ChannelHandler<B, R>[];
+export type ChannelHandler<B, R> = ChannelHandlerFunction<B, R> | _ChannelHandler<B, R>;
 export type ChannelDirectoryAliasDefaultExport = {
     targetDirectory: string;
     includeTargetMiddlewares: boolean;
@@ -44,7 +88,7 @@ export const handlers: {
         path: string;
     }[];
     middlewares: {
-        middleware: ChannelHandlerBuilder[];
+        middleware: ChannelHandlerBuilder<any, any>[];
         path: string;
     }[];
     mountedMiddlewares: {
@@ -52,12 +96,17 @@ export const handlers: {
         path: string;
     }[];
 
-    handler?: ChannelHandlerBuilder;
+    handler?: ChannelHandlerBuilder<any, any>;
     mounted?: ChannelHandlerMounted;
     beforeMounted?: ChannelHandlerBeforeMounted;
 }[] = [];
 
-export const perform = async (body: any, respond: Respond | undefined, handler: ChannelHandler, ev: string) => {
+export const perform = async (
+    body: any,
+    respond: Respond<any> | undefined,
+    handler: ChannelHandler<any, any>,
+    ev: string
+) => {
     if (typeof handler == "function") {
         await handler(body, respond, ev);
     } else if (Array.isArray(handler)) {
@@ -156,7 +205,7 @@ export const registerSocket = async (socket: Socket) => {
 
             const mainHandlers = await handler.handler?.(socket);
             if (mainHandlers && typeof mainHandlers != "string") {
-                const handlers: ChannelHandler[] = [];
+                const handlers: ChannelHandler<any, any>[] = [];
                 let allMiddlewaresAccepted = true;
                 for (const middleware of handler.middlewares) {
                     let middlewareHandler: any[] = [];
@@ -224,23 +273,24 @@ export const registerSocket = async (socket: Socket) => {
                 if (!handler.path.endsWith("/")) {
                     handler.path = handler.path + "/";
                 }
-                socket.on(handler.path, async (body: any, cb?: Respond) => {
+                socket.on(handler.path, async (body: any, cb?: Respond<any>) => {
                     try {
                         await perform(body, cb, handlers, handler.path);
                     } catch (error: any) {
-                        const e = extractRequestError(error)
+                        const e = extractRequestError(error);
                         log.error("Channel Error", handler.path, error);
                         if (cb) {
-
                             if (e) {
                                 cb(e);
                             } else {
-                                cb(createRequestError(500, [
-                                    {
-                                        error: "Unknown Socket error", 
-                                        data: error, 
-                                    }
-                                ]));
+                                cb(
+                                    createRequestError(500, [
+                                        {
+                                            error: "Unknown Socket error",
+                                            data: error,
+                                        },
+                                    ])
+                                );
                             }
                         }
                     }

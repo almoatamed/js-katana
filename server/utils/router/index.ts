@@ -5,7 +5,7 @@ export type FileResult = Promise<{
 export type Text = string;
 export type Html = Text;
 
-export type HandlerContext = {
+export type HandlerContext<B, Q, P, H> = {
     respond: {
         json: <D>(data: D) => JSONResult<D>;
         file: (fullPath: string) => FileResult;
@@ -13,24 +13,30 @@ export type HandlerContext = {
         html: (html: string) => Html;
     };
     locale: Record<string, any>;
-    query: Record<string, any>;
-    params: Record<string, any>;
-    headers: Record<string, any>;
-    setStatus: (statusCode: number) => HandlerContext;
-    body: Record<string, any>;
+    query: Q;
+    params: P;
+    headers: H;
+    setStatus: (statusCode: number) => HandlerContext<B, Q, P, H>;
+    body: B;
 };
 
-export type Handler = (context: HandlerContext) => unknown;
+export type Handler<T, B, Q, P, H> = (
+    context: HandlerContext<B, Q, P, H>,
+    body: B,
+    query: Q,
+    params: P,
+    headers: H
+) => T;
 
-export type Middleware = Handler;
+export type Middleware<T, B, Q, P, H> = Handler<T, B, Q, P, H>;
 
-export type Route = {
-    externalMiddlewares: Middleware[];
-    middleWares: Middleware[];
+export type Route<T, B, Q, P, H> = {
+    externalMiddlewares: Middleware<any, B, Q, P, H>[];
+    middleWares: Middleware<any, B, Q, P, H>[];
     serveVia: ("Http" | "Socket")[];
     __symbol: symbol;
     method: "GET" | "POST" | "PUT" | "DELETE" | "ALL" | "PATCH";
-    handler: Handler;
+    handler: Handler<T, B, Q, P, H>;
 };
 
 export const routerSymbol = Symbol("Router symbol");
@@ -49,17 +55,22 @@ export const CreateAlias = (props: Omit<RouterAlias, "symbol">) => {
     } as RouterAlias;
 };
 
-export const CreateHandler = (
-    props: Omit<Omit<Omit<Route, "externalMiddlewares">, "__symbol">, "serveVia"> & {
-        serveVia?: Route["serveVia"];
+export const CreateHandler = <T, B, Q, P, H>(
+    props: Omit<
+        Omit<Omit<Omit<Route<T, B, Q, P, H>, "externalMiddlewares">, "__symbol">, "serveVia">,
+        "middleWares"
+    > & {
+        serveVia?: Route<T, B, Q, P, H>["serveVia"];
+        middleWares?: Middleware<any, B, Q, P, H>[];
     }
 ) => {
     return {
         ...props,
+        middleWares: props.middleWares || [],
         externalMiddlewares: [],
         serveVia: props.serveVia || ["Http", "Socket"],
         __symbol: routerSymbol,
-    } as Route;
+    } as Route<T, B, Q, P, H>;
 };
 
 export const requestErrorSymbol = Symbol("Request Error");
