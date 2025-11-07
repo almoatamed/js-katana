@@ -173,18 +173,22 @@ type Response = ${options.responseBodyTypeString || "any"}
                 if (!content.includes(routePrecisePath)) {
                     fs.writeFileSync(descriptionFileFullPath, content + "\n\n" + routeDescriptionContent);
                 } else {
-                    fs.writeFileSync(
-                        descriptionFileFullPath,
-                        content.replace(
-                            RegExp(
-                                `\\<\\!-- --start-- ${routePrecisePath.replaceAll(
-                                    "/",
-                                    "\\/"
-                                )} --\\>(.|\n)*?\\<\\!-- --end-- ${routePrecisePath.replaceAll("/", "\\/")} --\\>`
-                            ),
-                            routeDescriptionContent
-                        )
-                    );
+                    if (!content.includes(`<!-- --start-- ${routePrecisePath} -->`)) {
+                        fs.writeFileSync(descriptionFileFullPath, content + `\n\n` + routeDescriptionContent);
+                    } else {
+                        fs.writeFileSync(
+                            descriptionFileFullPath,
+                            content.replace(
+                                RegExp(
+                                    `\\<\\!-- --start-- ${routePrecisePath.replaceAll(
+                                        "/",
+                                        "\\/"
+                                    )} --\\>(.|\n)*?\\<\\!-- --end-- ${routePrecisePath.replaceAll("/", "\\/")} --\\>`
+                                ),
+                                routeDescriptionContent
+                            )
+                        );
+                    }
                 }
             }
 

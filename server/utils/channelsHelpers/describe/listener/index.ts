@@ -7,8 +7,6 @@ import url from "url";
 import { getDescriptionPreExtensionSuffix, getRouterDirectory, getRouteSuffix } from "../../../loadConfig/index.js";
 import { lockMethod } from "kt-common";
 
-
-
 const descriptionPreExtensionSuffix = await getDescriptionPreExtensionSuffix();
 const routerSuffix = await getRouteSuffix();
 
@@ -71,9 +69,7 @@ export const describe = lockMethod(
             const channelSuffixMatch = channelFileName.match(channelsSuffixRegx);
             if (!channelSuffixMatch) {
                 console.error(
-                    'Invalid Channel Name, a channel file should end with "' +
-                        routerSuffix +
-                        '" provided is: ',
+                    'Invalid Channel Name, a channel file should end with "' + routerSuffix + '" provided is: ',
                     channelFileName
                 );
                 throw new Error();
@@ -107,10 +103,7 @@ export const describe = lockMethod(
                 return false;
             });
             const descriptionFileFullPath = !descriptionFileName
-                ? path.join(
-                      channelDirectory,
-                      channelFileNameWithoutExtension + descriptionPreExtensionSuffix + ".md"
-                  )
+                ? path.join(channelDirectory, channelFileNameWithoutExtension + descriptionPreExtensionSuffix + ".md")
                 : path.join(channelDirectory, descriptionFileName);
             const channelDescriptionContent = `<!-- --start--channel-- ${channelPrecisePath} -->
 
@@ -146,6 +139,7 @@ type Response = ${options.responseBodyTypeString || "any"}
 <!-- --end--channel-- ${channelPrecisePath} -->`;
 
             if (!descriptionFileName) {
+                console.log("Creating description file at:", descriptionFileFullPath);
                 fs.writeFileSync(descriptionFileFullPath, channelDescriptionContent);
             } else {
                 const content = fs.readFileSync(descriptionFileFullPath, "utf-8");
@@ -153,21 +147,25 @@ type Response = ${options.responseBodyTypeString || "any"}
                 if (!content.includes(channelPrecisePath)) {
                     fs.writeFileSync(descriptionFileFullPath, content + "\n\n" + channelDescriptionContent);
                 } else {
-                    fs.writeFileSync(
-                        descriptionFileFullPath,
-                        content.replace(
-                            RegExp(
-                                `\\<\\!-- --start--channel-- ${channelPrecisePath.replaceAll(
-                                    "/",
-                                    "\\/"
-                                )} --\\>(.|\n)*?\\<\\!-- --end--channel-- ${channelPrecisePath.replaceAll(
-                                    "/",
-                                    "\\/"
-                                )} --\\>`
-                            ),
-                            channelDescriptionContent
-                        )
-                    );
+                    if (!content.includes(`<!-- --start--channel-- ${channelPrecisePath} -->`)) {
+                        fs.writeFileSync(descriptionFileFullPath, content + `\n\n` + channelDescriptionContent);
+                    } else {
+                        fs.writeFileSync(
+                            descriptionFileFullPath,
+                            content.replace(
+                                RegExp(
+                                    `\\<\\!-- --start--channel-- ${channelPrecisePath.replaceAll(
+                                        "/",
+                                        "\\/"
+                                    )} --\\>(.|\n)*?\\<\\!-- --end--channel-- ${channelPrecisePath.replaceAll(
+                                        "/",
+                                        "\\/"
+                                    )} --\\>`
+                                ),
+                                channelDescriptionContent
+                            )
+                        );
+                    }
                 }
             }
 

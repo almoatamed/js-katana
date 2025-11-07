@@ -1,6 +1,6 @@
 import { runSingle } from "./utils/loadConfig/index.js";
 
-export const RunServer = async () => {
+export const runServer = async () => {
     if (await runSingle()) {
         await import("./utils/main/single.js");
     } else {

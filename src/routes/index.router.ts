@@ -48,7 +48,7 @@ export const handler = defineChannelHandler((_socket) => {
 });
 
 export default CreateHandler({
-    method: "POST",
+    method: "GET",
     handler: async (
         context,
         body: {

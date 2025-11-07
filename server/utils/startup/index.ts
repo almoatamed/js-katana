@@ -1,5 +1,5 @@
 import findRoot from "find-root-kt";
-import { loadConfig, valueOf } from "../loadConfig/index.js";
+import { getSourceDir, loadConfig, valueOf } from "../loadConfig/index.js";
 import type { Application } from "express";
 
 const fs = (await import("fs")).default;
@@ -8,7 +8,7 @@ const path = (await import("path")).default;
 const cluster = (await import("cluster")).default;
 
 const getStartupDir = async () => {
-    const root = await findRoot();
+    const root = await getSourceDir();
     const config = await loadConfig();
     return path.join(root, (await valueOf(config.getStartupDirPath)) || "./startup");
 };
