@@ -18,12 +18,14 @@ import {
     HandlerContext,
     RouterAlias,
     routerSymbol,
+    throwRequestError,
+    throwUnauthorizedError,
     type CreateHandler,
     type Handler,
     type Middleware,
     type Route,
 } from "../router/index.js";
-import { getRouterDirectory, getSourceDir, getTypesPlacementDir, isDev } from "../loadConfig/index.js";
+import { getAllDescriptionsSecret, getRouterDirectory, getTypesPlacementDir, isDev } from "../loadConfig/index.js";
 import { readFile } from "fs/promises";
 import ts from "typescript";
 import path from "path";
@@ -32,6 +34,8 @@ import { describeRoute, routesDescriptionMap } from "../routersHelpers/describe/
 import { pathToFileURL } from "url";
 import { channelsDescriptionsMap, describeChannel } from "../channelsHelpers/describe/listener/index.js";
 import cluster from "cluster";
+import { renderMdDescriptionFile } from "../renderDescriptionFile/index.js";
+import { describeEvent, descriptionsMap } from "../channelsHelpers/describe/emitter/index.js";
 
 const log = await createLogger({
     color: "blue",
@@ -139,7 +143,12 @@ export default async function buildRouter(
                             serveVia: ["Http"],
                             externalMiddlewares: [],
                             handler: async (context) => {
-                                return context.respond.file(path.join(routerDirectory, routerDescriptionFile));
+                                const fullPath = path.join(routerDirectory, routerDescriptionFile);
+                                if (fullPath.endsWith(".md")) {
+                                    const rendered = await renderMdDescriptionFile(path.join(fullPrefix), fullPath);
+                                    return context.respond.html(rendered);
+                                }
+                                return context.respond.file(fullPath);
                             },
                             method: "GET",
                             middleWares: [],
@@ -159,7 +168,14 @@ export default async function buildRouter(
                             __symbol: routerSymbol,
                             externalMiddlewares: [],
                             handler: async (context) => {
-                                return context.respond.file(path.join(routerDirectory, routerDescriptionFile));
+                                const fullPath = path.join(routerDirectory, routerDescriptionFile);
+                                if (fullPath.endsWith(".md")) {
+                                    return context.respond.html(
+                                        await renderMdDescriptionFile(path.join(fullPrefix, routerName), fullPath)
+                                    );
+                                }
+
+                                return context.respond.file(fullPath);
                             },
                             serveVia: ["Http"],
                             method: "GET",
@@ -216,6 +232,39 @@ export default async function buildRouter(
         await Promise.all(aliases.map((f) => f()));
         await processRouterForChannels();
         await maybeProcessRoutesForTypes();
+        routesRegistryMap[path.join(fullPrefix, "/__describe-json")] = {
+            __symbol: routerSymbol,
+            externalMiddlewares: [],
+            handler: async (context) => {
+                const fullPath = path.join(await getTypesPlacementDir(), "apiTypes.json");
+                if (!fs.existsSync(fullPath)) {
+                    throwRequestError(404, [
+                        {
+                            error: "API Types description not found",
+                        },
+                    ]);
+                }
+                return context.respond.file(fullPath);
+            },
+            method: "GET",
+            middleWares: [
+                async (context) => {
+                    if (await isDev()) {
+                        return;
+                    }
+                    const secret = await getAllDescriptionsSecret();
+                    if (!secret) {
+                        return;
+                    }
+                    const authorizationHeader = context.headers["authorization"] || context.headers["Authorization"];
+                    if (authorizationHeader !== `Secret ${secret}`) {
+                        throwUnauthorizedError("Unauthorized to access descriptions");
+                    }
+                },
+            ],
+            serveVia: ["Http"],
+        };
+
         log("finished Building Router:", Object.keys(routesRegistryMap));
     }
 }
@@ -982,6 +1031,89 @@ const useContextToProcessChannelsForTypes = async (
         return null;
     }
 };
+const useContextToProcessEventsForTypes = async (
+    routeFileFullPath: string,
+    callExpression: ts.CallExpression,
+    context: {
+        checker: ts.TypeChecker;
+        host: ts.CompilerHost;
+        program: ts.Program;
+    }
+): Promise<null | { eventName: string; bodyTypeString: string; responseTypeString: string }> => {
+    try {
+        const { checker } = context;
+        // event name: if first arg is a string literal, use it; otherwise fallback to type text
+        let eventName = "unknown";
+        if (callExpression.arguments && callExpression.arguments.length > 0) {
+            const firstArg = callExpression.arguments[0];
+            if (ts.isStringLiteral(firstArg) || ts.isNoSubstitutionTemplateLiteral(firstArg)) {
+                eventName = firstArg.text;
+            } else {
+                const t = checker.getTypeAtLocation(firstArg);
+                eventName = checker.typeToString(t);
+            }
+        }
+
+        // Prefer explicit generic type arguments when provided: defineEmittedEvent<Body, Response>(...)
+        const typeArgs = callExpression.typeArguments || [];
+
+        let bodyTypeString = "unknown";
+        let responseTypeString = "unknown";
+
+        if (typeArgs.length >= 1) {
+            try {
+                const bodyType = checker.getTypeFromTypeNode(typeArgs[0]);
+                bodyTypeString = stringify(checker, bodyType, 0);
+            } catch {
+                // fallback below
+            }
+        }
+
+        if (typeArgs.length >= 2) {
+            try {
+                const responseType = checker.getTypeFromTypeNode(typeArgs[1]);
+                responseTypeString = stringify(checker, responseType, 0);
+            } catch {
+                // fallback below
+            }
+        }
+
+        // If we didn't get types from generic args, fall back to inspecting the call expression's resulting type
+        if (bodyTypeString === "unknown" || responseTypeString === "unknown") {
+            const callType = checker.getTypeAtLocation(callExpression); // object-like type returned by the factory
+            if (bodyTypeString === "unknown") {
+                const bodyProp = checker.getPropertyOfType(callType, "body");
+                if (bodyProp) {
+                    const decl = bodyProp.valueDeclaration || (bodyProp.declarations && bodyProp.declarations[0]);
+                    const t = decl
+                        ? checker.getTypeOfSymbolAtLocation(bodyProp, decl)
+                        : checker.getTypeOfSymbolAtLocation(bodyProp, callExpression);
+                    bodyTypeString = stringify(checker, t, 0);
+                }
+            }
+            if (responseTypeString === "unknown") {
+                const respProp =
+                    checker.getPropertyOfType(callType, "response") || checker.getPropertyOfType(callType, "response");
+                if (respProp) {
+                    const decl = respProp.valueDeclaration || (respProp.declarations && respProp.declarations[0]);
+                    const t = decl
+                        ? checker.getTypeOfSymbolAtLocation(respProp, decl)
+                        : checker.getTypeOfSymbolAtLocation(respProp, callExpression);
+                    responseTypeString = stringify(checker, t, 0);
+                }
+            }
+        }
+
+        return {
+            eventName,
+            bodyTypeString,
+            responseTypeString,
+        };
+    } catch (error) {
+        console.error(routeFileFullPath, error);
+        return null;
+    }
+};
 
 export const processRoutesForTypes = async (routesFilesMap: { [routeFileFullPath: string]: string }) => {
     const tsContext = await createTypeManager(routesFilesMap);
@@ -997,7 +1129,24 @@ export const processRoutesForTypes = async (routesFilesMap: { [routeFileFullPath
                 }
                 let defaultExportExpr: ts.Expression | null = null;
                 let channelExportExpr: ts.Expression | null = null;
+                let eventExpressions: ts.CallExpression[] = [];
                 for (const stmt of sf.statements) {
+                    if (stmt.kind == ts.SyntaxKind.ExpressionStatement) {
+                        const exprStmt = stmt as ts.ExpressionStatement;
+                        if (ts.isCallExpression(exprStmt.expression)) {
+                            const callExpr = exprStmt.expression as ts.CallExpression;
+                            if (
+                                ts.isIdentifier(callExpr.expression) &&
+                                callExpr.expression.text.startsWith("defineEmittedEvent")
+                            ) {
+                                const sym = tsContext.checker.getSymbolAtLocation(callExpr.expression);
+                                if (sym && sym.declarations && sym.declarations.length) {
+                                    eventExpressions.push(callExpr);
+                                }
+                            }
+                        }
+                    }
+
                     if (ts.isExportAssignment(stmt) && !stmt.isExportEquals) {
                         defaultExportExpr = stmt.expression;
                     }
@@ -1011,13 +1160,9 @@ export const processRoutesForTypes = async (routesFilesMap: { [routeFileFullPath
                             }
                         }
                     }
-
-                    if (defaultExportExpr && channelExportExpr) {
-                        break;
-                    }
                 }
 
-                const promises = [undefined, undefined] as [
+                const promises = [undefined, undefined, undefined] as [
                     (
                         | undefined
                         | Promise<{
@@ -1034,6 +1179,17 @@ export const processRoutesForTypes = async (routesFilesMap: { [routeFileFullPath
                               bodyTypeString: string;
                               expectResponse: string; // as in `undefined | ((response: ResponseType /* for example User */ )=>void|Promise<void>)`
                           } | null>
+                    ),
+                    (
+                        | undefined
+                        | Promise<
+                              | {
+                                    eventName: string;
+                                    bodyTypeString: string;
+                                    responseTypeString: string;
+                                }[]
+                              | null
+                          >
                     )
                 ];
 
@@ -1047,7 +1203,29 @@ export const processRoutesForTypes = async (routesFilesMap: { [routeFileFullPath
                     console.trace("Could not find export expression for channel handler on: ", routeFullPath);
                 }
 
-                const [routeTypes, channelTypes] = await Promise.all(promises);
+                if (eventExpressions.length > 0) {
+                    promises[2] = (async () => {
+                        const results: {
+                            eventName: string;
+                            bodyTypeString: string;
+                            responseTypeString: string;
+                        }[] = [];
+                        for (const evExpr of eventExpressions) {
+                            try {
+                                const res = await useContextToProcessEventsForTypes(routeFullPath, evExpr, tsContext);
+                                if (res) {
+                                    results.push(res);
+                                }
+                            } catch (err) {
+                                console.error("Error processing emitted event for types on", routeFullPath, err);
+                            }
+                        }
+                        return results;
+                    })();
+                }
+
+                const [routeTypes, channelTypes, eventsTypes] = await Promise.all(promises);
+                console.log("Types for route", channelExportExpr?.getText(), channelTypes);
 
                 const route = routesRegistryMap[routesFilesMap[routeFullPath]];
                 if (routeTypes) {
@@ -1069,6 +1247,16 @@ export const processRoutesForTypes = async (routesFilesMap: { [routeFileFullPath
                         responseBodyTypeString: channelTypes.expectResponse,
                     });
                 }
+                if (eventsTypes?.length && eventsTypes?.length > 0) {
+                    for (const evExpr of eventsTypes) {
+                        describeEvent({
+                            fileUrl: pathToFileURL(routeFullPath).toString(),
+                            event: evExpr.eventName,
+                            eventBodyTypeString: evExpr.bodyTypeString,
+                            expectedResponseBodyTypeString: evExpr.responseTypeString,
+                        });
+                    }
+                }
             })()
         );
     }
@@ -1088,6 +1276,7 @@ const storeDescriptions = async () => {
             {
                 routesDescriptions: routesDescriptionMap,
                 channelsDescriptions: channelsDescriptionsMap,
+                eventsDescriptions: descriptionsMap,
             },
             null,
             4

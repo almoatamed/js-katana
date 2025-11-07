@@ -1,3 +1,5 @@
+
+
 <!-- --start-- / -->
 
 # Route Description 
@@ -59,33 +61,64 @@ type Response = Promise<{
 
 <!-- --end-- / -->
 
-<!-- --start--channel-- / -->
+<!-- --start--event-- helloWorld -->
 
-# Channel Description 
+# Event Description 
 No description Text Provided
 
-## Channel Path: 
-/
+## Event: 
+helloWorld
 
 
 
 
 
 
-## Channel Request Body type definition:
+## Event Body type definition:
 ```ts
-type RequestBody = {
-  name: string;
-  age: number
-}
-```
-
-## Response Content Type Definition: 
-```ts
-type Response = {
-  msg: string
+type EventBody = {
+  greeting: string
 }
 ```
 
 
-<!-- --end--channel-- / -->
+## Expected Response Content Type Definition: 
+```ts
+type ExpectedResponseBody = {
+  reply: string
+}
+```
+
+
+<!-- --end--event-- helloWorld -->
+
+<!-- --start--event-- helloWorld2 -->
+
+# Event Description 
+No description Text Provided
+
+## Event: 
+helloWorld2
+
+
+
+
+
+
+## Event Body type definition:
+```ts
+type EventBody = {
+  greeting: string
+}
+```
+
+
+## Expected Response Content Type Definition: 
+```ts
+type ExpectedResponseBody = {
+  reply: string
+}
+```
+
+
+<!-- --end--event-- helloWorld2 -->

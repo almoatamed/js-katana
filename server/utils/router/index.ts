@@ -83,6 +83,13 @@ export type RequestError = {
         errors?: string[] | undefined;
     }[];
 };
+export const throwUnauthorizedError = (message?: string) => {
+    throwRequestError(401, [
+        {
+            error: message || "Unauthorized",
+        },
+    ]);
+};
 export const throwRequestError = (
     statusCode: number,
     errors: {

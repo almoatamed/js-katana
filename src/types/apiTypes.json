@@ -1,1 +1,33 @@
-{"routesDescriptions":{"/":{"fileUrl":"/","method":"GET","path":"/","requestBodyTypeString":"{\n  name: string;\n  age: number\n}","requestParamsTypeString":"unknown","requestHeadersTypeString":"unknown","responseBodyTypeString":"Promise<{\n  name: string;\n  posts?: undefined | {\n  title: string;\n  content: string;\n  comments: {\n  msg: string;\n  person: Person;\n  replies: {\n  msg: string;\n  timestamp: string;\n  userId: string\n}[]\n}[]\n}[];\n  email: string;\n  status: \"active\" | \"inactive\"\n}>","responseContentType":"application/json","fullRoutePath":"/","descriptionFileFullPath":"/describe"}},"channelsDescriptions":{"/":{"fileUrl":"/","path":"/","requestBodyTypeString":"{\n  name: string;\n  age: number\n}","responseBodyTypeString":"{\n  msg: string\n}","fullChannelPath":"/","descriptionFileFullPath":"/describe"}}}
+{
+    "routesDescriptions": {
+        "/": {
+            "fileUrl": "/",
+            "method": "GET",
+            "path": "/",
+            "requestBodyTypeString": "{\n  name: string;\n  age: number\n}",
+            "requestParamsTypeString": "unknown",
+            "requestHeadersTypeString": "unknown",
+            "responseBodyTypeString": "Promise<{\n  name: string;\n  posts?: undefined | {\n  title: string;\n  content: string;\n  comments: {\n  msg: string;\n  person: Person;\n  replies: {\n  msg: string;\n  timestamp: string;\n  userId: string\n}[]\n}[]\n}[];\n  email: string;\n  status: \"active\" | \"inactive\"\n}>",
+            "responseContentType": "application/json",
+            "fullRoutePath": "/",
+            "descriptionFileFullPath": "/describe"
+        }
+    },
+    "channelsDescriptions": {},
+    "eventsDescriptions": {
+        "helloWorld": {
+            "fileUrl": "/",
+            "event": "helloWorld",
+            "eventBodyTypeString": "{\n  greeting: string\n}",
+            "expectedResponseBodyTypeString": "{\n  reply: string\n}",
+            "descriptionFileFullPath": "/describe"
+        },
+        "helloWorld2": {
+            "fileUrl": "/",
+            "event": "helloWorld2",
+            "eventBodyTypeString": "{\n  greeting: string\n}",
+            "expectedResponseBodyTypeString": "{\n  reply: string\n}",
+            "descriptionFileFullPath": "/describe"
+        }
+    }
+}

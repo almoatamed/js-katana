@@ -59,6 +59,16 @@ const defineChannelHandler = <B, R>(
         return result as any;
     };
 };
+
+export const defineEmittedEvent = <B, R = never>(
+    event: string,
+)=>{
+    return {
+        event,
+        body: null as unknown as B,
+        response: null as unknown as R,
+    }
+}
 export const channelHandlerSymbol = Symbol("Channel Handler Builder");
 defineChannelHandler.__symbol = channelHandlerSymbol;
 export { defineChannelHandler };

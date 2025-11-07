@@ -12,7 +12,10 @@
         "skipLibCheck": true,
         "forceConsistentCasingInFileNames": true,
         "declaration": true,
-        "types": ["bun-types"]
+        "types": ["bun-types"],
+        "jsx": "react-jsx",
+        "jsxImportSource": "@kitajs/html",
+        "plugins": [{ "name": "@kitajs/ts-html-plugin" }]
     },
     "include": ["server/**/*"],
     "exclude": ["node_modules", ".env.json", "server/**/*.test.ts", "server/**/*.test.js", "dist"]

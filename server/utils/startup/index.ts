@@ -1,4 +1,3 @@
-import findRoot from "find-root-kt";
 import { getSourceDir, loadConfig, valueOf } from "../loadConfig/index.js";
 import type { Application } from "express";
 
@@ -16,6 +15,10 @@ const getStartupDir = async () => {
 const startupDir = await getStartupDir();
 
 const loadStartup = async function (app: Application, root = startupDir) {
+    if(!fs.existsSync(root)){
+        console.warn(`Startup directory not found at path: ${root}`);
+        return;
+    }
     const directoryContent = fs.readdirSync(root).sort();
 
     for (const item of directoryContent) {

@@ -1,11 +1,11 @@
-import { lockMethod } from "$/server/utils/common/index.js";
-import { descriptionSuffixRegx, routerSuffixRegx } from "$/server/utils/routersHelpers/matchers.js";
 import cluster from "cluster";
 import fs from "fs";
+import { lockMethod } from "kt-common";
 import path from "path";
 import ts from "typescript";
 import url from "url";
-import { routerConfig } from "../../../../config/routing/index.js";
+import { getDescriptionPreExtensionSuffix, getRouteSuffix } from "../../../loadConfig/index.js";
+import { descriptionSuffixRegx, routerSuffixRegx } from "../../../routersHelpers/matchers.js";
 
 export type DescriptionProps = {
     fileUrl: string;
@@ -24,8 +24,14 @@ export const descriptionsMap = {} as {
 
 const checkType = (typeString: string) => {
     const sourceCode = `type TempType = ${typeString};`;
+    // oxlint-disable-next-line no-eval
     eval(ts.transpile(sourceCode));
 };
+
+
+const descriptionPreExtensionSuffix = await getDescriptionPreExtensionSuffix();
+const routerSuffix = await getRouteSuffix();
+
 
 export const describe = lockMethod(
     (options: DescriptionProps) => {
@@ -56,10 +62,8 @@ export const describe = lockMethod(
             const routeSuffixMatch = routeFileName.match(routerSuffixRegx);
             if (!routeSuffixMatch) {
                 console.error(
-                    'Invalid Route Name, a Route file should end with "' +
-                        routerConfig.getRouteSuffix() +
-                        '" provided is: ',
-                    routeFileName,
+                    'Invalid Route Name, a Route file should end with "' + routerSuffix + '" provided is: ',
+                    routeFileName
                 );
                 throw new Error();
             }
@@ -85,7 +89,7 @@ export const describe = lockMethod(
             const descriptionFileFullPath = !descriptionFileName
                 ? path.join(
                       routeDirectory,
-                      routeFileNameWithoutExtension + routerConfig.getDescriptionPreExtensionSuffix() + ".md",
+                      routeFileNameWithoutExtension + descriptionPreExtensionSuffix + ".md",
                   )
                 : path.join(routeDirectory, descriptionFileName);
             const eventDescriptionContent = `<!-- --start--event-- ${options.event} -->
@@ -131,7 +135,7 @@ type ExpectedResponseBody = ${options.expectedResponseBodyTypeString || "any"}
             } else {
                 const content = fs.readFileSync(descriptionFileFullPath, "utf-8");
 
-                if (!content.includes(options.event)) {
+                if (!content.includes("<!-- --start--event-- " + options.event + " -->")) {
                     fs.writeFileSync(descriptionFileFullPath, content + "\n\n" + eventDescriptionContent);
                 } else {
                     fs.writeFileSync(
@@ -154,14 +158,13 @@ type ExpectedResponseBody = ${options.expectedResponseBodyTypeString || "any"}
             options.descriptionFileFullPath = path.join(routePrecisePath, "/describe");
 
             if (descriptionsMap[options.event]) {
-                console.error(
+                console.warn(
                     "Event Descriptor Already Registered",
                     "\nNew Registration:",
                     options,
                     "\nOld Registration:",
                     descriptionsMap[options.event],
                 );
-                throw new Error();
             }
             options.fileUrl = routePrecisePath;
             descriptionsMap[options.event] = options;

@@ -12,6 +12,7 @@ export type RoutingConfig = {
     /**
      * Default is true
      */
+    allDescriptionsSecret?: MaybePromise<string>;
     runSingle?: MaybePromise<boolean>;
     isDev?: MaybePromise<boolean>;
     getRedisClient?: MaybePromise<Redis>;
@@ -51,6 +52,10 @@ export type RoutingConfig = {
     >;
     getCorsOptions?: <T extends CorsRequest = CorsRequest>() => CorsOptions | CorsOptionsDelegate<T>;
 };
+export const getAllDescriptionsSecret = async () => {
+    const config = await loadConfig();
+    return (await valueOf(config.allDescriptionsSecret)) ?? process.env.DESCRIPTIONS_SECRET ?? null;
+};
 
 export const valueOf = async <T>(v?: MaybePromise<T>): Promise<T | undefined> => {
     if (typeof v === "function") {
@@ -59,20 +64,20 @@ export const valueOf = async <T>(v?: MaybePromise<T>): Promise<T | undefined> =>
     return v;
 };
 
-export const getTypesPlacementDir = async ()=>{
-    const config = await loadConfig(); 
+export const getTypesPlacementDir = async () => {
+    const config = await loadConfig();
     return path.join(await getSourceDir(), (await valueOf(config.getTypesPlacementDir)) || "types");
-}
+};
 
 export const getRouteSuffix = async () => {
     const config = await loadConfig();
     return (await valueOf(config.getRouteSuffix)) || ".router.ts";
-}
+};
 
 export const getDescriptionPreExtensionSuffix = async () => {
     const config = await loadConfig();
     return (await valueOf(config.getDescriptionPreExtensionSuffix)) || ".description";
-}
+};
 
 export const isDev = async () => {
     const config = await loadConfig();

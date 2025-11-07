@@ -1,5 +1,21 @@
 import { CreateHandler } from "../../server/utils/router";
-import { defineChannelHandler, Respond } from "../../server/utils/channelsBuilder/index";
+import { defineChannelHandler, defineEmittedEvent, Respond } from "../../server/utils/channelsBuilder/index";
+
+defineEmittedEvent<{
+    greeting: string;
+}, {
+    reply: string;
+}>("helloWorld")
+
+
+defineEmittedEvent<
+    {
+        greeting: string;
+    },
+    {
+        reply: string;
+    }
+>("helloWorld2");
 
 type Comment = {
     msg: string;
