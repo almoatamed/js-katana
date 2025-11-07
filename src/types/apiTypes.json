@@ -13,7 +13,16 @@
             "descriptionFileFullPath": "/describe"
         }
     },
-    "channelsDescriptions": {},
+    "channelsDescriptions": {
+        "/": {
+            "fileUrl": "/",
+            "path": "/",
+            "requestBodyTypeString": "{\n  name: string;\n  age: number\n}",
+            "responseBodyTypeString": "{\n  msg: string\n}",
+            "fullChannelPath": "/",
+            "descriptionFileFullPath": "/describe"
+        }
+    },
     "eventsDescriptions": {
         "helloWorld": {
             "fileUrl": "/",

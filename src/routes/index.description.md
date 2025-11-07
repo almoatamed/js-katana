@@ -122,3 +122,34 @@ type ExpectedResponseBody = {
 
 
 <!-- --end--event-- helloWorld2 -->
+
+<!-- --start--channel-- / -->
+
+# Channel Description 
+No description Text Provided
+
+## Channel Path: 
+/
+
+
+
+
+
+
+## Channel Request Body type definition:
+```ts
+type RequestBody = {
+  name: string;
+  age: number
+}
+```
+
+## Response Content Type Definition: 
+```ts
+type Response = {
+  msg: string
+}
+```
+
+
+<!-- --end--channel-- / -->

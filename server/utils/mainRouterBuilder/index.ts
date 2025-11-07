@@ -782,98 +782,92 @@ const useContextToProcessChannelsForTypes = async (
         program: ts.Program;
     }
 ): Promise<null | { bodyTypeString: string; expectResponse: string }> => {
-    try {
-        const { checker, program } = context;
+    const { checker, program } = context;
 
-        // --- 1) find source file & exported variable declaration / initializer ---
+    try {
         const sf = program.getSourceFile(routeFileFullPath);
         if (!sf) return null;
 
-        // Resolve exported expression:
-        let exportedNode: ts.Node | undefined = undefined;
+        // Helper to print short snippets for diagnostics
+        const snippetOf = (node?: ts.Node) => {
+            try {
+                if (!node) return "<no-node>";
+                const src = node.getSourceFile().getFullText();
+                const start = Math.max(0, node.getStart() - 20);
+                const end = Math.min(src.length, node.getEnd() + 20);
+                return src.slice(start, end).replace(/\r?\n/g, " ");
+            } catch {
+                return "<snippet-error>";
+            }
+        };
 
-        // If exportExpr is identifier, follow its symbol to declaration
+        // Resolve exportedNode (declaration) similar to prior logic
+        let exportedNode: ts.Node | undefined = undefined;
         if (ts.isIdentifier(exportExpr)) {
             const sym = checker.getSymbolAtLocation(exportExpr);
             if (sym && sym.declarations && sym.declarations.length) {
-                // pick first declaration (usually VariableDeclaration)
                 exportedNode = sym.declarations[0];
             }
         } else {
             exportedNode = exportExpr;
         }
 
-        // If we found a variable declaration with initializer that's a CallExpression,
-        // we'll inspect the first argument of that call (the callback you passed).
+        // Attempt to find the callback Node (the function passed to defineChannelHandler)
         let callbackNode: ts.Expression | null = null;
 
-        if (exportedNode) {
-            if (
-                ts.isVariableDeclaration(exportedNode) &&
-                exportedNode.initializer &&
-                ts.isCallExpression(exportedNode.initializer)
-            ) {
-                // e.g. const handler = defineChannelHandler( callback )
-                const call = exportedNode.initializer;
-                if (call.arguments && call.arguments.length >= 1) {
-                    callbackNode = call.arguments[0];
-                }
-            } else if (ts.isFunctionDeclaration(exportedNode) && exportedNode.body) {
-                // weird case: exported function declaration (rare for your pattern) - skip
-            } else if (ts.isExportAssignment(exportedNode) && ts.isCallExpression(exportedNode.expression)) {
-                const call = exportedNode.expression;
-                if (call.arguments && call.arguments.length >= 1) callbackNode = call.arguments[0];
-            } else {
-                // try to scan the file for "const X = defineChannelHandler(...)" where X is our exported identifier name
-                if (ts.isIdentifier(exportExpr)) {
-                    const name = exportExpr.text;
-                    // walk file to find variable assignment to that name with CallExpression initializer
-                    ts.forEachChild(sf, (node) => {
-                        if (callbackNode) return;
-                        if (ts.isVariableStatement(node)) {
-                            for (const decl of node.declarationList.declarations) {
-                                if (
-                                    ts.isIdentifier(decl.name) &&
-                                    decl.name.text === name &&
-                                    decl.initializer &&
-                                    ts.isCallExpression(decl.initializer)
-                                ) {
-                                    const call = decl.initializer;
-                                    if (call.arguments && call.arguments.length >= 1) callbackNode = call.arguments[0];
-                                    return;
-                                }
+        // 1) If exportedNode is a variable declaration with CallExpression initializer, inspect its first arg
+        if (
+            exportedNode &&
+            ts.isVariableDeclaration(exportedNode) &&
+            exportedNode.initializer &&
+            ts.isCallExpression(exportedNode.initializer)
+        ) {
+            const call = exportedNode.initializer;
+            if (call.arguments && call.arguments.length >= 1) {
+                callbackNode = call.arguments[0];
+            }
+        }
+
+        // 2) If export assignment that is a call expression -> take first arg
+        if (!callbackNode && ts.isExportAssignment(exportedNode!) && ts.isCallExpression(exportedNode.expression)) {
+            const call = exportedNode.expression;
+            if (call.arguments && call.arguments.length >= 1) callbackNode = call.arguments[0];
+        }
+
+        // 3) If callbackNode still not found: if exportExpr is identifier, scan file for variable statement that exports 'handler' (existing logic)
+        if (!callbackNode && ts.isIdentifier(exportExpr)) {
+            const name = exportExpr.text;
+            ts.forEachChild(sf, (node) => {
+                if (callbackNode) return;
+                if (ts.isVariableStatement(node)) {
+                    for (const decl of node.declarationList.declarations) {
+                        if (
+                            ts.isIdentifier(decl.name) &&
+                            decl.name.text === name &&
+                            decl.initializer &&
+                            ts.isCallExpression(decl.initializer)
+                        ) {
+                            const call = decl.initializer;
+                            if (call.arguments && call.arguments.length >= 1) {
+                                callbackNode = call.arguments[0];
+                                return;
                             }
                         }
-                    });
+                    }
                 }
-            }
+            });
         }
 
-        // If callbackNode is an identifier (reference to a named function), resolve it to its declaration
-        if (callbackNode && ts.isIdentifier(callbackNode)) {
-            const sym = checker.getSymbolAtLocation(callbackNode);
-            if (sym && sym.declarations && sym.declarations.length) {
-                const decl = sym.declarations[0];
-                // function declaration or variable with initializer
-                if (ts.isFunctionDeclaration(decl) || ts.isFunctionExpression(decl) || ts.isArrowFunction(decl)) {
-                    // function declaration node
-                    // @ts-ignore
-                    callbackNode = decl as ts.FunctionExpression | ts.ArrowFunction | ts.FunctionDeclaration;
-                } else if (ts.isVariableDeclaration(decl) && decl.initializer) {
-                    callbackNode = decl.initializer;
-                }
-            }
-        }
-
-        // If we still don't have a callback node, try to find inline object literal with handler in the file (fallback)
+        // 4) If still not found: scan the file for any callExpression to 'defineChannelHandler' and take its first arg
         if (!callbackNode) {
-            // scan for "defineChannelHandler(" occurrences and take first arg
             const findCall = (n: ts.Node) => {
                 if (callbackNode) return;
-                if (ts.isCallExpression(n) && n.arguments && n.arguments.length >= 1) {
-                    // best-effort: check identifier of call expression
-                    const expr = n.expression;
-                    if (ts.isIdentifier(expr) && expr.text.includes("define")) {
+                if (ts.isCallExpression(n)) {
+                    let fnName = "";
+                    if (ts.isIdentifier(n.expression)) fnName = n.expression.text;
+                    else if (ts.isPropertyAccessExpression(n.expression) && ts.isIdentifier(n.expression.name))
+                        fnName = n.expression.name.text;
+                    if (fnName === "defineChannelHandler" && n.arguments && n.arguments.length > 0) {
                         callbackNode = n.arguments[0];
                         return;
                     }
@@ -883,99 +877,123 @@ const useContextToProcessChannelsForTypes = async (
             findCall(sf);
         }
 
-        if (!callbackNode) {
-            // can't find the callback AST; fallback to type-based extraction from exported symbol/type
-            // use checker.getTypeAtLocation(exportExpr) and then the rest (similar to earlier attempts)
-            const exportedType = checker.getTypeAtLocation(exportExpr);
-            // get call signature of the builder (the exported value is the builder return or identifier)
-            const sigs = checker.getSignaturesOfType(exportedType, ts.SignatureKind.Call);
-            if (!sigs || !sigs.length) {
-                // give up
-                return null;
-            }
-            const cbSig = sigs[0];
-            const ret = checker.getReturnTypeOfSignature(cbSig);
-            // ret should be object with handler prop:
-            const handlerProp = checker.getPropertyOfType(ret, "handler");
-            if (!handlerProp) return null;
-            const declNode = handlerProp.valueDeclaration || (handlerProp.declarations && handlerProp.declarations[0]);
-            const handlerType = declNode
-                ? checker.getTypeOfSymbolAtLocation(handlerProp, declNode)
-                : checker.getTypeOfSymbolAtLocation(handlerProp, exportExpr);
-            // get handler signature:
-            const handlerSigs = checker.getSignaturesOfType(handlerType, ts.SignatureKind.Call);
-            if (!handlerSigs || !handlerSigs.length) return null;
-            const handlerSig = handlerSigs[0];
-            const bodyType = handlerSig.getParameters()[0]
-                ? checker.getTypeOfSymbolAtLocation(
-                      handlerSig.getParameters()[0],
-                      handlerSig.getParameters()[0].valueDeclaration || exportExpr
-                  )
-                : null;
-            const respondParam = handlerSig.getParameters()[1]
-                ? checker.getTypeOfSymbolAtLocation(
-                      handlerSig.getParameters()[1],
-                      handlerSig.getParameters()[1].valueDeclaration || exportExpr
-                  )
-                : null;
-
-            const bodyTypeString = bodyType ? stringify(checker, bodyType, 0) : "unknown";
-            let expectResponse = "undefined";
-            if (respondParam) {
-                const rSigs = checker.getSignaturesOfType(respondParam, ts.SignatureKind.Call);
-                if (rSigs && rSigs.length) {
-                    const rSig = rSigs[0];
-                    if (rSig.getParameters()[0]) {
-                        const p = rSig.getParameters()[0];
-                        const pType = checker.getTypeOfSymbolAtLocation(p, p.valueDeclaration || exportExpr);
-                        expectResponse = pType ? stringify(checker, pType, 0) : "unknown";
-                    } else {
-                        expectResponse = "void";
+        // If callbackNode is an identifier, try to resolve it to its declaration (function/var init)
+        if (callbackNode && ts.isIdentifier(callbackNode)) {
+            const sym = checker.getSymbolAtLocation(callbackNode);
+            if (sym && sym.declarations && sym.declarations.length) {
+                for (const decl of sym.declarations) {
+                    if (ts.isVariableDeclaration(decl) && decl.initializer) {
+                        callbackNode = decl.initializer as ts.Expression;
+                        break;
                     }
-                } else {
-                    expectResponse = stringify(checker, respondParam, 0);
+                    if (ts.isFunctionDeclaration(decl)) {
+                        callbackNode = decl as unknown as ts.Expression;
+                        break;
+                    }
                 }
             }
-            return { bodyTypeString, expectResponse };
         }
 
-        // Now we have callbackNode (a function expression / arrow / object literal). Get its signature and return type.
-        const callbackType = checker.getTypeAtLocation(callbackNode);
-        const callbackSigs = checker.getSignaturesOfType(callbackType, ts.SignatureKind.Call);
-        if (!callbackSigs || !callbackSigs.length) {
-            // maybe callbackNode is an object literal returning { handler: ... } directly (rare)
-            // try to get type of callbackNode and then property 'handler' on the returned type (if callback is immediately invoked).
+        // Now, try to obtain a call signature for the callback (multiple fallbacks)
+        let callbackSig: ts.Signature | undefined;
+
+        // 1) If callbackNode is a function-like AST node, use getSignatureFromDeclaration
+        if (
+            callbackNode &&
+            (ts.isFunctionExpression(callbackNode) ||
+                ts.isArrowFunction(callbackNode) ||
+                ts.isFunctionDeclaration(callbackNode))
+        ) {
+            callbackSig = checker.getSignatureFromDeclaration(callbackNode as ts.SignatureDeclaration) || undefined;
+        }
+
+        // 2) If still no signature and callbackNode exists, try type-based signatures
+        if (!callbackSig && callbackNode) {
+            try {
+                const callbackType = checker.getTypeAtLocation(callbackNode);
+                let sigs = checker.getSignaturesOfType(callbackType, ts.SignatureKind.Call);
+                if ((!sigs || !sigs.length) && typeof (callbackType as any)?.getCallSignatures === "function") {
+                    const cs = (callbackType as any).getCallSignatures();
+                    if (cs && cs.length) sigs = cs;
+                }
+                if (sigs && sigs.length) callbackSig = sigs[0];
+            } catch {
+                // ignore
+            }
+        }
+
+        // 3) If still none, and exportExpr yields a builder type, try to extract definition callback signature from exported type:
+        if (!callbackSig) {
+            try {
+                const exportedType = checker.getTypeAtLocation(exportExpr);
+                const builderSigs = checker.getSignaturesOfType(exportedType, ts.SignatureKind.Call) || [];
+                if (builderSigs && builderSigs.length) {
+                    // The builder signature's first parameter should be the 'definition' function type. Extract its call sigs.
+                    const builderSig = builderSigs[0];
+                    if (builderSig.getParameters().length > 0) {
+                        const defParam = builderSig.getParameters()[0];
+                        const defType = checker.getTypeOfSymbolAtLocation(
+                            defParam,
+                            defParam.valueDeclaration || exportExpr
+                        );
+                        const defSigs = checker.getSignaturesOfType(defType, ts.SignatureKind.Call);
+                        if (defSigs && defSigs.length) {
+                            callbackSig = defSigs[0];
+                        }
+                    }
+                }
+            } catch {
+                // ignore
+            }
+        }
+
+        // If still no callback signature, give diagnostics and bail out
+        if (!callbackSig) {
+            console.warn("Could not resolve callback signature for channel handler:", routeFileFullPath);
+            console.warn("exportExpr snippet:", snippetOf(exportExpr));
+            console.warn(
+                "callbackNode kind/snippet:",
+                callbackNode ? ts.SyntaxKind[callbackNode.kind] + " / " + snippetOf(callbackNode) : "<none>"
+            );
             return null;
         }
-        const callbackSig = callbackSigs[0];
+
+        // Get the return type of the callback signature - should have a 'handler' property
         const callbackReturnType = checker.getReturnTypeOfSignature(callbackSig);
 
-        // The return type should have property 'handler'
+        // find 'handler' property on return type
         const handlerProp = checker.getPropertyOfType(callbackReturnType, "handler");
-        if (!handlerProp) return null;
+        if (!handlerProp) {
+            // sometimes the callback returns an array or other shape; as a fallback, inspect the callbackReturnType directly for call signatures (rare)
+            console.warn("Callback return type has no 'handler' property for", routeFileFullPath);
+            console.warn("callbackReturnType:", checker.typeToString(callbackReturnType));
+            return null;
+        }
 
         const handlerDecl = handlerProp.valueDeclaration || (handlerProp.declarations && handlerProp.declarations[0]);
         const handlerType = handlerDecl
             ? checker.getTypeOfSymbolAtLocation(handlerProp, handlerDecl)
             : checker.getTypeOfSymbolAtLocation(handlerProp, exportExpr);
 
-        // get handler signature
-        const handlerSigs = checker.getSignaturesOfType(handlerType, ts.SignatureKind.Call);
+        // get call signatures for handler
+        let handlerSigs = checker.getSignaturesOfType(handlerType, ts.SignatureKind.Call);
         if (!handlerSigs || !handlerSigs.length) {
-            // sometimes the handlerProp is a union/alias; try expanding alias
             const expanded = expandAliasIfNeeded(checker, handlerType);
             const alt = checker.getSignaturesOfType(expanded, ts.SignatureKind.Call);
-            if (!alt || !alt.length) return null;
-            // pick first
-            // @ts-ignore
-            handlerSigs.push(...alt);
+            if (alt && alt.length) handlerSigs = alt;
         }
+
+        if (!handlerSigs || !handlerSigs.length) {
+            console.warn("Could not get call signatures for handler property on", routeFileFullPath);
+            return null;
+        }
+
         const handlerSig = handlerSigs[0];
 
         // first param => body
-        const bodyParam = handlerSig.getParameters()[0];
-        const bodyType = bodyParam
-            ? checker.getTypeOfSymbolAtLocation(bodyParam, bodyParam.valueDeclaration || exportExpr)
+        const bodyParamSym = handlerSig.getParameters()[0];
+        const bodyType = bodyParamSym
+            ? checker.getTypeOfSymbolAtLocation(bodyParamSym, bodyParamSym.valueDeclaration || exportExpr)
             : null;
 
         // second param => respond
@@ -986,7 +1004,6 @@ const useContextToProcessChannelsForTypes = async (
                 respondParamSym,
                 respondParamSym.valueDeclaration || exportExpr
             );
-            // this is a function type (Respond<R> | undefined)
             const rSigs = checker.getSignaturesOfType(respondType, ts.SignatureKind.Call);
             if (rSigs && rSigs.length) {
                 const rSig = rSigs[0];
@@ -1027,10 +1044,12 @@ const useContextToProcessChannelsForTypes = async (
         const bodyTypeString = bodyType ? stringify(checker, bodyType, 0) : "unknown";
         return { bodyTypeString, expectResponse };
     } catch (error) {
-        console.error(routeFileFullPath, error);
+        console.error("Error processing channel types for", routeFileFullPath, error);
         return null;
     }
 };
+
+
 const useContextToProcessEventsForTypes = async (
     routeFileFullPath: string,
     callExpression: ts.CallExpression,
@@ -1119,7 +1138,6 @@ export const processRoutesForTypes = async (routesFilesMap: { [routeFileFullPath
     const tsContext = await createTypeManager(routesFilesMap);
     const promises = [] as Promise<any>[];
     for (const routeFullPath in routesFilesMap) {
-        console.log("processing route", routeFullPath);
         promises.push(
             (async () => {
                 // get the source file we care about
@@ -1225,7 +1243,7 @@ export const processRoutesForTypes = async (routesFilesMap: { [routeFileFullPath
                 }
 
                 const [routeTypes, channelTypes, eventsTypes] = await Promise.all(promises);
-                console.log("Types for route", channelExportExpr?.getText(), channelTypes);
+                console.log("Types for Channel", channelTypes);
 
                 const route = routesRegistryMap[routesFilesMap[routeFullPath]];
                 if (routeTypes) {

@@ -70,8 +70,6 @@ export const describe = lockMethod(
 
             const routeFileNameWithoutExtension = routeFileName.slice(0, routeFileName.indexOf(routeSuffixMatch[0]));
 
-            console.log("Event on describe", options.event);
-
             const routeDirectoryContent = fs.readdirSync(routeDirectory);
             const routeDescriptionRegx = RegExp(
                 `${routeFileNameWithoutExtension}${descriptionSuffixRegx.toString().slice(1, -1)}`,
