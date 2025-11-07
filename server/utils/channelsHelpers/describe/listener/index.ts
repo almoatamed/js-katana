@@ -26,6 +26,7 @@ export type ChannelDescriptionProps = DescriptionProps;
 export const descriptionsMap = {} as {
     [key: string]: DescriptionProps;
 };
+export const channelsDescriptionsMap = descriptionsMap
 
 const routesDir = await getRouterDirectory();
 

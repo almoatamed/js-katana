@@ -23,14 +23,15 @@ import {
     type Middleware,
     type Route,
 } from "../router/index.js";
-import { getRouterDirectory, isDev } from "../loadConfig/index.js";
+import { getRouterDirectory, getSourceDir, getTypesPlacementDir, isDev } from "../loadConfig/index.js";
 import { readFile } from "fs/promises";
 import ts from "typescript";
 import path from "path";
 import fs from "fs";
-import { describeRoute } from "../routersHelpers/describe/index.js";
+import { describeRoute, routesDescriptionMap } from "../routersHelpers/describe/index.js";
 import { pathToFileURL } from "url";
-import { describeChannel } from "../channelsHelpers/describe/listener/index.js";
+import { channelsDescriptionsMap, describeChannel } from "../channelsHelpers/describe/listener/index.js";
+import cluster from "cluster";
 
 const log = await createLogger({
     color: "blue",
@@ -735,7 +736,6 @@ const useContextToProcessChannelsForTypes = async (
     try {
         const { checker, program } = context;
 
-
         // --- 1) find source file & exported variable declaration / initializer ---
         const sf = program.getSourceFile(routeFileFullPath);
         if (!sf) return null;
@@ -1048,7 +1048,7 @@ export const processRoutesForTypes = async (routesFilesMap: { [routeFileFullPath
                 }
 
                 const [routeTypes, channelTypes] = await Promise.all(promises);
-                
+
                 const route = routesRegistryMap[routesFilesMap[routeFullPath]];
                 if (routeTypes) {
                     describeRoute({
@@ -1061,22 +1061,42 @@ export const processRoutesForTypes = async (routesFilesMap: { [routeFileFullPath
                         responseBodyTypeString: routeTypes.returnTypeString,
                     });
                 }
-                if( channelTypes ){
+                if (channelTypes) {
                     describeChannel({
                         fileUrl: pathToFileURL(routeFullPath).toString(),
                         path: "/",
                         requestBodyTypeString: channelTypes.bodyTypeString,
-                        responseBodyTypeString: channelTypes.expectResponse,                        
+                        responseBodyTypeString: channelTypes.expectResponse,
                     });
                 }
             })()
         );
     }
     await Promise.all(promises);
+    await storeDescriptions();
+};
+
+const storeDescriptions = async () => {
+    if (!cluster.isPrimary) {
+        return;
+    }
+
+    fs.mkdirSync(await getTypesPlacementDir(), { recursive: true });
+    fs.writeFileSync(
+        path.join(await getTypesPlacementDir(), "apiTypes.json"),
+        JSON.stringify(
+            {
+                routesDescriptions: routesDescriptionMap,
+                channelsDescriptions: channelsDescriptionsMap,
+            },
+            null,
+            4
+        )
+    );
 };
 
 const maybeProcessRoutesForTypes = async () => {
-    if (!(await isDev())) {
+    if (!cluster.isPrimary || !(await isDev())) {
         return;
     }
     await processRoutesForTypes(routesFilesMap);

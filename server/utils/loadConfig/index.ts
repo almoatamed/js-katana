@@ -16,6 +16,7 @@ export type RoutingConfig = {
     isDev?: MaybePromise<boolean>;
     getRedisClient?: MaybePromise<Redis>;
     getMaxForks?: MaybePromise<number>;
+    getTypesPlacementDir?: MaybePromise<string>;
     getStartupDirPath?: MaybePromise<string>;
     getDirectoryAliasSuffixRegx?: MaybePromise<string>;
     getMiddlewareSuffixRegx?: MaybePromise<string>;
@@ -57,6 +58,11 @@ export const valueOf = async <T>(v?: MaybePromise<T>): Promise<T | undefined> =>
     }
     return v;
 };
+
+export const getTypesPlacementDir = async ()=>{
+    const config = await loadConfig(); 
+    return path.join(await getSourceDir(), (await valueOf(config.getTypesPlacementDir)) || "types");
+}
 
 export const getRouteSuffix = async () => {
     const config = await loadConfig();
