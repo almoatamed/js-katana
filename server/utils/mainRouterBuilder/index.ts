@@ -20,7 +20,7 @@ import {
     routerSymbol,
     throwRequestError,
     throwUnauthorizedError,
-    type CreateHandler,
+    type createHandler,
     type Handler,
     type Middleware,
     type Route,
@@ -113,7 +113,7 @@ export default async function buildRouter(
             if (routerMatch) {
                 const routerName = item.slice(0, item.indexOf(routerMatch[0]));
                 const routeFullPath = path.join(routerDirectory, item);
-                const routerInstance: ReturnType<typeof CreateHandler> = (await import(routeFullPath)).default;
+                const routerInstance: ReturnType<typeof createHandler> = (await import(routeFullPath)).default;
 
                 if (routerName == "index") {
                     routesFilesMap[routeFullPath] = fullPrefix;
@@ -482,12 +482,14 @@ const loadCompatibleRoutesIntoChannels = async () => {
                             try {
                                 let statusCode = 200;
 
-                                const query = body?.__query || {};
-                                const params = body?.__params || {};
-                                const headers = body?.__headers || {};
+                                const query = { ...body?.__query };
+                                const params = { ...body?.__params };
+                                const headers = { ...body?.__headers };
 
                                 const context: HandlerContext<any, any, any, any> = {
                                     locale: {},
+                                    method: route.method,
+                                    fullPath: path,
                                     respond: {
                                         async file(fullPath) {
                                             const data = await readFile(fullPath);
@@ -518,7 +520,7 @@ const loadCompatibleRoutesIntoChannels = async () => {
                                             return data;
                                         },
                                     },
-                                    body,
+                                    body: { ...body },
                                     headers,
                                     params,
                                     query,
@@ -528,7 +530,7 @@ const loadCompatibleRoutesIntoChannels = async () => {
                                     },
                                 };
 
-                                for (const middleware of route.middleWares) {
+                                for (const middleware of [...route.externalMiddlewares, ...route.middleWares]) {
                                     await middleware(context, body, query, params, headers);
                                 }
 

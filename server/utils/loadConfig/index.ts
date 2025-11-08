@@ -3,8 +3,8 @@ import findRoot from "find-root-kt";
 import { getConfigPath } from "locate-config-kt";
 import path from "path";
 import os from "os";
-import { Handler } from "express";
 import type { Redis } from "ioredis";
+import { Handler } from "../router/index.js";
 
 type MaybePromise<T> = (() => Promise<T> | T) | T;
 
@@ -48,7 +48,7 @@ export type RoutingConfig = {
         {
             local: string;
             remote: string;
-            middleware?: Handler;
+            middlewares?: Handler<any, any, any, any, any>[];
         }[]
     >;
     getCorsOptions?: <T extends CorsRequest = CorsRequest>() => CorsOptions | CorsOptionsDelegate<T>;

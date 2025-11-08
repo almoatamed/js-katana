@@ -1,5 +1,6 @@
 import { ErrorRequestHandler } from "express";
 import { createLogger } from "kt-logger";
+import { createRequestError, extractRequestError } from "../router/index.js";
 
 const log = await createLogger({
     color: "yellow",
@@ -26,34 +27,21 @@ export const errorHandler: ErrorRequestHandler = async (originalError, req, res,
         } else {
             error = originalError;
         }
-        const msg: string = String(
-            (typeof error == "string" ? error : null) ||
-                error?.message ||
-                error?.msg ||
-                error?.error?.message ||
-                error?.error?.msg ||
-                error ||
-                "Unknown"
-        );
 
-        let statusCode: number;
-        if (typeof error?.statusCode == "number") {
-            statusCode = error.statusCode;
-        } else {
-            statusCode = 500;
+        let extractedRequestError = extractRequestError(error);
+        if (!extractedRequestError) {
+            extractedRequestError = createRequestError(500, [
+                {
+                    error: "Unknown server error",
+                    data: error,
+                },
+            ]);
         }
 
-        log(`Request: ${res.locals.logId}`, `statusCode: ${statusCode}`, msg);
+        const statusCode = extractedRequestError.statusCode || 500;
 
         if (!res.headersSent) {
-            const errorJson = {
-                error: {
-                    msg: msg,
-                },
-                statusCode,
-            };
-
-            res.status(statusCode).json(errorJson);
+            res.status(statusCode).json(extractedRequestError);
         }
     } catch (error: any) {
         log.error(error, "Error", "Failed To Handle Error on Error Middleware", originalError);

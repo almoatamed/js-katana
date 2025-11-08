@@ -196,6 +196,7 @@ type Response = ${options.responseBodyTypeString || "any"}
             options.fullRoutePath = routePrecisePath;
             options.descriptionFileFullPath = path.join(routePrecisePath, "/describe");
 
+            options.fileUrl = options.fullRoutePath;
             if (descriptionsMap[options.fullRoutePath]) {
                 console.warn(
                     "Route Descriptor Already Registered: overriding previous registration.",
@@ -204,9 +205,13 @@ type Response = ${options.responseBodyTypeString || "any"}
                     "\nOld Registration:",
                     descriptionsMap[options.fullRoutePath]
                 );
+                descriptionsMap[options.fullRoutePath] = {
+                    ...descriptionsMap[options.fullRoutePath],
+                    ...options,
+                };
+            } else {
+                descriptionsMap[options.fullRoutePath] = options;
             }
-            options.fileUrl = options.fullRoutePath;
-            descriptionsMap[options.fullRoutePath] = options;
         } catch (error: any) {
             console.error(error);
             console.error("CRITICAL: Invalid Route Descriptor", options);

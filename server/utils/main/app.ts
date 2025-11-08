@@ -8,7 +8,172 @@ import cors from "cors";
 import { getApiPrefix, getCorsOptions, getMaxJsonSize, getSourceDir, getStaticDirs } from "../loadConfig/index.js";
 import compression from "compression";
 import { routesRegistryMap } from "../mainRouterBuilder/index.js";
-import { extractRequestError, HandlerContext, throwRequestError } from "../router/index.js";
+import { createHandler, extractRequestError, HandlerContext, Route, throwRequestError } from "../router/index.js";
+import { Handler as ExpressHandler } from "express";
+
+const convertHandlerToExpressMiddleware = (route: Omit<Route<any, any, any, any, any>, "handler">) => {
+    const expressHandler: ExpressHandler = async (request, response, next) => {
+        let responded = false;
+        try {
+            const query = { ...request.query };
+            const params = { ...request.params };
+            const headers = { ...request.headers };
+            const body = { ...request.body };
+            const context: HandlerContext<any, any, any, any> = {
+                locale: {},
+                fullPath: request.originalUrl,
+                method: route.method,
+                respond: {
+                    async file(fullPath) {
+                        response.sendFile(fullPath);
+                        responded = true;
+                        return {
+                            path: fullPath,
+                        };
+                    },
+                    html: (text) => {
+                        response.send(text);
+                        responded = true;
+
+                        return text;
+                    },
+                    text: (text) => {
+                        response.send(text);
+                        responded = true;
+
+                        return text;
+                    },
+                    json: (data: any) => {
+                        response.json(data);
+                        responded = true;
+                        return data;
+                    },
+                },
+                body,
+                headers,
+                params,
+                query,
+                setStatus(_statusCode) {
+                    response.status(_statusCode);
+                    return context;
+                },
+            };
+            for (const middleware of [...route.externalMiddlewares, ...route.middleWares]) {
+                await middleware(context, body, query, params, headers);
+                if (responded) {
+                    return;
+                }
+            }
+
+            next();
+        } catch (error) {
+            console.error("Error in static resource middleware:", error);
+            if (responded) {
+                return;
+            }
+            const requestError = extractRequestError(error);
+            if (requestError) {
+                response.status(requestError.statusCode).json(requestError);
+                return;
+            }
+            response.status(500).json(
+                throwRequestError(500, [
+                    {
+                        error: "Unknown server error",
+                        data: error,
+                    },
+                ])
+            );
+        }
+    };
+    return expressHandler;
+};
+
+const convertHandlerToExpressRoute = (route: Route<any, any, any, any, any>) => {
+    const expressHandler: ExpressHandler = async (request, response) => {
+        let responded = false;
+        try {
+            const query = { ...request.query };
+            const params = { ...request.params };
+            const headers = { ...request.headers };
+            const body = { ...request.body };
+
+            const context: HandlerContext<any, any, any, any> = {
+                locale: {},
+                method: route.method,
+                fullPath: request.originalUrl,
+                respond: {
+                    async file(fullPath) {
+                        response.sendFile(fullPath);
+                        responded = true;
+                        return {
+                            path: fullPath,
+                        };
+                    },
+                    html: (text) => {
+                        response.send(text);
+                        responded = true;
+
+                        return text;
+                    },
+                    text: (text) => {
+                        response.send(text);
+                        responded = true;
+
+                        return text;
+                    },
+                    json: (data: any) => {
+                        response.json(data);
+                        responded = true;
+                        return data;
+                    },
+                },
+                body,
+                headers,
+                params,
+                query,
+                setStatus(_statusCode) {
+                    response.status(_statusCode);
+                    return context;
+                },
+            };
+
+            for (const middleware of [...route.externalMiddlewares, ...route.middleWares]) {
+                await middleware(context, body, query, params, headers);
+                if (responded) {
+                    return;
+                }
+            }
+
+            await route.handler(context, body, query, params, headers);
+            if (!responded) {
+                console.warn("You Did not respond properly to the request on", route.method, request.originalUrl);
+                response.json?.({
+                    msg: "OK",
+                });
+            }
+        } catch (error) {
+            console.error("Error in route handler:", error);
+            if (responded) {
+                return;
+            }
+            const requestError = extractRequestError(error);
+            if (requestError) {
+                response.status(requestError.statusCode).json(requestError);
+                return;
+            }
+            response.status(500).json(
+                throwRequestError(500, [
+                    {
+                        error: "Unknown server error",
+                        data: error,
+                    },
+                ])
+            );
+        }
+    };
+    return expressHandler;
+};
 
 export async function createApp(multithreading = false) {
     const llog = await createLogger({
@@ -46,81 +211,7 @@ export async function createApp(multithreading = false) {
                 : route.method == "ALL"
                 ? "all"
                 : "delete"
-        ](path, async (request, response) => {
-            let responded = false;
-            try {
-                const query = request.query || {};
-                const params = request.params || {};
-                const headers = request.headers || {};
-
-                const context: HandlerContext<any, any, any, any> = {
-                    locale: {},
-                    respond: {
-                        async file(fullPath) {
-                            response.sendFile(fullPath);
-                            responded = true;
-                            return {
-                                path: fullPath,
-                            };
-                        },
-                        html: (text) => {
-                            response.send(text);
-                            responded = true;
-
-                            return text;
-                        },
-                        text: (text) => {
-                            response.send(text);
-                            responded = true;
-
-                            return text;
-                        },
-                        json: (data: any) => {
-                            response.json(data);
-                            responded = true;
-                            return data;
-                        },
-                    },
-                    body: request.body,
-                    headers,
-                    params,
-                    query,
-                    setStatus(_statusCode) {
-                        response.status(_statusCode);
-                        return context;
-                    },
-                };
-
-                for (const middleware of route.middleWares) {
-                    await middleware(context, request.body, query, params, headers);
-                }
-
-                await route.handler(context, request.body, query, params, headers);
-                if (!responded) {
-                    console.warn("You Did not respond properly to the request on", route.method, path);
-                    response.json?.({
-                        msg: "OK",
-                    });
-                }
-            } catch (error) {
-                if (responded) {
-                    return;
-                }
-                const requestError = extractRequestError(error);
-                if (requestError) {
-                    response.status(requestError.statusCode).json(requestError);
-                    return;
-                }
-                response.status(500).json(
-                    throwRequestError(500, [
-                        {
-                            error: "Unknown server error",
-                            data: error,
-                        },
-                    ])
-                );
-            }
-        });
+        ](path, convertHandlerToExpressRoute(route));
     }
 
     app.use(await getApiPrefix(), router);
@@ -131,8 +222,15 @@ export async function createApp(multithreading = false) {
         const root = path.join(srcPath, staticResource.local);
         const remotePrefix = staticResource.remote;
         llog("created static file server", root, remotePrefix);
-        if (staticResource.middleware) {
-            app.use(remotePrefix, staticResource.middleware, express.static(root));
+        if (staticResource.middlewares?.length) {
+            const handler = createHandler({
+                method: "GET",
+                middleWares: staticResource.middlewares,
+                handler: async () => {},
+                serveVia: ["Http"],
+            });
+            const expressHandler = convertHandlerToExpressMiddleware(handler);
+            app.use(remotePrefix, expressHandler, express.static(root));
         } else {
             app.use(remotePrefix, express.static(root));
         }

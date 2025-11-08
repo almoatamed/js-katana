@@ -28,10 +28,8 @@ const checkType = (typeString: string) => {
     eval(ts.transpile(sourceCode));
 };
 
-
 const descriptionPreExtensionSuffix = await getDescriptionPreExtensionSuffix();
 const routerSuffix = await getRouteSuffix();
-
 
 export const describe = lockMethod(
     (options: DescriptionProps) => {
@@ -72,7 +70,7 @@ export const describe = lockMethod(
 
             const routeDirectoryContent = fs.readdirSync(routeDirectory);
             const routeDescriptionRegx = RegExp(
-                `${routeFileNameWithoutExtension}${descriptionSuffixRegx.toString().slice(1, -1)}`,
+                `${routeFileNameWithoutExtension}${descriptionSuffixRegx.toString().slice(1, -1)}`
             );
 
             const descriptionFileName = routeDirectoryContent.find((item) => {
@@ -85,10 +83,7 @@ export const describe = lockMethod(
                 return false;
             });
             const descriptionFileFullPath = !descriptionFileName
-                ? path.join(
-                      routeDirectory,
-                      routeFileNameWithoutExtension + descriptionPreExtensionSuffix + ".md",
-                  )
+                ? path.join(routeDirectory, routeFileNameWithoutExtension + descriptionPreExtensionSuffix + ".md")
                 : path.join(routeDirectory, descriptionFileName);
             const eventDescriptionContent = `<!-- --start--event-- ${options.event} -->
 
@@ -140,10 +135,13 @@ type ExpectedResponseBody = ${options.expectedResponseBodyTypeString || "any"}
                         descriptionFileFullPath,
                         content.replace(
                             RegExp(
-                                `\\<\\!-- --start--event-- ${options.event.replaceAll("/", "\\/")} --\\>(.|\n)*?\\<\\!-- --end--event-- ${options.event.replaceAll("/", "\\/")} --\\>`,
+                                `\\<\\!-- --start--event-- ${options.event.replaceAll(
+                                    "/",
+                                    "\\/"
+                                )} --\\>(.|\n)*?\\<\\!-- --end--event-- ${options.event.replaceAll("/", "\\/")} --\\>`
                             ),
-                            eventDescriptionContent,
-                        ),
+                            eventDescriptionContent
+                        )
                     );
                 }
             }
@@ -155,17 +153,21 @@ type ExpectedResponseBody = ${options.expectedResponseBodyTypeString || "any"}
 
             options.descriptionFileFullPath = path.join(routePrecisePath, "/describe");
 
+            options.fileUrl = routePrecisePath;
+
             if (descriptionsMap[options.event]) {
                 console.warn(
                     "Event Descriptor Already Registered",
                     "\nNew Registration:",
                     options,
                     "\nOld Registration:",
-                    descriptionsMap[options.event],
+                    descriptionsMap[options.event]
                 );
             }
-            options.fileUrl = routePrecisePath;
-            descriptionsMap[options.event] = options;
+            descriptionsMap[options.event] = {
+                ...descriptionsMap[options.event],
+                ...options,
+            };
         } catch (error: any) {
             console.error(error);
             console.error("CRITICAL: Invalid Event Descriptor", options);
@@ -174,6 +176,6 @@ type ExpectedResponseBody = ${options.expectedResponseBodyTypeString || "any"}
     },
     {
         lockName: "settingUpEventDescriptions",
-    },
+    }
 );
 export const describeEvent = describe;

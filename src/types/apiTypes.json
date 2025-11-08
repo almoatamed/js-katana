@@ -5,7 +5,7 @@
             "method": "GET",
             "path": "/",
             "requestBodyTypeString": "{\n  name: string;\n  age: number\n}",
-            "requestParamsTypeString": "unknown",
+            "requestParamsTypeString": "{\n  search: string\n}",
             "requestHeadersTypeString": "unknown",
             "responseBodyTypeString": "Promise<{\n  name: string;\n  posts?: undefined | {\n  title: string;\n  content: string;\n  comments: {\n  msg: string;\n  person: Person;\n  replies: {\n  msg: string;\n  timestamp: string;\n  userId: string\n}[]\n}[]\n}[];\n  email: string;\n  status: \"active\" | \"inactive\"\n}>",
             "responseContentType": "application/json",

@@ -1,11 +1,11 @@
 {
     "name": "js-kt",
-    "description": "",
+    "description": "Kata for building JavaScript/TypeScript web servers with ease",
     "version": "1.0.0",
     "type": "module",
     "license": "MIT",
     "bin": {
-        "kt-cli": "./server/utils/cli/index.ts"
+        "kt-cli": "./dist/utils/cli/index.js"
     },
     "devDependencies": {
         "@js-katana/cli": "^2.10.0",

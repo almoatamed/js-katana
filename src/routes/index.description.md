@@ -19,7 +19,9 @@ type RequestHeader = unknown
 
 ## route Request Params type definition:
 ```ts
-type RequestQueryParams = unknown
+type RequestQueryParams = {
+  search: string
+}
 ```
 
 ## route Request Body type definition:

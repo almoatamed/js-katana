@@ -26,7 +26,7 @@ export type ChannelDescriptionProps = DescriptionProps;
 export const descriptionsMap = {} as {
     [key: string]: DescriptionProps;
 };
-export const channelsDescriptionsMap = descriptionsMap
+export const channelsDescriptionsMap = descriptionsMap;
 
 const routesDir = await getRouterDirectory();
 
@@ -182,7 +182,10 @@ type Response = ${options.responseBodyTypeString || "any"}
                 throw new Error();
             }
             options.fileUrl = options.fullChannelPath;
-            descriptionsMap[options.fullChannelPath] = options;
+            descriptionsMap[options.fullChannelPath] = {
+                ...descriptionsMap[options.fullChannelPath],
+                ...options,
+            };
         } catch (error: any) {
             console.error(error);
             console.error("CRITICAL: Invalid Channel Descriptor", options);

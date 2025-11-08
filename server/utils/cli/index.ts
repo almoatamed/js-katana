@@ -1,5 +1,4 @@
-#! /usr/bin/env node
-
+#! /usr/bin/env bun
 import { execSync } from "child_process";
 import { program } from "commander";
 import { readVolatileJSON } from "kt-common";
@@ -30,7 +29,7 @@ const run = async () => {
         if (version) {
             const currentDir = import.meta.dirname;
             const kiPackageDotJsonFile = path.join(currentDir, "../../../package.json");
-            const kiPackageDotJson: typeof import("../../../package.json") = readVolatileJSON(kiPackageDotJsonFile);
+            const kiPackageDotJson: (typeof import("../../../package.json")) | null = readVolatileJSON(kiPackageDotJsonFile);
             if (!kiPackageDotJson?.version) {
                 console.error("Could not read ki package.json version");
                 process.exit(1);
@@ -49,15 +48,39 @@ const run = async () => {
             const useBun = await hasBun();
             if (useBun) {
                 log("Starting server in development mode using bun...");
-                execSync("bun --watch run ./server/run.ts", {
-                    cwd: path.join(import.meta.dirname, "../../.."),
+                execSync("bun --watch run ./run.js", {
+                    cwd: path.join(import.meta.dirname, "../.."),
                     stdio: "inherit",
                     encoding: "utf-8",
                 });
             } else {
                 log("Starting server in development mode using node...");
-                execSync("npx tsx --watch ./server/run.ts", {
-                    cwd: path.join(import.meta.dirname, "../../.."),
+                execSync("npx tsx --watch ./run.js", {
+                    cwd: path.join(import.meta.dirname, "../.."),
+                    stdio: "inherit",
+                    encoding: "utf-8",
+                });
+            }
+        });
+
+
+    program
+        .command("start")
+        .alias("s")
+        .description("Start the server in production mode using bun or node")
+        .action(async () => {
+            const useBun = await hasBun();
+            if (useBun) {
+                log("Starting server in production mode using bun...");
+                execSync("bun run ./run.js", {
+                    cwd: path.join(import.meta.dirname, "../.."),
+                    stdio: "inherit",
+                    encoding: "utf-8",
+                });
+            } else {
+                log("Starting server in production mode using node...");
+                execSync("node ./run.js", {
+                    cwd: path.join(import.meta.dirname, "../.."),
                     stdio: "inherit",
                     encoding: "utf-8",
                 });
@@ -69,8 +92,8 @@ const run = async () => {
         .description("Scan and generate types")
         .action(async () => {
             const useBun = await hasBun();
-            execSync(`${useBun ? "bun" : "npx tsx"} ./server/utils/typesScanner/run.ts`, {
-                cwd: path.join(import.meta.dirname, "../../.."),
+            execSync(`${useBun ? "bun" : "npx tsx"} ./utils/typesScanner/run.js`, {
+                cwd: path.join(import.meta.dirname, "../.."),
                 stdio: "inherit",
                 encoding: "utf-8",
             });

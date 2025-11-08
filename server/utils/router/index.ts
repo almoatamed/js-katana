@@ -12,8 +12,10 @@ export type HandlerContext<B, Q, P, H> = {
         text: (text: string) => Text;
         html: (html: string) => Html;
     };
+    method: "GET" | "POST" | "PUT" | "DELETE" | "ALL" | "PATCH";
     locale: Record<string, any>;
     query: Q;
+    fullPath: string;
     params: P;
     headers: H;
     setStatus: (statusCode: number) => HandlerContext<B, Q, P, H>;
@@ -29,6 +31,12 @@ export type Handler<T, B, Q, P, H> = (
 ) => T;
 
 export type Middleware<T, B, Q, P, H> = Handler<T, B, Q, P, H>;
+
+export const defineMiddleware = <T, B, Q, P, H>(
+    middleware: Middleware<T, B, Q, P, H>
+) => {
+    return middleware;
+};
 
 export type Route<T, B, Q, P, H> = {
     externalMiddlewares: Middleware<any, B, Q, P, H>[];
@@ -48,14 +56,14 @@ export type RouterAlias = {
     path: string;
     includeOriginalMIddlewares: boolean;
 };
-export const CreateAlias = (props: Omit<RouterAlias, "symbol">) => {
+export const createAlias = (props: Omit<RouterAlias, "symbol">) => {
     return {
         ...props,
         __symbol: aliasSymbol,
     } as RouterAlias;
 };
 
-export const CreateHandler = <T, B, Q, P, H>(
+export const createHandler = <T, B, Q, P, H>(
     props: Omit<
         Omit<Omit<Omit<Route<T, B, Q, P, H>, "externalMiddlewares">, "__symbol">, "serveVia">,
         "middleWares"

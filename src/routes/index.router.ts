@@ -1,4 +1,4 @@
-import { CreateHandler } from "../../server/utils/router";
+import { createHandler } from "../../server/utils/router";
 import { defineChannelHandler, defineEmittedEvent, Respond } from "../../server/utils/channelsBuilder/index";
 
 defineEmittedEvent<{
@@ -49,8 +49,7 @@ export const handler = defineChannelHandler((_socket) => {
             },
             respond: Respond<{ msg: string }> | undefined
         ) => {
-            console.log(body);
-
+            console.log("body", body);
             const p: Person = {
                 email: "",
                 name: (body as { name: string; age: number }).name,
@@ -64,16 +63,19 @@ export const handler = defineChannelHandler((_socket) => {
     };
 });
 
-export default CreateHandler({
+export default createHandler({
     method: "GET",
     handler: async (
         context,
         body: {
             name: string;
             age: number;
+        }, 
+        query: {
+            search: string;
         }
     ) => {
-        console.log(body);
+        console.log("body", body, query);
         const p: Person = {
             email: "",
             name: "",
