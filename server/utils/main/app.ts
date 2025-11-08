@@ -32,6 +32,7 @@ const convertHandlerToExpressMiddleware = (route: Omit<Route<any, any, any, any,
                         };
                     },
                     html: (text) => {
+                        response.setHeader("Content-Type", "text/html; charset=utf-8");
                         response.send(text);
                         responded = true;
 
@@ -111,6 +112,7 @@ const convertHandlerToExpressRoute = (route: Route<any, any, any, any, any>) => 
                         };
                     },
                     html: (text) => {
+                        response.setHeader("Content-Type", "text/html; charset=utf-8");
                         response.send(text);
                         responded = true;
 
