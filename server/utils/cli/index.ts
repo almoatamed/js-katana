@@ -1,0 +1,82 @@
+#! /usr/bin/env node
+
+import { execSync } from "child_process";
+import { program } from "commander";
+import { readVolatileJSON } from "kt-common";
+import { createLogger } from "kt-logger";
+import path from "path";
+
+const hasBun = async () => {
+    try {
+        execSync("bun --version");
+        return true;
+    } catch {
+        console.warn(
+            "Bun is not installed or not found in PATH",
+            "it is recommended to use bun for better performance"
+        );
+        return false;
+    }
+};
+
+const log = await createLogger({
+    name: "KT CLI",
+    color: "cyan",
+    worker: true,
+    logLevel: "Info",
+});
+const run = async () => {
+    program.option("-v, --version").action(({ version }: { version: boolean }) => {
+        if (version) {
+            const currentDir = import.meta.dirname;
+            const kiPackageDotJsonFile = path.join(currentDir, "../../../package.json");
+            const kiPackageDotJson: typeof import("../../../package.json") = readVolatileJSON(kiPackageDotJsonFile);
+            if (!kiPackageDotJson?.version) {
+                console.error("Could not read ki package.json version");
+                process.exit(1);
+            }
+            log(kiPackageDotJson.version);
+            return;
+        }
+        program.help();
+    });
+
+    program
+        .command("dev")
+        .alias("d")
+        .description("Start the server in development mode using bun or node")
+        .action(async () => {
+            const useBun = await hasBun();
+            if (useBun) {
+                log("Starting server in development mode using bun...");
+                execSync("bun --watch run ./server/run.ts", {
+                    cwd: path.join(import.meta.dirname, "../../.."),
+                    stdio: "inherit",
+                    encoding: "utf-8",
+                });
+            } else {
+                log("Starting server in development mode using node...");
+                execSync("npx tsx --watch ./server/run.ts", {
+                    cwd: path.join(import.meta.dirname, "../../.."),
+                    stdio: "inherit",
+                    encoding: "utf-8",
+                });
+            }
+        });
+
+    program
+        .command("scan-types")
+        .description("Scan and generate types")
+        .action(async () => {
+            const useBun = await hasBun();
+            execSync(`${useBun ? "bun" : "npx tsx"} ./server/utils/typesScanner/run.ts`, {
+                cwd: path.join(import.meta.dirname, "../../.."),
+                stdio: "inherit",
+                encoding: "utf-8",
+            });
+        });
+
+    await program.parseAsync();
+};
+await run();
+process.exit(0);

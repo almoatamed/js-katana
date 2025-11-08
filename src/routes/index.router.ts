@@ -5,7 +5,8 @@ defineEmittedEvent<{
     greeting: string;
 }, {
     reply: string;
-}>("helloWorld")
+    yourMom: string; 
+}>("helloWorld${number}")
 
 
 defineEmittedEvent<

@@ -87,7 +87,6 @@ export const describe = lockMethod(
                     : path.join(channelRelativeDirectory, channelFileNameWithoutExtension),
                 options.path || ""
             );
-            console.log("Channel Full path on describe", channelPrecisePath);
 
             const channelDirectoryContent = fs.readdirSync(channelDirectory);
             const channelDescriptionRegx = RegExp(
@@ -140,7 +139,6 @@ type Response = ${options.responseBodyTypeString || "any"}
 <!-- --end--channel-- ${channelPrecisePath} -->`;
 
             if (!descriptionFileName) {
-                console.log("Creating description file at:", descriptionFileFullPath);
                 fs.writeFileSync(descriptionFileFullPath, channelDescriptionContent);
             } else {
                 const content = fs.readFileSync(descriptionFileFullPath, "utf-8");

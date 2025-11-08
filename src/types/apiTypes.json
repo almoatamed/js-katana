@@ -24,11 +24,11 @@
         }
     },
     "eventsDescriptions": {
-        "helloWorld": {
+        "helloWorld${number}": {
             "fileUrl": "/",
-            "event": "helloWorld",
+            "event": "helloWorld${number}",
             "eventBodyTypeString": "{\n  greeting: string\n}",
-            "expectedResponseBodyTypeString": "{\n  reply: string\n}",
+            "expectedResponseBodyTypeString": "{\n  reply: string;\n  yourMom: string\n}",
             "descriptionFileFullPath": "/describe"
         },
         "helloWorld2": {

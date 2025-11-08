@@ -4,6 +4,7 @@ const config: RoutingConfig = {
     getRouterDirectory() {
         return "routes"
     },
+    autoDescribe: false, 
     getStartupDirPath() {
         return "startup"
     }

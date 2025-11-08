@@ -127,7 +127,7 @@ export const perform = async (
 };
 
 export const registerSocket = async (socket: Socket) => {
-    console.log("socket connection", socket.id);
+    log("socket connection", socket.id);
     try {
         let hasHandlers = false;
         const appliedBeforeMountedMiddlewares: {
@@ -335,10 +335,10 @@ export const registerSocket = async (socket: Socket) => {
             const foundEvent = handlers.find((h) => {
                 return h.path == event;
             });
-            console.log("incoming event", event, foundEvent?.path ? "(event found)" : "(event not found)");
+            log("incoming event", event, foundEvent?.path ? "(event found)" : "(event not found)");
             if (typeof cb == "function") {
                 if (!foundEvent) {
-                    console.log(`event not found`, event);
+                    log(`event not found`, event);
                     cb({
                         error: {
                             msg: "event not found",
@@ -460,7 +460,7 @@ export const runThreaded = async (httpServer: http.Server) => {
         }
         setupWorker(io);
         io.on("connection", async (socket) => {
-            console.log("connected", socket.id, pid);
+            log("connected", socket.id, pid);
             await registerSocket(socket);
         });
     }

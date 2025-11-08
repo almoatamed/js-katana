@@ -2,17 +2,30 @@
   "lockfileVersion": 1,
   "workspaces": {
     "": {
-      "dependencies": {
+      "devDependencies": {
+        "@js-katana/cli": "^2.10.0",
+        "@tsconfig/node23": "^23.0.1",
+        "@types/archiver": "^6.0.2",
+        "@types/bcrypt": "^5.0.2",
+        "@types/cors": "^2.8.19",
+        "@types/markdown-it": "^14.1.2",
+        "@types/mime-types": "^2.1.4",
+        "@types/multer": "^1.4.11",
+        "@types/node": "^20.12.11",
+        "@types/prismjs": "^1.26.5",
+        "bun-types": "^1.1.18",
+        "nodemon": "^3.1.0",
+        "typescript": "^5.5.4",
+      },
+      "peerDependencies": {
         "@kitajs/html": "^4.2.10",
         "@kitajs/ts-html-plugin": "^4.1.3",
         "@socket.io/cluster-adapter": "^0.3.0",
         "@socket.io/redis-adapter": "^8.3.0",
         "@socket.io/sticky": "^1.0.4",
-        "@types/cors": "^2.8.19",
-        "@types/markdown-it": "^14.1.2",
+        "commander": "^12.0.0",
         "compression": "^1.8.1",
         "cors": "^2.8.5",
-        "djs-kt": "^1.4.2",
         "express": "^5.1.0",
         "find-root-kt": "^1.0.7",
         "ioredis": "^5.8.2",
@@ -24,19 +37,6 @@
         "prismjs": "^1.30.0",
         "quick-lru": "^7.3.0",
         "socket.io": "^4.8.1",
-      },
-      "devDependencies": {
-        "@js-katana/cli": "^2.10.0",
-        "@tsconfig/node23": "^23.0.1",
-        "@types/archiver": "^6.0.2",
-        "@types/bcrypt": "^5.0.2",
-        "@types/mime-types": "^2.1.4",
-        "@types/multer": "^1.4.11",
-        "@types/node": "^20.12.11",
-        "@types/prismjs": "^1.26.5",
-        "bun-types": "^1.1.18",
-        "nodemon": "^3.1.0",
-        "typescript": "^5.5.4",
       },
     },
   },
@@ -230,8 +230,6 @@
     "denque": ["denque@2.1.0", "", {}, "sha512-HVQE3AAb/pxF8fQAoiqpvg9i3evqug3hoiwakOyZAwJm+6vZehbkYXZ0l4JxS+I3QxM97v5aaRNhj8v5oBhekw=="],
 
     "depd": ["depd@2.0.0", "", {}, "sha512-g7nH6P6dyDioJogAAGprGpCtVImJhpPk/roCzdb3fIh61/s/nPsfR6onyMwkCAR/OlC3yBC0lESvUoQEAssIrw=="],
-
-    "djs-kt": ["djs-kt@1.4.2", "", { "dependencies": { "async-lock": "^1.4.1", "ioredis": "^5.8.1" }, "peerDependencies": { "typescript": "^5" } }, "sha512-oAVbbscH0ri8Xlu/PgXryLSDSPONd/SZPJVeOAVdhfMx+I0UG/0nOLw+WCLxQGkC3i4YYWdo72l73M1Bh7YZwQ=="],
 
     "dunder-proto": ["dunder-proto@1.0.1", "", { "dependencies": { "call-bind-apply-helpers": "^1.0.1", "es-errors": "^1.3.0", "gopd": "^1.2.0" } }, "sha512-KIN/nDJBQRcXw0MLVhZE9iQHmG68qAVIBg9CqmUYjmQIhgij9U5MFvrqkUL5FbtyyzZuOeOt0zdeRe4UY7ct+A=="],
 

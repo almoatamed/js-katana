@@ -27,7 +27,6 @@ export function removeExpressRoute(
                 const HandlersNames = layer.route.stack.map((handler) => handler?.name);
                 let removed = false;
                 if (targetRoutesPaths?.length && targetRoutesPaths.includes(Path)) {
-                    console.log("Removing", Path, HandlersNames);
                     removed = true;
                     router.stack = router.stack.filter((Layer) => {
                         const handlersNames = Layer?.route?.stack.map((handler) => handler?.name);
@@ -70,7 +69,6 @@ export function removeExpressRoute(
             }
 
             if ((layer?.handle as any)?.stack) {
-                console.log(layer.regexp);
                 const subPath = String(layer.regexp)
                     .match(/(\^\\?)(.*?)(\\\/\?)/)?.[2]
                     ?.replace("\\", "");
@@ -118,7 +116,6 @@ export function listExpressRoute(
             }
 
             if ((layer?.handle as any)?.stack) {
-                console.log(layer.regexp);
                 const subPath = String(layer.regexp)
                     .match(/(\^\\?)(.*?)(\\\/\?)/)?.[2]
                     ?.replace("\\", "");

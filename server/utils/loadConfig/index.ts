@@ -15,6 +15,7 @@ export type RoutingConfig = {
     allDescriptionsSecret?: MaybePromise<string>;
     runSingle?: MaybePromise<boolean>;
     isDev?: MaybePromise<boolean>;
+    autoDescribe?: MaybePromise<boolean>;
     getRedisClient?: MaybePromise<Redis>;
     getMaxForks?: MaybePromise<number>;
     getTypesPlacementDir?: MaybePromise<string>;
@@ -56,6 +57,12 @@ export const getAllDescriptionsSecret = async () => {
     const config = await loadConfig();
     return (await valueOf(config.allDescriptionsSecret)) ?? process.env.DESCRIPTIONS_SECRET ?? null;
 };
+
+export const autoDescribe = async () => {
+    const config = await loadConfig();
+    const result = await valueOf(config.autoDescribe);
+    return result ?? true;
+}
 
 export const valueOf = async <T>(v?: MaybePromise<T>): Promise<T | undefined> => {
     if (typeof v === "function") {
@@ -182,7 +189,7 @@ export const loadConfig = async (): Promise<RoutingConfig> => {
     });
 
     if (configPath) {
-        return await import(configPath);
+        return (await import(configPath)).default;
     }
     return defaultConfig;
 };
