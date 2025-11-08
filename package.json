@@ -7,6 +7,9 @@
     "bin": {
         "kt-cli": "./dist/utils/cli/index.js"
     },
+    "scripts": {
+        "build": "rm -rf ./dist && tsc && chmod -R 755 ./dist"
+    },
     "devDependencies": {
         "@js-katana/cli": "^2.10.0",
         "@tsconfig/node23": "^23.0.1",

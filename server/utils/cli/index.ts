@@ -99,6 +99,19 @@ const run = async () => {
             });
         });
 
+            program
+                .command("put-routes-in-directories")
+                .alias("prid")
+                .description("put routes with names (like user.router.ts) in directories (like /user/index.router.ts)")
+                .action(async () => {
+                    const useBun = await hasBun();
+                    execSync(`${useBun ? "bun" : "npx tsx"} ./utils/putRouterIntoDirectories/index.js`, {
+                        cwd: path.join(import.meta.dirname, "../.."),
+                        stdio: "inherit",
+                        encoding: "utf-8",
+                    });
+                });
+
     await program.parseAsync();
 };
 await run();

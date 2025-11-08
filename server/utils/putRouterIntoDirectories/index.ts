@@ -19,10 +19,10 @@ const moveIntoFolders = function (directory = routersMainDirectory) {
                 const routerName = item.slice(0, item.indexOf(routerMatch[0]));
                 if (routerName != "index") {
                     fs.mkdirSync(path.join(directory, routerName));
-
-                    fs.cpSync(itemAbsolutePath, path.join(directory, routerName, item.replace(routerName, "index")));
+                    const newPath = path.join(directory, routerName, item.replace(routerName, "index"));
+                    fs.cpSync(itemAbsolutePath, newPath);
                     fs.rmSync(itemAbsolutePath);
-
+                    console.log("Moved router file", itemAbsolutePath, "to", newPath);
                     const routerDescriptionRegx = RegExp(
                         `${routerName}${descriptionSuffixRegx.toString().slice(1, -1)}`,
                     );
