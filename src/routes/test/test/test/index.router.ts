@@ -1,5 +1,5 @@
-import { createHandler } from "../../../server/utils/router";
-import { defineChannelHandler, defineEmittedEvent, Respond } from "../../../server/utils/channelsBuilder/index";
+import { createHandler } from "../../../../../server/utils/router";
+import { defineChannelHandler, defineEmittedEvent, Respond } from "../../../../../server/utils/channelsBuilder/index";
 
 defineEmittedEvent<{
     greeting: string;
