@@ -657,8 +657,6 @@ export const processRoutesForTypes = async (routesFilesMap: { [routeFileFullPath
 
                 if (channelExportExpr) {
                     promises[1] = useContextToProcessChannelsForTypes(routeFullPath, channelExportExpr, tsContext);
-                } else {
-                    console.trace("Could not find export expression for channel handler on: ", routeFullPath);
                 }
 
                 if (eventExpressions.length > 0) {

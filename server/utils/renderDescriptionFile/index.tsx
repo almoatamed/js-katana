@@ -3,7 +3,7 @@ import { readFile } from "fs/promises";
 import { cap } from "kt-common";
 import { renderMarkdown } from "./processMdToHtml.js";
 
-const Layout = ({
+export const Layout = ({
     title,
     children,
     additionalScripts,
@@ -71,7 +71,7 @@ const Layout = ({
     );
 };
 
-const View = (props: PropsWithChildren<JSX.HtmlTag>) => {
+export const View = (props: PropsWithChildren<JSX.HtmlTag>) => {
     return (
         <div
             {...props}
@@ -89,7 +89,7 @@ const View = (props: PropsWithChildren<JSX.HtmlTag>) => {
     );
 };
 
-const Divider = () => {
+export const Divider = () => {
     return (
         <>
             <div
@@ -102,7 +102,7 @@ const Divider = () => {
     );
 };
 
-const Card = (
+export const Card = (
     props: PropsWithChildren<JSX.HtmlTag> & {
         cardTitle?: string;
     }
@@ -138,7 +138,7 @@ const Card = (
     );
 };
 
-const MarkDown = ({ content }: { content: string }) => {
+export const MarkDown = ({ content }: { content: string }) => {
     const rendered = renderMarkdown(content);
     return (
         <>
@@ -175,7 +175,7 @@ const MarkDown = ({ content }: { content: string }) => {
     );
 };
 
-const Container = (props: PropsWithChildren<JSX.HtmlTag>) => {
+export const Container = (props: PropsWithChildren<JSX.HtmlTag>) => {
     return (
         <>
             <View

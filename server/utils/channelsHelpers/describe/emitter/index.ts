@@ -17,10 +17,12 @@ export type DescriptionProps = {
     expectedResponseBodyTypeString?: string;
     descriptionFileFullPath?: string;
 };
+export type EventDescriptionProps = DescriptionProps;
 
 export const descriptionsMap = {} as {
     [key: string]: DescriptionProps;
 };
+export const eventsDescriptionMap = descriptionsMap;
 
 const checkType = (typeString: string) => {
     const sourceCode = `type TempType = ${typeString};`;

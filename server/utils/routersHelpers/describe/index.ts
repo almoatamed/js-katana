@@ -21,7 +21,7 @@ export type DescriptionProps = {
     responseBodyTypeString?: string;
     descriptionFileFullPath?: string;
 };
-
+export type RouteDescriptionProps = DescriptionProps;
 export const descriptionsMap = {} as {
     [key: string]: DescriptionProps;
 };
