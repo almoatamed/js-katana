@@ -3,7 +3,10 @@ import { execSync } from "child_process";
 import { program } from "commander";
 import { readVolatileJSON } from "kt-common";
 import { createLogger } from "kt-logger";
+import { getConfigPath } from "locate-config-kt";
 import path from "path";
+import { getSourceDir } from "../loadConfig/index.js";
+import { writeFile } from "fs/promises";
 
 const hasBun = async () => {
     try {
@@ -29,7 +32,8 @@ const run = async () => {
         if (version) {
             const currentDir = import.meta.dirname;
             const kiPackageDotJsonFile = path.join(currentDir, "../../../package.json");
-            const kiPackageDotJson: (typeof import("../../../package.json")) | null = readVolatileJSON(kiPackageDotJsonFile);
+            const kiPackageDotJson: typeof import("../../../package.json") | null =
+                readVolatileJSON(kiPackageDotJsonFile);
             if (!kiPackageDotJson?.version) {
                 console.error("Could not read ki package.json version");
                 process.exit(1);
@@ -62,7 +66,6 @@ const run = async () => {
                 });
             }
         });
-
 
     program
         .command("start")
@@ -99,19 +102,42 @@ const run = async () => {
             });
         });
 
-            program
-                .command("put-routes-in-directories")
-                .alias("prid")
-                .description("put routes with names (like user.router.ts) in directories (like /user/index.router.ts)")
-                .action(async () => {
-                    const useBun = await hasBun();
-                    execSync(`${useBun ? "bun" : "npx tsx"} ./utils/putRouterIntoDirectories/index.js`, {
-                        cwd: path.join(import.meta.dirname, "../.."),
-                        stdio: "inherit",
-                        encoding: "utf-8",
-                    });
-                });
+    program
+        .command("put-routes-in-directories")
+        .alias("prid")
+        .description("put routes with names (like user.router.ts) in directories (like /user/index.router.ts)")
+        .action(async () => {
+            const useBun = await hasBun();
+            execSync(`${useBun ? "bun" : "npx tsx"} ./utils/putRouterIntoDirectories/index.js`, {
+                cwd: path.join(import.meta.dirname, "../.."),
+                stdio: "inherit",
+                encoding: "utf-8",
+            });
+        });
+    program
+        .command("create-config")
+        .description("Create a default configuration file")
+        .action(async () => {
+            const configPath = await getConfigPath({
+                configFileNameWithExtension: "router.kt.config.ts",
+            });
+            if (configPath) {
+                log(`Configuration file already exists at path: ${configPath}`);
+                return;
+            }
+            const newConfigPath = path.join(await getSourceDir(), "router.kt.config.ts");
 
+            await writeFile(
+                newConfigPath,
+                `import type {RoutingConfig} from "js-kt"
+
+export default {
+
+} satisfies RoutingConfig
+            `
+            );
+            log(`Created default configuration file at path: ${newConfigPath}`);
+        });
     await program.parseAsync();
 };
 await run();
