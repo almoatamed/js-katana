@@ -111,15 +111,32 @@ export const handlers: {
     beforeMounted?: ChannelHandlerBeforeMounted;
 }[] = [];
 
+// Pre-computed handler lookup map for O(1) access: normalizedPath -> handler index
+const handlerPathMap = new Map<string, number>();
+
+// Normalize path: ensure it ends with "/"
+const normalizePath = (path: string): string => {
+    return path.endsWith("/") ? path : path + "/";
+};
+
+// Rebuild handler path map when handlers change (call after handlers array modifications)
+export const rebuildHandlerPathMap = () => {
+    handlerPathMap.clear();
+    for (let i = 0; i < handlers.length; i++) {
+        handlerPathMap.set(normalizePath(handlers[i].path), i);
+    }
+};
+
 export const perform = async (
     body: any,
     respond: Respond<any> | undefined,
     handler: ChannelHandler<any, any>,
     ev: string
 ) => {
-    if (typeof handler == "function") {
+    if (typeof handler === "function") {
         await handler(body, respond, ev);
     } else if (Array.isArray(handler)) {
+        // Process handlers sequentially (recursion is fine for typical shallow nesting)
         for (const subHandler of handler) {
             await perform(body, respond, subHandler, ev);
         }
@@ -130,64 +147,66 @@ export const registerSocket = async (socket: Socket) => {
     log("socket connection", socket.id);
     try {
         let hasHandlers = false;
-        const appliedBeforeMountedMiddlewares: {
-            path: string;
-            accepted: boolean;
-        }[] = [];
-        const appliedMiddlewares: {
-            path: string;
-            processed: any[];
-            accepted: boolean;
-        }[] = [];
-        const appliedMountedMiddlewares: string[] = [];
-        socket.data.accessMap = [];
-        for (const handler of handlers) {
+        // Use Maps/Sets for O(1) lookups instead of O(n) array finds
+        const appliedBeforeMountedMiddlewares = new Map<string, { accepted: boolean; rejectionReason?: string }>();
+        const appliedMiddlewares = new Map<string, { processed: any[]; accepted: boolean; rejectionReason?: string }>();
+        const appliedMountedMiddlewares = new Set<string>();
+        // Use Map for O(1) accessMap lookups
+        const accessMap = new Map<string, { accessible: boolean; rejectionReason?: string; beforeMountedMiddlewarePath?: string; middlewarePath?: string }>();
+        socket.data.accessMap = accessMap;
+        
+        // Ensure handler path map is up to date (should be built at startup, but check as fallback)
+        if (handlerPathMap.size !== handlers.length) {
+            rebuildHandlerPathMap();
+        }
+        
+        for (let handlerIndex = 0; handlerIndex < handlers.length; handlerIndex++) {
+            const handler = handlers[handlerIndex];
+            const normalizedPath = normalizePath(handler.path);
             let allBeforeMountedMiddlewaresAccepted = true;
             if (handler.beforeMountedMiddlewares?.length) {
                 for (const beforeMountedMiddleware of handler.beforeMountedMiddlewares) {
-                    const foundApplied = appliedBeforeMountedMiddlewares.find(
-                        (abmm) => abmm.path == beforeMountedMiddleware.path
-                    );
+                    const middlewarePath = beforeMountedMiddleware.path;
+                    const foundApplied = appliedBeforeMountedMiddlewares.get(middlewarePath);
+                    
                     if (!foundApplied) {
                         let beforeMountedMiddlewaresAccepted = true;
+                        let rejectionReason: string | undefined;
+                        
                         for (const beforeMiddleware of beforeMountedMiddleware.middleware) {
                             const middlewareAccepted = await beforeMiddleware(socket);
 
-                            if (middlewareAccepted === false || typeof middlewareAccepted == "string") {
+                            if (middlewareAccepted === false || typeof middlewareAccepted === "string") {
                                 allBeforeMountedMiddlewaresAccepted = false;
                                 beforeMountedMiddlewaresAccepted = false;
-
-                                socket.data.accessMap.push({
-                                    accessible: false,
-                                    path: handler.path,
-                                    beforeMountedMiddlewarePath: beforeMountedMiddleware.path,
-                                    rejectionReason:
-                                        typeof middlewareAccepted == "string"
-                                            ? middlewareAccepted
-                                            : "one of the middlewares before mounted handlers rejected",
-                                });
+                                rejectionReason = typeof middlewareAccepted === "string"
+                                    ? middlewareAccepted
+                                    : "one of the middlewares before mounted handlers rejected";
                                 break;
                             }
                         }
-                        appliedBeforeMountedMiddlewares.push({
-                            path: beforeMountedMiddleware.path,
+                        
+                        appliedBeforeMountedMiddlewares.set(middlewarePath, {
                             accepted: beforeMountedMiddlewaresAccepted,
+                            rejectionReason,
                         });
 
-                        if (allBeforeMountedMiddlewaresAccepted === false) {
+                        if (!allBeforeMountedMiddlewaresAccepted) {
+                            accessMap.set(normalizedPath, {
+                                accessible: false,
+                                beforeMountedMiddlewarePath: middlewarePath,
+                                rejectionReason: rejectionReason!,
+                            });
                             break;
                         }
                     } else {
                         allBeforeMountedMiddlewaresAccepted = foundApplied.accepted;
 
-                        if (allBeforeMountedMiddlewaresAccepted === false) {
-                            socket.data.accessMap.push({
+                        if (!allBeforeMountedMiddlewaresAccepted) {
+                            accessMap.set(normalizedPath, {
                                 accessible: false,
-                                path: handler.path,
-                                rejectionReason:
-                                    socket.data.accessMap?.find((a) => {
-                                        return a?.beforeMountedMiddlewarePath == foundApplied.path;
-                                    })?.rejectionReason || "one of the middlewares before mounted handlers rejected",
+                                beforeMountedMiddlewarePath: middlewarePath,
+                                rejectionReason: foundApplied.rejectionReason || "one of the middlewares before mounted handlers rejected",
                             });
                             break;
                         }
@@ -199,96 +218,89 @@ export const registerSocket = async (socket: Socket) => {
             }
 
             if (handler.beforeMounted) {
-                const accepted = await handler.beforeMounted?.(socket);
-                if (accepted === false || typeof accepted == "string") {
-                    socket.data.accessMap.push({
-                        path: handler.path,
+                const accepted = await handler.beforeMounted(socket);
+                if (accepted === false || typeof accepted === "string") {
+                    accessMap.set(normalizedPath, {
                         accessible: false,
-                        rejectionReason:
-                            typeof accepted == "string"
-                                ? accepted
-                                : "this event not accessible, rejected on event before mounted",
+                        rejectionReason: typeof accepted === "string"
+                            ? accepted
+                            : "this event not accessible, rejected on event before mounted",
                     });
                     continue;
                 }
             }
 
             const mainHandlers = await handler.handler?.(socket);
-            if (mainHandlers && typeof mainHandlers != "string") {
-                const handlers: ChannelHandler<any, any>[] = [];
+            if (mainHandlers && typeof mainHandlers !== "string") {
+                const handlerChain: ChannelHandler<any, any>[] = [];
                 let allMiddlewaresAccepted = true;
+                
                 for (const middleware of handler.middlewares) {
-                    let middlewareHandler: any[] = [];
-                    const foundApplied = appliedMiddlewares.find((am) => am.path == middleware.path);
+                    const middlewarePath = middleware.path;
+                    const foundApplied = appliedMiddlewares.get(middlewarePath);
+                    
                     if (!foundApplied) {
-                        const processed = [] as any[];
+                        const processed: any[] = [];
+                        let rejectionReason: string | undefined;
 
-                        for (const middlewareHandler of middleware.middleware) {
-                            const processedMiddlewareHandler = await middlewareHandler(socket);
-                            if (!!processedMiddlewareHandler && typeof processedMiddlewareHandler != "string") {
+                        for (const middlewareHandlerBuilder of middleware.middleware) {
+                            const processedMiddlewareHandler = await middlewareHandlerBuilder(socket);
+                            if (processedMiddlewareHandler && typeof processedMiddlewareHandler !== "string") {
                                 processed.push(processedMiddlewareHandler);
                             } else {
-                                socket.data.accessMap.push({
-                                    accessible: false,
-                                    path: handler.path,
-                                    middlewarePath: middleware.path,
-                                    rejectionReason:
-                                        typeof processedMiddlewareHandler == "string"
-                                            ? processedMiddlewareHandler
-                                            : "one of the middlewares handlers rejected",
-                                });
                                 allMiddlewaresAccepted = false;
+                                rejectionReason = typeof processedMiddlewareHandler === "string"
+                                    ? processedMiddlewareHandler
+                                    : "one of the middlewares handlers rejected";
                                 break;
                             }
                         }
+                        
+                        appliedMiddlewares.set(middlewarePath, {
+                            processed: allMiddlewaresAccepted ? processed : [],
+                            accepted: allMiddlewaresAccepted,
+                            rejectionReason,
+                        });
+                        
                         if (!allMiddlewaresAccepted) {
-                            appliedMiddlewares.push({
-                                path: middleware.path,
-                                processed: [],
-                                accepted: false,
+                            accessMap.set(normalizedPath, {
+                                accessible: false,
+                                middlewarePath,
+                                rejectionReason: rejectionReason!,
                             });
                             break;
                         }
-
-                        appliedMiddlewares.push({
-                            path: middleware.path,
-                            processed: processed,
-                            accepted: true,
-                        });
-                        middlewareHandler = processed;
+                        
+                        handlerChain.push(...processed);
                     } else {
                         if (foundApplied.accepted) {
-                            middlewareHandler = foundApplied.processed;
+                            handlerChain.push(...foundApplied.processed);
                         } else {
                             allMiddlewaresAccepted = false;
-                            socket.data.accessMap.push({
+                            accessMap.set(normalizedPath, {
                                 accessible: false,
-                                path: handler.path,
-                                rejectionReason:
-                                    socket.data.accessMap?.find((a) => {
-                                        return a?.middlewarePath == foundApplied.path;
-                                    })?.rejectionReason || "one of the middlewares handlers rejected",
+                                middlewarePath,
+                                rejectionReason: foundApplied.rejectionReason || "one of the middlewares handlers rejected",
                             });
                             break;
                         }
                     }
-                    handlers.push(...middlewareHandler);
                 }
 
                 if (!allMiddlewaresAccepted) {
                     continue;
                 }
-                handlers.push(mainHandlers);
+                
+                handlerChain.push(mainHandlers);
                 hasHandlers = true;
-                if (!handler.path.endsWith("/")) {
-                    handler.path = handler.path + "/";
-                }
-                socket.on(handler.path, async (body: any, cb?: Respond<any>) => {
+                
+                // Use normalized path directly
+                socket.on(normalizedPath, async (body: any, cb?: Respond<any>) => {
                     try {
-                        await perform(body, cb, handlers, handler.path);
+                        await perform(body, cb, handlerChain, normalizedPath);
                     } catch (error: any) {
                         const e = extractRequestError(error);
-                        log.error("Channel Error", handler.path, error);
+                        log.error("Channel Error", normalizedPath, error);
                         if (cb) {
                             if (e) {
                                 cb(e);
@@ -306,10 +318,9 @@ export const registerSocket = async (socket: Socket) => {
                     }
                 });
             } else {
-                socket.data.accessMap.push({
-                    path: handler.path,
+                accessMap.set(normalizedPath, {
                     accessible: false,
-                    rejectionReason: typeof mainHandlers == "string" ? mainHandlers : "this event not accessible",
+                    rejectionReason: typeof mainHandlers === "string" ? mainHandlers : "this event not accessible",
                 });
                 continue;
             }
@@ -320,23 +331,28 @@ export const registerSocket = async (socket: Socket) => {
 
             if (handler.mountedMiddlewares?.length) {
                 for (const mountedMiddleware of handler.mountedMiddlewares) {
-                    if (!appliedMountedMiddlewares.find((path) => path == mountedMiddleware.path)) {
+                    const middlewarePath = mountedMiddleware.path;
+                    if (!appliedMountedMiddlewares.has(middlewarePath)) {
                         for (const middleware of mountedMiddleware.middleware) {
                             await middleware(socket);
                         }
-                        appliedMountedMiddlewares.push(mountedMiddleware.path);
+                        appliedMountedMiddlewares.add(middlewarePath);
                     }
                 }
             }
         }
 
         socket.use(([event, ...args], next) => {
-            const cb = args?.at?.(-1);
-            const foundEvent = handlers.find((h) => {
-                return h.path == event;
-            });
-            log("incoming event", event, foundEvent?.path ? "(event found)" : "(event not found)");
-            if (typeof cb == "function") {
+            // Use direct array access instead of at() for better performance
+            const cb = args.length > 0 && typeof args[args.length - 1] === "function" ? args[args.length - 1] : undefined;
+            // Use Map for O(1) lookup instead of O(n) array find
+            const normalizedEventPath = normalizePath(event);
+            const handlerIndex = handlerPathMap.get(normalizedEventPath);
+            const foundEvent = handlerIndex !== undefined ? handlers[handlerIndex] : undefined;
+            
+            log("incoming event", event, foundEvent ? "(event found)" : "(event not found)");
+            
+            if (cb) {
                 if (!foundEvent) {
                     log(`event not found`, event);
                     cb({
@@ -346,24 +362,17 @@ export const registerSocket = async (socket: Socket) => {
                     });
                     return;
                 }
-                const foundAccessibility = socket.data.accessMap.find((a) => a.path == event);
-                if (foundAccessibility) {
-                    if (foundAccessibility.accessible === false) {
-                        cb({
-                            // statusCode: 403,
-                            error: {
-                                msg: foundAccessibility.rejectionReason || "event not accessible",
-                            },
-                        });
-                    } else {
-                        next();
-                    }
-                } else {
-                    next();
+                const accessibility = accessMap.get(normalizedEventPath);
+                if (accessibility && accessibility.accessible === false) {
+                    cb(createRequestError(400, [
+                        {
+                            error: accessibility.rejectionReason || "event not accessible",
+                        },
+                    ]));
+                    return;
                 }
-            } else {
-                next();
             }
+            next();
         });
 
         if (!hasHandlers) {
