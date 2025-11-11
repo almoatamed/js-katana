@@ -6,6 +6,7 @@ import { Server, Socket } from "socket.io";
 import { createLogger } from "kt-logger";
 import { gerRedisClient, getSocketPrefix } from "../loadConfig/index.js";
 import { createRequestError, extractRequestError } from "../router/index.js";
+import { ChannelHandler, createSocketRouter } from "./sucketRouter/index.js";
 const { setupMaster, setupWorker } = await import("@socket.io/sticky");
 const { createAdapter: createClusterAdapter, setupPrimary } = await import("@socket.io/cluster-adapter");
 
@@ -15,8 +16,6 @@ const log = await createLogger({
     logLevel: "Info",
     name: "Channels-Manager",
 });
-
-export type Respond<T> = (response: T) => void;
 
 export type ChannelHandlerBeforeMounted = (
     socket: Socket
@@ -82,9 +81,6 @@ export const channelMountedSymbol = Symbol("Channel Mounted");
 defineChannelMounted.__symbol = channelMountedSymbol;
 export { defineChannelMounted };
 
-export type ChannelHandlerFunction<B, R> = (body: B, respond: ((response: R) => void) | undefined, ev: string) => any;
-export type _ChannelHandler<B, R> = ChannelHandler<B, R>[];
-export type ChannelHandler<B, R> = ChannelHandlerFunction<B, R> | _ChannelHandler<B, R>;
 export type ChannelDirectoryAliasDefaultExport = {
     targetDirectory: string;
     includeTargetMiddlewares: boolean;
@@ -127,25 +123,13 @@ export const rebuildHandlerPathMap = () => {
     }
 };
 
-export const perform = async (
-    body: any,
-    respond: Respond<any> | undefined,
-    handler: ChannelHandler<any, any>,
-    ev: string
-) => {
-    if (typeof handler === "function") {
-        await handler(body, respond, ev);
-    } else if (Array.isArray(handler)) {
-        // Process handlers sequentially (recursion is fine for typical shallow nesting)
-        for (const subHandler of handler) {
-            await perform(body, respond, subHandler, ev);
-        }
-    }
-};
 
 export const registerSocket = async (socket: Socket) => {
+    
     log("socket connection", socket.id);
     try {
+
+        const socketRouter = createSocketRouter(socket);
         let hasHandlers = false;
         // Use Maps/Sets for O(1) lookups instead of O(n) array finds
         const appliedBeforeMountedMiddlewares = new Map<string, { accepted: boolean; rejectionReason?: string }>();
@@ -294,29 +278,7 @@ export const registerSocket = async (socket: Socket) => {
                 handlerChain.push(mainHandlers);
                 hasHandlers = true;
                 
-                // Use normalized path directly
-                socket.on(normalizedPath, async (body: any, cb?: Respond<any>) => {
-                    try {
-                        await perform(body, cb, handlerChain, normalizedPath);
-                    } catch (error: any) {
-                        const e = extractRequestError(error);
-                        log.error("Channel Error", normalizedPath, error);
-                        if (cb) {
-                            if (e) {
-                                cb(e);
-                            } else {
-                                cb(
-                                    createRequestError(500, [
-                                        {
-                                            error: "Unknown Socket error",
-                                            data: error,
-                                        },
-                                    ])
-                                );
-                            }
-                        }
-                    }
-                });
+                socketRouter.on(normalizedPath, handlerChain);                
             } else {
                 accessMap.set(normalizedPath, {
                     accessible: false,
@@ -377,19 +339,34 @@ export const registerSocket = async (socket: Socket) => {
 
         if (!hasHandlers) {
             socket.disconnect();
+        }else{
+            socketRouter.ensureAttached();
         }
     } catch (error: any) {
         log.error("Channel Error", error);
         if (socket.connected) {
-            if (error.error) {
-                socket.emit("error", {
-                    error: error.error,
-                    statusCode: error?.statusCode,
-                });
+            if (error) {
+                const e = extractRequestError(error);
+                if (e) {
+                    socket.emit("error", e);
+                } else {
+                    socket.emit("error", createRequestError(500, [
+                        {
+                            error: "Unknown Socket error",
+                            data: error,
+                        }
+                    ]));
+                }
             } else {
-                socket.emit("error", {
-                    error: error,
-                });
+                socket.emit("error", createRequestError(
+                    500,
+                    [
+                        {
+                            error: "Unknown Socket error",
+                            data: error,
+                        }
+                    ]
+                ));
             }
             socket.disconnect();
         }

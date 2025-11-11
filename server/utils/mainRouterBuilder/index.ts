@@ -3,6 +3,7 @@ import {
     ChannelHandlerBuilder,
     ChannelHandlerMounted,
     handlers,
+    rebuildHandlerPathMap,
 } from "../channelsBuilder/index.js";
 import {
     descriptionSuffixRegx,
@@ -115,11 +116,15 @@ export default async function buildRouter(
                 const routeFullPath = path.join(routerDirectory, item);
                 const routerInstance: ReturnType<typeof createHandler> = (await import(routeFullPath)).default;
 
+                let routePath: string;
                 if (routerName == "index") {
-                    routesFilesMap[routeFullPath] = fullPrefix;
+                    routePath = fullPrefix;
                 } else {
-                    routesFilesMap[routeFullPath] = path.join(fullPrefix, routerName);
+                    routePath = path.join(fullPrefix, routerName);
                 }
+                routePath = routePath.replace(/\[(\w+)\]/g, ":$1");
+                routesFilesMap[routeFullPath] = routePath;
+
 
                 if (!routerInstance) {
                     continue;
@@ -133,14 +138,14 @@ export default async function buildRouter(
                 routerInstance.externalMiddlewares = [...providedMiddlewares];
 
                 if (routerName == "index") {
-                    routesRegistryMap[fullPrefix] = routerInstance;
+                    routesRegistryMap[routePath] = routerInstance;
 
                     const routerDescriptionRegx = RegExp(
                         `${routerName}${descriptionSuffixRegx.toString().slice(1, -1)}`
                     );
                     const routerDescriptionFile = content.find((el) => !!el.match(routerDescriptionRegx));
                     if (routerDescriptionFile) {
-                        routesRegistryMap[path.join(fullPrefix, "/describe")] = {
+                        routesRegistryMap[path.join(routePath, "/describe")] = {
                             __symbol: routerSymbol,
                             serveVia: ["Http"],
                             externalMiddlewares: [],
@@ -157,8 +162,6 @@ export default async function buildRouter(
                         };
                     }
                 } else {
-                    const routePath = path.join(fullPrefix, routerName);
-
                     routesRegistryMap[routePath] = routerInstance;
 
                     const routerDescriptionRegx = RegExp(
@@ -166,8 +169,9 @@ export default async function buildRouter(
                     );
                     const routerDescriptionFile = content.filter((el) => !!el.match(routerDescriptionRegx))[0];
                     if (routerDescriptionFile) {
-                        routesRegistryMap[path.join(fullPrefix, routerName, "/describe")] = {
+                        routesRegistryMap[path.join(routePath, "/describe")] = {
                             __symbol: routerSymbol,
+                            serveVia: ["Http"],
                             externalMiddlewares: [],
                             handler: async (context) => {
                                 const fullPath = path.join(routerDirectory, routerDescriptionFile);
@@ -176,10 +180,8 @@ export default async function buildRouter(
                                         await renderMdDescriptionFile(path.join(fullPrefix, routerName), fullPath)
                                     );
                                 }
-
                                 return context.respond.file(fullPath);
                             },
-                            serveVia: ["Http"],
                             method: "GET",
                             middleWares: [],
                         };
@@ -195,13 +197,9 @@ export default async function buildRouter(
                     const routerAlias: RouterAlias = (await import(fullAliasPath)).default;
                     if (routerAlias.__symbol != aliasSymbol) {
                         log.error("Expected router alias at", fullAliasPath, " but got", routerAlias);
+                        process.exit(1);
                     }
-
                     const middlewares = [...providedMiddlewares];
-
-                    // if (!routerAlias.path.startsWith("/")) {
-                    //     routerAlias.path = "/" + routerAlias;
-                    // }
 
                     aliases.push(async () => {
                         const matchingRoutes = Object.fromEntries(
@@ -378,6 +376,15 @@ async function buildChannelling(
             const channelMatch = item.match(routerSuffixRegx);
             if (channelMatch) {
                 const routerName = item.slice(0, item.indexOf(channelMatch[0]));
+            
+                let routePath: string;
+                if (routerName == "index") {
+                    routePath = fullPrefix;
+                } else {
+                    routePath = path.join(fullPrefix, routerName);
+                }
+                routePath = routePath.replace(/\[(\w+)\]/g, ":$1");
+                
                 if (routerName == "index") {
                     const handlerPath = itemFullPath;
                     const { handler, mounted, beforeMounted } = await import(handlerPath);
@@ -386,7 +393,7 @@ async function buildChannelling(
                     }
 
                     handlers.push({
-                        path: fullPrefix,
+                        path: routePath,
 
                         beforeMounted,
                         handler,
@@ -399,10 +406,12 @@ async function buildChannelling(
                 } else {
                     const handlerPath = itemFullPath;
                     const { handler, mounted, beforeMounted } = await import(handlerPath);
+                    if (!handler) {
+                        continue;
+                    }
 
-                    const channelPath = path.join(fullPrefix, routerName);
                     handlers.push({
-                        path: channelPath,
+                        path: routePath,
 
                         mounted,
                         handler,
@@ -418,6 +427,10 @@ async function buildChannelling(
                 if (directoryAliasMatch) {
                     aliases.push(async () => {
                         const routerAlias: RouterAlias = (await import(itemFullPath)).default;
+                        if(routerAlias?.__symbol == aliasSymbol) {
+                            log.error("Expected router alias at", itemFullPath, " but got", routerAlias);
+                            process.exit(1);
+                        }
                         const routerName = item.slice(0, item.indexOf(directoryAliasMatch[0]));
                         const aliases = handlers
                             .filter((h) => {
@@ -571,6 +584,8 @@ const loadCompatibleRoutesIntoChannels = async () => {
 async function processRouterForChannels() {
     await loadCompatibleRoutesIntoChannels();
     await buildChannelling();
+    // Rebuild handler path map after all handlers are registered for O(1) lookups
+    rebuildHandlerPathMap();
 }
 
 const maybeProcessRoutesForTypes = async () => {
