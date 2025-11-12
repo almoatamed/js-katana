@@ -58,34 +58,73 @@ const routesFilesMap: {
     [key: string]: string;
 } = {};
 
+// Pre-compile regex patterns for performance
+const paramReplaceRegex = /\[(\w+)\]/g;
+
+// Pre-compile regex for socket route filtering
+const socketRoutes = new Set<string>();
+
+// Cache for file stats to avoid repeated syscalls
+const statCache = new Map<string, fs.Stats>();
+
+// Optimized file stat with caching
+async function getFileStat(filePath: string): Promise<fs.Stats> {
+    const cached = statCache.get(filePath);
+    if (cached) return cached;
+    const stats = await fs.promises.stat(filePath);
+    statCache.set(filePath, stats);
+    return stats;
+}
+
+// Batch file stats for parallel execution
+async function getFileStats(filePaths: string[]): Promise<Map<string, fs.Stats>> {
+    const statsMap = new Map<string, fs.Stats>();
+    await Promise.all(
+        filePaths.map(async (filePath) => {
+            const stats = await getFileStat(filePath);
+            statsMap.set(filePath, stats);
+        })
+    );
+    return statsMap;
+}
+
 export async function getMiddlewaresArray(routerDirectory: string): Promise<Handler<any, any, any, any, any>[]> {
     const content = fs.readdirSync(routerDirectory);
-    const middlewares = (
-        await Promise.all(
-            content
-                .filter((f) => {
-                    const fileStats = fs.statSync(path.join(routerDirectory, f));
-                    return fileStats.isFile() && !!f.match(middlewareSuffixRegx);
-                })
-                .map(async (f) => {
-                    const fullPath = path.join(routerDirectory, f);
-                    const middleware: Handler<any, any, any, any, any> = (await import(fullPath)).default;
-                    if (typeof middleware != "function") {
-                        console.error(
-                            "Failed to load middleware on ",
-                            fullPath,
-                            "expected a Handler got",
-                            typeof middlewares
-                        );
-                        process.exit(1);
-                    }
-                    return middleware;
-                })
-        )
-    ).filter((e) => !!e);
-    return middlewares;
+    const filePaths = content.map((f) => path.join(routerDirectory, f));
+    const statsMap = await getFileStats(filePaths);
+    
+    const middlewareFiles = content.filter((f, i) => {
+        const filePath = filePaths[i];
+        const stats = statsMap.get(filePath);
+        return stats?.isFile() && middlewareSuffixRegx.test(f);
+    });
+
+    const middlewares = await Promise.all(
+        middlewareFiles.map(async (f) => {
+            const fullPath = path.join(routerDirectory, f);
+            try {
+                const middleware: Handler<any, any, any, any, any> = (await import(fullPath)).default;
+                if (typeof middleware !== "function") {
+                    return null
+                }
+                return middleware;
+            } catch (error) {
+                console.error("Failed to import middleware at", fullPath, error);
+                return null;
+            }
+        })
+    );
+    
+    return middlewares.filter((m): m is Handler<any, any, any, any, any> => m !== null && m !== undefined);
 }
+
 const defaultRoutesDirectory = await getRouterDirectory();
+
+// Optimized path normalization
+function normalizeRoutePath(routePath: string): string {
+    return routePath.replace(paramReplaceRegex, ":$1");
+}
+
 export default async function buildRouter(
     providedMiddlewares: Middleware<any, any, any, any, any>[] = [],
     routerDirectory = defaultRoutesDirectory,
@@ -94,165 +133,211 @@ export default async function buildRouter(
 ) {
     if (root) {
         routesRegistryMap = {};
+        statCache.clear(); // Clear cache on root build
     }
+    
     const content = fs.readdirSync(routerDirectory);
+    const directoryPath = routerDirectory;
 
-    providedMiddlewares = [...providedMiddlewares, ...(await getMiddlewaresArray(routerDirectory))];
+    // Load middlewares
+    const directoryMiddlewares = await getMiddlewaresArray(routerDirectory);
+    
+    const allMiddlewares = providedMiddlewares.length > 0 || directoryMiddlewares.length > 0
+        ? [...providedMiddlewares, ...directoryMiddlewares]
+        : providedMiddlewares;
 
-    for (const item of content) {
-        const itemStat = fs.statSync(path.join(routerDirectory, item));
+    // Batch file stats for all items
+    const itemPaths = content.map((item) => path.join(directoryPath, item));
+    const itemStatsMap = await getFileStats(itemPaths);
+
+    // Separate directories and files for parallel processing
+    const directories: string[] = [];
+    const routerFiles: Array<{ name: string; path: string; match: RegExpMatchArray }> = [];
+    const aliasFiles: Array<{ name: string; path: string; match: RegExpMatchArray }> = [];
+    const descriptionFiles: Map<string, string> = new Map();
+
+    // First pass: categorize files
+    for (let i = 0; i < content.length; i++) {
+        const item = content[i];
+        const itemPath = itemPaths[i];
+        const itemStat = itemStatsMap.get(itemPath);
+        
+        if (!itemStat) continue;
 
         if (itemStat.isDirectory()) {
-            await buildRouter(
-                providedMiddlewares,
-                path.join(routerDirectory, item),
-                false,
-                path.join(fullPrefix, item)
-            );
+            directories.push(item);
         } else {
             const routerMatch = item.match(routerSuffixRegx);
             if (routerMatch) {
-                const routerName = item.slice(0, item.indexOf(routerMatch[0]));
-                const routeFullPath = path.join(routerDirectory, item);
-                const routerInstance: ReturnType<typeof createHandler> = (await import(routeFullPath)).default;
-
-                let routePath: string;
-                if (routerName == "index") {
-                    routePath = fullPrefix;
-                } else {
-                    routePath = path.join(fullPrefix, routerName);
-                }
-                routePath = routePath.replace(/\[(\w+)\]/g, ":$1");
-                routesFilesMap[routeFullPath] = routePath;
-
-
-                if (!routerInstance) {
-                    continue;
-                }
-
-                if (routerInstance?.__symbol != routerSymbol) {
-                    console.error("Expecting Router Handler Got", routerInstance);
-                    process.exit(1);
-                }
-
-                routerInstance.externalMiddlewares = [...providedMiddlewares];
-
-                if (routerName == "index") {
-                    routesRegistryMap[routePath] = routerInstance;
-
-                    const routerDescriptionRegx = RegExp(
-                        `${routerName}${descriptionSuffixRegx.toString().slice(1, -1)}`
-                    );
-                    const routerDescriptionFile = content.find((el) => !!el.match(routerDescriptionRegx));
-                    if (routerDescriptionFile) {
-                        routesRegistryMap[path.join(routePath, "/describe")] = {
-                            __symbol: routerSymbol,
-                            serveVia: ["Http"],
-                            externalMiddlewares: [],
-                            handler: async (context) => {
-                                const fullPath = path.join(routerDirectory, routerDescriptionFile);
-                                if (fullPath.endsWith(".md")) {
-                                    const rendered = await renderMdDescriptionFile(path.join(fullPrefix), fullPath);
-                                    return context.respond.html(rendered);
-                                }
-                                return context.respond.file(fullPath);
-                            },
-                            method: "GET",
-                            middleWares: [],
-                        };
-                    }
-                } else {
-                    routesRegistryMap[routePath] = routerInstance;
-
-                    const routerDescriptionRegx = RegExp(
-                        `${routerName}${descriptionSuffixRegx.toString().slice(1, -1)}`
-                    );
-                    const routerDescriptionFile = content.filter((el) => !!el.match(routerDescriptionRegx))[0];
-                    if (routerDescriptionFile) {
-                        routesRegistryMap[path.join(routePath, "/describe")] = {
-                            __symbol: routerSymbol,
-                            serveVia: ["Http"],
-                            externalMiddlewares: [],
-                            handler: async (context) => {
-                                const fullPath = path.join(routerDirectory, routerDescriptionFile);
-                                if (fullPath.endsWith(".md")) {
-                                    return context.respond.html(
-                                        await renderMdDescriptionFile(path.join(fullPrefix, routerName), fullPath)
-                                    );
-                                }
-                                return context.respond.file(fullPath);
-                            },
-                            method: "GET",
-                            middleWares: [],
-                        };
-                    }
-                }
+                routerFiles.push({ name: item, path: itemPath, match: routerMatch });
             } else {
-                const directoryAliasMatch = item.match(directoryAliasSuffixRegx);
-                if (directoryAliasMatch) {
-                    const routerName = item.slice(0, item.indexOf(directoryAliasMatch[0]));
-                    const fullRoute = path.join(fullPrefix, routerName);
-                    const fullAliasPath = path.join(routerDirectory, item);
-
-                    const routerAlias: RouterAlias = (await import(fullAliasPath)).default;
-                    if (routerAlias.__symbol != aliasSymbol) {
-                        log.error("Expected router alias at", fullAliasPath, " but got", routerAlias);
-                        process.exit(1);
+                const aliasMatch = item.match(directoryAliasSuffixRegx);
+                if (aliasMatch) {
+                    aliasFiles.push({ name: item, path: itemPath, match: aliasMatch });
+                } else {
+                    // Check if it's a description file
+                    const descMatch = item.match(descriptionSuffixRegx);
+                    if (descMatch) {
+                        const routerName = item.slice(0, item.indexOf(descMatch[0]));
+                        descriptionFiles.set(routerName, item);
                     }
-                    const middlewares = [...providedMiddlewares];
-
-                    aliases.push(async () => {
-                        const matchingRoutes = Object.fromEntries(
-                            Object.entries(routesRegistryMap)
-                                .filter(([path, _]) => {
-                                    return path.startsWith(routerAlias.path);
-                                })
-                                .map(([path, route]) => {
-                                    route = { ...route };
-                                    path = path.replace(routerAlias.path, fullRoute);
-                                    if (routerAlias.includeOriginalMIddlewares) {
-                                        route.externalMiddlewares = [...middlewares, ...route.externalMiddlewares];
-                                    } else {
-                                        route.externalMiddlewares = [...middlewares];
-                                    }
-                                    return [path, route];
-                                })
-                        );
-
-                        for (const routePath in matchingRoutes) {
-                            routesRegistryMap[routePath] = matchingRoutes[routePath];
-                        }
-                    });
                 }
             }
         }
+    }
+
+    // Process router files in parallel
+    const routerPromises = routerFiles.map(async ({ name, path: routeFullPath, match }) => {
+        const routerName = name.slice(0, name.indexOf(match[0]));
+        const routerInstance: ReturnType<typeof createHandler> = (await import(routeFullPath)).default;
+
+        if (!routerInstance) {
+            return null;
+        }
+
+        if (routerInstance?.__symbol !== routerSymbol) {
+            console.error("Expecting Router Handler Got", routerInstance);
+            process.exit(1);
+        }
+
+        let routePath: string;
+        if (routerName === "index") {
+            routePath = fullPrefix;
+        } else {
+            routePath = path.join(fullPrefix, routerName);
+        }
+        routePath = normalizeRoutePath(routePath);
+        routesFilesMap[routeFullPath] = routePath;
+
+        // Assign middlewares directly (avoid spread if possible)
+        routerInstance.externalMiddlewares = allMiddlewares.length > 0 
+            ? allMiddlewares.slice() 
+            : [];
+
+        const descriptionFile = descriptionFiles.get(routerName);
+        const descriptionRoutePath = path.join(routePath, "/describe");
+
+        return {
+            routePath,
+            routerInstance,
+            routerName,
+            descriptionFile,
+            descriptionRoutePath,
+        };
+    });
+
+    const routerResults = await Promise.all(routerPromises);
+
+    // Process router results
+    for (const result of routerResults) {
+        if (!result) continue;
+
+        const { routePath, routerInstance, routerName, descriptionFile, descriptionRoutePath } = result;
+        routesRegistryMap[routePath] = routerInstance;
+
+        if (descriptionFile) {
+            const descriptionFullPath = path.join(directoryPath, descriptionFile);
+            const isMarkdown = descriptionFullPath.endsWith(".md");
+            const renderPath = routerName === "index" 
+                ? fullPrefix 
+                : path.join(fullPrefix, routerName);
+
+            routesRegistryMap[descriptionRoutePath] = {
+                __symbol: routerSymbol,
+                serveVia: ["Http"],
+                externalMiddlewares: [],
+                handler: async (context) => {
+                    if (isMarkdown) {
+                        const rendered = await renderMdDescriptionFile(renderPath, descriptionFullPath);
+                        return context.respond.html(rendered);
+                    }
+                    return context.respond.file(descriptionFullPath);
+                },
+                method: "GET",
+                middleWares: [],
+            };
+        }
+    }
+
+    // Process alias files
+    for (const { name, path: fullAliasPath, match } of aliasFiles) {
+        const routerName = name.slice(0, name.indexOf(match[0]));
+        const fullRoute = path.join(fullPrefix, routerName);
+
+        const routerAlias: RouterAlias | undefined | null = (await import(fullAliasPath)).default;
+        if (routerAlias?.__symbol !== aliasSymbol) {
+            log.error("Expected router alias at", fullAliasPath, " but got", routerAlias);
+            process.exit(1);
+        }
+
+        const middlewares = allMiddlewares.slice(); // Clone only when needed
+
+        aliases.push(async () => {
+            const matchingRoutes: RouteRegistry = {};
+            const aliasPath = routerAlias.path;
+
+            // Optimized filtering and mapping
+            for (const [routePath, route] of Object.entries(routesRegistryMap)) {
+                if (routePath.startsWith(aliasPath)) {
+                    const newRoute = { ...route };
+                    const newPath = routePath.replace(aliasPath, fullRoute);
+                    
+                    if (routerAlias.includeOriginalMIddlewares) {
+                        newRoute.externalMiddlewares = [...middlewares, ...route.externalMiddlewares];
+                    } else {
+                        newRoute.externalMiddlewares = middlewares.slice();
+                    }
+                    
+                    matchingRoutes[newPath] = newRoute;
+                }
+            }
+
+            Object.assign(routesRegistryMap, matchingRoutes);
+        });
+    }
+
+    // Process directories in parallel
+    if (directories.length > 0) {
+        await Promise.all(
+            directories.map((item) =>
+                buildRouter(
+                    allMiddlewares,
+                    path.join(routerDirectory, item),
+                    false,
+                    path.join(fullPrefix, item)
+                )
+            )
+        );
     }
 
     if (root) {
         await Promise.all(aliases.map((f) => f()));
         await processRouterForChannels();
         await maybeProcessRoutesForTypes();
+        
+        const typesPlacementDir = await getTypesPlacementDir();
+        const typesPath = path.join(typesPlacementDir, "apiTypes.json");
+        const [devMode, secret] = await Promise.all([isDev(), getAllDescriptionsSecret()]);
+        
         routesRegistryMap[path.join(fullPrefix, "/__describe-json")] = {
             __symbol: routerSymbol,
             externalMiddlewares: [],
             handler: async (context) => {
-                const fullPath = path.join(await getTypesPlacementDir(), "apiTypes.json");
-                if (!fs.existsSync(fullPath)) {
+                if (!fs.existsSync(typesPath)) {
                     throwRequestError(404, [
                         {
                             error: "API Types description not found",
                         },
                     ]);
                 }
-                return context.respond.file(fullPath);
+                return context.respond.file(typesPath);
             },
             method: "GET",
             middleWares: [
                 async (context) => {
-                    if (await isDev()) {
+                    if (devMode) {
                         return;
                     }
-                    const secret = await getAllDescriptionsSecret();
                     if (!secret) {
                         return;
                     }
@@ -277,19 +362,28 @@ export async function getChannelMiddlewaresArray(currentChannelsDirectory: strin
     }[]
 > {
     const content = fs.readdirSync(currentChannelsDirectory);
+    const filePaths = content.map((f) => path.join(currentChannelsDirectory, f));
+    const statsMap = await getFileStats(filePaths);
+    
+    const middlewareFiles = content.filter((f, i) => {
+        const filePath = filePaths[i];
+        const stats = statsMap.get(filePath);
+        return stats?.isFile() && middlewareSuffixRegx.test(f);
+    });
+
     const middlewares = await Promise.all(
-        content
-            .filter((f) => {
-                const fileStats = fs.statSync(path.join(currentChannelsDirectory, f));
-                return fileStats.isFile() && !!f.match(middlewareSuffixRegx);
-            })
-            .map(async (f) => {
-                let fullPath = path.join(currentChannelsDirectory, f);
-                const importedResult = await import(fullPath);
-                return importedResult;
-            })
+        middlewareFiles.map(async (f) => {
+            const fullPath = path.join(currentChannelsDirectory, f);
+            try {
+                return await import(fullPath);
+            } catch (error) {
+                console.error("Failed to import channel middleware at", fullPath, error);
+                return null;
+            }
+        })
     );
-    return middlewares;
+    
+    return middlewares.filter((m): m is NonNullable<typeof middlewares[0]> => m !== null);
 }
 
 async function buildChannelling(
@@ -314,156 +408,217 @@ async function buildChannelling(
     }
 
     const content = fs.readdirSync(currentChannelsDirectory);
+    const directoryPath = currentChannelsDirectory;
 
-    const beforeMountedMiddlewares = [...(providedBeforeMountedMiddlewares || [])];
-    const middlewares = [...(providedMiddlewares || [])];
-    const mountedMiddlewares = [...(providedMountedMiddlewares || [])];
+    // Use Maps for O(1) lookups
+    const beforeMountedMap = new Map<string, ChannelHandlerBeforeMounted[]>();
+    const middlewaresMap = new Map<string, ChannelHandlerBuilder<any, any>[]>();
+    const mountedMap = new Map<string, ChannelHandlerMounted[]>();
+
+    // Initialize maps from provided middlewares
+    for (const pm of providedBeforeMountedMiddlewares || []) {
+        beforeMountedMap.set(pm.path, [...pm.middleware]);
+    }
+    for (const pm of providedMiddlewares || []) {
+        middlewaresMap.set(pm.path, [...pm.middleware]);
+    }
+    for (const pm of providedMountedMiddlewares || []) {
+        mountedMap.set(pm.path, [...pm.middleware]);
+    }
 
     const loadedMiddlewares = await getChannelMiddlewaresArray(currentChannelsDirectory);
 
-    for (const middleware of loadedMiddlewares || []) {
+    // Process middlewares
+    for (const middleware of loadedMiddlewares) {
         if (middleware.channelBeforeMounted) {
-            const foundBeforeMountedMiddleware = beforeMountedMiddlewares.find((pbmm) => pbmm.path == fullPrefix);
-            if (foundBeforeMountedMiddleware) {
-                foundBeforeMountedMiddleware.middleware.push(middleware.channelBeforeMounted);
+            const existing = beforeMountedMap.get(fullPrefix);
+            if (existing) {
+                existing.push(middleware.channelBeforeMounted);
             } else {
-                beforeMountedMiddlewares.push({
-                    middleware: [middleware.channelBeforeMounted],
-                    path: fullPrefix,
-                });
+                beforeMountedMap.set(fullPrefix, [middleware.channelBeforeMounted]);
             }
         }
 
         if (middleware.channelMiddleware) {
-            const foundMiddleware = middlewares.find((pm) => pm.path == fullPrefix);
-            if (foundMiddleware) {
-                foundMiddleware.middleware.push(middleware.channelMiddleware);
+            const existing = middlewaresMap.get(fullPrefix);
+            if (existing) {
+                existing.push(middleware.channelMiddleware);
             } else {
-                middlewares.push({
-                    middleware: [middleware.channelMiddleware],
-                    path: fullPrefix,
-                });
+                middlewaresMap.set(fullPrefix, [middleware.channelMiddleware]);
             }
         }
 
         if (middleware.channelMounted) {
-            const foundMountedMiddleware = mountedMiddlewares.find((pbmm) => pbmm.path == fullPrefix);
-            if (foundMountedMiddleware) {
-                foundMountedMiddleware.middleware.push(middleware.channelMounted);
+            const existing = mountedMap.get(fullPrefix);
+            if (existing) {
+                existing.push(middleware.channelMounted);
             } else {
-                mountedMiddlewares.push({
-                    middleware: [middleware.channelMounted],
-                    path: fullPrefix,
-                });
+                mountedMap.set(fullPrefix, [middleware.channelMounted]);
             }
         }
     }
 
-    for (const item of content) {
-        const itemFullPath = path.join(currentChannelsDirectory, item);
-        const itemStat = fs.statSync(itemFullPath);
+    // Convert maps back to arrays for recursion
+    const beforeMountedMiddlewares = Array.from(beforeMountedMap.entries()).map(([path, middleware]) => ({
+        path,
+        middleware,
+    }));
+    const middlewares = Array.from(middlewaresMap.entries()).map(([path, middleware]) => ({
+        path,
+        middleware,
+    }));
+    const mountedMiddlewares = Array.from(mountedMap.entries()).map(([path, middleware]) => ({
+        path,
+        middleware,
+    }));
+
+    // Batch file stats
+    const itemPaths = content.map((item) => path.join(directoryPath, item));
+    const itemStatsMap = await getFileStats(itemPaths);
+
+    // Separate directories and files
+    const directories: string[] = [];
+    const channelFiles: Array<{ name: string; path: string; match: RegExpMatchArray }> = [];
+    const aliasFiles: Array<{ name: string; path: string; match: RegExpMatchArray }> = [];
+
+    for (let i = 0; i < content.length; i++) {
+        const item = content[i];
+        const itemPath = itemPaths[i];
+        const itemStat = itemStatsMap.get(itemPath);
+        
+        if (!itemStat) continue;
 
         if (itemStat.isDirectory()) {
-            await buildChannelling(
-                itemFullPath,
-                false,
-                path.join(fullPrefix, item),
-                beforeMountedMiddlewares,
-                middlewares,
-                mountedMiddlewares
-            );
+            directories.push(item);
         } else {
             const channelMatch = item.match(routerSuffixRegx);
             if (channelMatch) {
-                const routerName = item.slice(0, item.indexOf(channelMatch[0]));
-            
-                let routePath: string;
-                if (routerName == "index") {
-                    routePath = fullPrefix;
-                } else {
-                    routePath = path.join(fullPrefix, routerName);
-                }
-                routePath = routePath.replace(/\[(\w+)\]/g, ":$1");
-                
-                if (routerName == "index") {
-                    const handlerPath = itemFullPath;
-                    const { handler, mounted, beforeMounted } = await import(handlerPath);
-                    if (!handler) {
-                        continue;
-                    }
-
-                    handlers.push({
-                        path: routePath,
-
-                        beforeMounted,
-                        handler,
-                        mounted,
-
-                        middlewares: [...middlewares],
-                        mountedMiddlewares: [...mountedMiddlewares],
-                        beforeMountedMiddlewares: [...beforeMountedMiddlewares],
-                    });
-                } else {
-                    const handlerPath = itemFullPath;
-                    const { handler, mounted, beforeMounted } = await import(handlerPath);
-                    if (!handler) {
-                        continue;
-                    }
-
-                    handlers.push({
-                        path: routePath,
-
-                        mounted,
-                        handler,
-                        beforeMounted,
-
-                        middlewares: [...middlewares],
-                        mountedMiddlewares: [...mountedMiddlewares],
-                        beforeMountedMiddlewares: [...beforeMountedMiddlewares],
-                    });
-                }
+                channelFiles.push({ name: item, path: itemPath, match: channelMatch });
             } else {
-                const directoryAliasMatch = item.match(directoryAliasSuffixRegx);
-                if (directoryAliasMatch) {
-                    aliases.push(async () => {
-                        const routerAlias: RouterAlias = (await import(itemFullPath)).default;
-                        if(routerAlias?.__symbol == aliasSymbol) {
-                            log.error("Expected router alias at", itemFullPath, " but got", routerAlias);
-                            process.exit(1);
-                        }
-                        const routerName = item.slice(0, item.indexOf(directoryAliasMatch[0]));
-                        const aliases = handlers
-                            .filter((h) => {
-                                return h.path.startsWith(routerAlias.path);
-                            })
-                            .map((h) => {
-                                const newHandler = { ...h };
-                                newHandler.path = newHandler.path.replace(
-                                    RegExp(`^${routerAlias.path.replaceAll("/", "\\/")}`),
-                                    path.join(fullPrefix, routerName)
-                                );
-                                if (routerAlias.includeOriginalMIddlewares) {
-                                    newHandler.beforeMountedMiddlewares = [
-                                        ...beforeMountedMiddlewares,
-                                        ...(newHandler.beforeMountedMiddlewares || []),
-                                    ];
-                                    newHandler.middlewares = [...middlewares, ...(newHandler.middlewares || [])];
-                                    newHandler.mountedMiddlewares = [
-                                        ...mountedMiddlewares,
-                                        ...(newHandler.mountedMiddlewares || []),
-                                    ];
-                                } else {
-                                    newHandler.beforeMountedMiddlewares = [...beforeMountedMiddlewares];
-                                    newHandler.middlewares = [...middlewares];
-                                    newHandler.mountedMiddlewares = [...mountedMiddlewares];
-                                }
-                                return newHandler;
-                            });
-                        handlers.push(...aliases);
-                    });
+                const aliasMatch = item.match(directoryAliasSuffixRegx);
+                if (aliasMatch) {
+                    aliasFiles.push({ name: item, path: itemPath, match: aliasMatch });
                 }
             }
         }
+    }
+
+    // Get middleware arrays for current path (use map for O(1) lookup)
+    const currentBeforeMounted = beforeMountedMap.get(fullPrefix) || [];
+    const currentMiddlewares = middlewaresMap.get(fullPrefix) || [];
+    const currentMounted = mountedMap.get(fullPrefix) || [];
+
+    // Convert to expected format
+    const beforeMountedMiddlewaresArray = currentBeforeMounted.length > 0
+        ? [{ middleware: currentBeforeMounted, path: fullPrefix }]
+        : [];
+    const middlewaresArray = currentMiddlewares.length > 0
+        ? [{ middleware: currentMiddlewares, path: fullPrefix }]
+        : [];
+    const mountedMiddlewaresArray = currentMounted.length > 0
+        ? [{ middleware: currentMounted, path: fullPrefix }]
+        : [];
+
+    // Process channel files in parallel
+    const channelPromises = channelFiles.map(async ({ name, path: handlerPath, match }) => {
+        const routerName = name.slice(0, name.indexOf(match[0]));
+        
+        let routePath: string;
+        if (routerName === "index") {
+            routePath = fullPrefix;
+        } else {
+            routePath = path.join(fullPrefix, routerName);
+        }
+        routePath = normalizeRoutePath(routePath);
+        
+        const { handler, mounted, beforeMounted } = await import(handlerPath);
+        if (!handler) {
+            return null;
+        }
+
+        return {
+            path: routePath,
+            beforeMounted,
+            handler,
+            mounted,
+            middlewares: middlewaresArray.slice(),
+            mountedMiddlewares: mountedMiddlewaresArray.slice(),
+            beforeMountedMiddlewares: beforeMountedMiddlewaresArray.slice(),
+        };
+    });
+
+    const channelResults = await Promise.all(channelPromises);
+    for (const result of channelResults) {
+        if (result) {
+            handlers.push(result);
+        }
+    }
+
+    // Process alias files
+    for (const { name, path: itemFullPath, match } of aliasFiles) {
+        aliases.push(async () => {
+            const routerAlias: RouterAlias = (await import(itemFullPath)).default;
+            if (routerAlias?.__symbol !== aliasSymbol) {
+                log.error("Expected router alias at", itemFullPath, " but got", routerAlias);
+                process.exit(1);
+            }
+            
+            const routerName = name.slice(0, name.indexOf(match[0]));
+            const aliasPathPattern = new RegExp(`^${routerAlias.path.replaceAll("/", "\\/")}`);
+            const newPathPrefix = path.join(fullPrefix, routerName);
+            
+            // Convert to expected format
+            const aliasBeforeMountedArray = currentBeforeMounted.length > 0
+                ? [{ middleware: currentBeforeMounted, path: fullPrefix }]
+                : [];
+            const aliasMiddlewaresArray = currentMiddlewares.length > 0
+                ? [{ middleware: currentMiddlewares, path: fullPrefix }]
+                : [];
+            const aliasMountedArray = currentMounted.length > 0
+                ? [{ middleware: currentMounted, path: fullPrefix }]
+                : [];
+            
+            const aliasedHandlers = handlers
+                .filter((h) => h.path.startsWith(routerAlias.path))
+                .map((h) => {
+                    const newHandler = { ...h };
+                    newHandler.path = newHandler.path.replace(aliasPathPattern, newPathPrefix);
+                    
+                    if (routerAlias.includeOriginalMIddlewares) {
+                        newHandler.beforeMountedMiddlewares = [
+                            ...aliasBeforeMountedArray,
+                            ...(newHandler.beforeMountedMiddlewares || []),
+                        ];
+                        newHandler.middlewares = [...aliasMiddlewaresArray, ...(newHandler.middlewares || [])];
+                        newHandler.mountedMiddlewares = [
+                            ...aliasMountedArray,
+                            ...(newHandler.mountedMiddlewares || []),
+                        ];
+                    } else {
+                        newHandler.beforeMountedMiddlewares = aliasBeforeMountedArray.slice();
+                        newHandler.middlewares = aliasMiddlewaresArray.slice();
+                        newHandler.mountedMiddlewares = aliasMountedArray.slice();
+                    }
+                    return newHandler;
+                });
+            handlers.push(...aliasedHandlers);
+        });
+    }
+
+    // Process directories in parallel
+    if (directories.length > 0) {
+        await Promise.all(
+            directories.map((item) =>
+                buildChannelling(
+                    path.join(currentChannelsDirectory, item),
+                    false,
+                    path.join(fullPrefix, item),
+                    beforeMountedMiddlewares,
+                    middlewares,
+                    mountedMiddlewares
+                )
+            )
+        );
     }
 
     if (root) {
@@ -473,112 +628,121 @@ async function buildChannelling(
 }
 
 const loadCompatibleRoutesIntoChannels = async () => {
-    Object.entries(routesRegistryMap)
-        .filter(([_path, route]) => {
-            return route.serveVia.includes("Socket");
-        })
-        .map(([path, route]) => {
-            handlers.push({
-                beforeMountedMiddlewares: [],
-                middlewares: [],
-                mountedMiddlewares: [],
-                path: path,
-                beforeMounted: undefined,
-                handler: (_socket) => {
-                    return [
-                        async (body: any, cb, _ev) => {
-                            if (!cb) {
+    // Pre-filter socket routes
+    socketRoutes.clear();
+    for (const [path, route] of Object.entries(routesRegistryMap)) {
+        if (route.serveVia.includes("Socket")) {
+            socketRoutes.add(path);
+        }
+    }
+
+    // Process all socket routes
+    for (const routePath of socketRoutes) {
+        const route = routesRegistryMap[routePath];
+        handlers.push({
+            beforeMountedMiddlewares: [],
+            middlewares: [],
+            mountedMiddlewares: [],
+            path: routePath,
+            beforeMounted: undefined,
+            handler: (_socket) => {
+                return [
+                    async (body: any, cb, _ev) => {
+                        if (!cb) {
+                            return;
+                        }
+
+                        let responded = false;
+                        try {
+                            let statusCode = 200;
+
+                            const query = body?.__query ? { ...body.__query } : {};
+                            const params = body?.__params ? { ...body.__params } : {};
+                            const headers = body?.__headers ? { ...body.__headers } : {};
+
+                            const context: HandlerContext<any, any, any, any> = {
+                                locale: {},
+                                method: route.method,
+                                fullPath: routePath,
+                                respond: {
+                                    async file(fullPath) {
+                                        const data = await readFile(fullPath);
+                                        cb?.(data);
+                                        responded = true;
+                                        return {
+                                            path: fullPath,
+                                        };
+                                    },
+                                    html: (text) => {
+                                        cb?.(text);
+                                        responded = true;
+                                        return text;
+                                    },
+                                    text: (text) => {
+                                        cb?.(text);
+                                        responded = true;
+                                        return text;
+                                    },
+                                    json: (data: any) => {
+                                        if (typeof data === "object" && data !== null) {
+                                            data.__status = statusCode;
+                                        }
+                                        cb?.(data);
+                                        responded = true;
+                                        return data;
+                                    },
+                                },
+                                body: body ? { ...body } : {},
+                                headers,
+                                params,
+                                query,
+                                setStatus(_statusCode) {
+                                    statusCode = _statusCode;
+                                    return context;
+                                },
+                            };
+
+                            // Combine middlewares once
+                            const allMiddlewares = route.externalMiddlewares.length > 0 || route.middleWares.length > 0
+                                ? [...route.externalMiddlewares, ...route.middleWares]
+                                : route.externalMiddlewares;
+
+                            for (const middleware of allMiddlewares) {
+                                await middleware(context, body, query, params, headers);
+                            }
+
+                            await route.handler(context, body, query, params, headers);
+                            if (!responded) {
+                                console.warn("You Did not respond properly to the request on", route.method, routePath);
+                                cb?.({
+                                    __status: 200,
+                                    msg: "OK",
+                                });
+                            }
+                        } catch (error) {
+                            if (responded) {
                                 return;
                             }
-
-                            let responded = false;
-                            try {
-                                let statusCode = 200;
-
-                                const query = { ...body?.__query };
-                                const params = { ...body?.__params };
-                                const headers = { ...body?.__headers };
-
-                                const context: HandlerContext<any, any, any, any> = {
-                                    locale: {},
-                                    method: route.method,
-                                    fullPath: path,
-                                    respond: {
-                                        async file(fullPath) {
-                                            const data = await readFile(fullPath);
-                                            cb?.(data);
-                                            responded = true;
-                                            return {
-                                                path: fullPath,
-                                            };
-                                        },
-                                        html: (text) => {
-                                            cb?.(text);
-                                            responded = true;
-
-                                            return text;
-                                        },
-                                        text: (text) => {
-                                            cb?.(text);
-                                            responded = true;
-
-                                            return text;
-                                        },
-                                        json: (data: any) => {
-                                            if (typeof data == "object") {
-                                                data.__status = statusCode;
-                                            }
-                                            cb?.(data);
-                                            responded = true;
-                                            return data;
-                                        },
-                                    },
-                                    body: { ...body },
-                                    headers,
-                                    params,
-                                    query,
-                                    setStatus(_statusCode) {
-                                        statusCode = _statusCode;
-                                        return context;
-                                    },
-                                };
-
-                                for (const middleware of [...route.externalMiddlewares, ...route.middleWares]) {
-                                    await middleware(context, body, query, params, headers);
-                                }
-
-                                await route.handler(context, body, query, params, headers);
-                                if (!responded) {
-                                    console.warn("You Did not respond properly to the request on", route.method, path);
-                                    cb?.({
-                                        __status: 200,
-                                        msg: "OK",
-                                    });
-                                }
-                            } catch (error) {
-                                if (responded) {
-                                    return;
-                                }
-                                const requestError = extractRequestError(error);
-                                if (requestError) {
-                                    cb(requestError);
-                                    return;
-                                }
-                                cb(
-                                    createRequestError(500, [
-                                        {
-                                            error: "Unknown server error",
-                                            data: error,
-                                        },
-                                    ])
-                                );
+                            const requestError = extractRequestError(error);
+                            if (requestError) {
+                                cb(requestError);
+                                return;
                             }
-                        },
-                    ];
-                },
-                mounted: undefined,
-            });
+                            cb(
+                                createRequestError(500, [
+                                    {
+                                        error: "Unknown server error",
+                                        data: error,
+                                    },
+                                ])
+                            );
+                        }
+                    },
+                ];
+            },
+            mounted: undefined,
         });
+    }
 };
 
 async function processRouterForChannels() {

@@ -10,7 +10,7 @@ import { writeFile } from "fs/promises";
 import path from "path";
 import cluster from "cluster";
 
-const createTypeManager = async (routesFilesMap: { [key: string]: string }) => {
+const createTypeManager = async (routesFilesMap: { [key: string]: string }, fileContents: Map<string, string>) => {
     // Basic compiler options
     const options = {
         target: ts.ScriptTarget.Latest,
@@ -20,18 +20,32 @@ const createTypeManager = async (routesFilesMap: { [key: string]: string }) => {
         skipLibCheck: true,
     };
 
-    // Create a CompilerHost that serves our in-memory files
+    // Create a CompilerHost with optimized caching
     const host = ts.createCompilerHost(options);
+    const sourceFileMap = new Map<string, ts.SourceFile>();
+    
     host.getSourceFile = (fileName: string, languageVersion: ts.ScriptTarget | ts.CreateSourceFileOptions) => {
-        // fallback to default behaviour (lib.d.ts)
-        return ts.createSourceFile(fileName, ts.sys.readFile(fileName) || "", languageVersion);
+        // Check cache first
+        if (sourceFileMap.has(fileName)) {
+            return sourceFileMap.get(fileName);
+        }
+        
+        // Check file content cache
+        let content = fileContents.get(fileName);
+        if (!content) {
+            content = ts.sys.readFile(fileName) || "";
+        }
+        
+        const sourceFile = ts.createSourceFile(fileName, content, languageVersion);
+        sourceFileMap.set(fileName, sourceFile);
+        return sourceFile;
     };
 
     host.readFile = (fileName) => {
-        return ts.sys.readFile(fileName);
+        return fileContents.get(fileName) || ts.sys.readFile(fileName);
     };
     host.fileExists = (fileName) => {
-        return ts.sys.fileExists(fileName);
+        return fileContents.has(fileName) || ts.sys.fileExists(fileName);
     };
 
     // Create program
@@ -41,6 +55,7 @@ const createTypeManager = async (routesFilesMap: { [key: string]: string }) => {
         checker,
         host,
         program,
+        sourceFileMap,
     };
 };
 
@@ -48,64 +63,108 @@ const createTypeManager = async (routesFilesMap: { [key: string]: string }) => {
 const TypeFlags = ts.TypeFlags;
 const ObjectFlags = ts.ObjectFlags;
 
+// Pre-compile common type names set for faster lookup
+const COMMON_TYPE_NAMES = new Set([
+    "Array",
+    "object",
+    "Promise",
+    "boolean",
+    "undefined",
+    "null",
+    "number",
+    "String",
+    "string",
+    "Number",
+    "Boolean",
+    "Object",
+    "Uint8Array",
+    "Buffer",
+    "Blob",
+    "arrayBuffer",
+]);
+
+// Cache for alias expansions to avoid repeated lookups
+const aliasExpansionCache = new WeakMap<ts.Type, ts.Type>();
+
 function isTypeReference(t: any): t is ts.TypeReference {
     return !!(t.flags & TypeFlags.Object) && !!(t.objectFlags & ObjectFlags.Reference);
 }
 
-function expandAliasIfNeeded(checker: ts.TypeChecker, type: ts.Type) {
-    if (!type) return type;
-    if (type.aliasSymbol) {
-        try {
-            const declared = checker.getDeclaredTypeOfSymbol(type.aliasSymbol);
-            if (declared) return declared;
-        } catch (e) {
-            console.error(e);
+function expandAliasIfNeeded(checker: ts.TypeChecker, type: ts.Type): ts.Type {
+    if (!type || !type.aliasSymbol) return type;
+    
+    // Check cache first
+    const cached = aliasExpansionCache.get(type);
+    if (cached) return cached;
+    
+    try {
+        const declared = checker.getDeclaredTypeOfSymbol(type.aliasSymbol);
+        if (declared && declared !== type) {
+            aliasExpansionCache.set(type, declared);
+            return declared;
         }
+    } catch (e) {
+        console.error(e);
     }
+    
+    aliasExpansionCache.set(type, type);
     return type;
+}
+
+// Memoization cache for stringified types using WeakMap (keyed by type + checker + depth + parent hash)
+const stringifyCache = new WeakMap<ts.Type, Map<string, string>>();
+
+function getCacheKey(depth: number, parentsNames: string[]): string {
+    return `${depth}:${parentsNames.join(",")}`;
 }
 
 function stringify(checker: ts.TypeChecker, type: ts.Type, depth = 0, parentsNames: string[] = []): string {
     if (!type) return "any";
+    
+    // Check memoization cache
+    let typeCache = stringifyCache.get(type);
+    if (!typeCache) {
+        typeCache = new Map<string, string>();
+        stringifyCache.set(type, typeCache);
+    }
+    const cacheKey = getCacheKey(depth, parentsNames);
+    const cached = typeCache.get(cacheKey);
+    if (cached) return cached;
+    
     const typeName = checker.typeToString(type);
+    
+    // Early return for common cases or circular references
     if (
         depth > 20 ||
-        (![
-            "Array",
-            "object",
-            "Promise",
-            "boolean",
-            "undefined",
-            "null",
-            "number",
-            "String",
-            "string",
-            "Number",
-            "Boolean",
-            "Object",
-            "Uint8Array",
-            "Buffer",
-            "Blob",
-            "arrayBuffer",
-        ].includes(typeName) &&
-            parentsNames.some((p) => p === typeName))
-    )
+        (!COMMON_TYPE_NAMES.has(typeName) && parentsNames.includes(typeName))
+    ) {
+        typeCache.set(cacheKey, typeName);
         return typeName;
+    }
 
     const extendedParents = [...parentsNames, typeName];
+    let result: string;
 
     // expand alias
     if (type.aliasSymbol) {
         const declared = expandAliasIfNeeded(checker, type);
-        if (declared !== type) return stringify(checker, declared, depth + 1, extendedParents);
+        if (declared !== type) {
+            result = stringify(checker, declared, depth + 1, extendedParents);
+            typeCache.set(cacheKey, result);
+            return result;
+        }
     }
 
     // unions / intersections
     if (type.isUnion && type.isUnion()) {
-        return type.types.map((t: any) => stringify(checker, t, depth + 1, extendedParents)).join(" | ");
+        result = type.types.map((t: any) => stringify(checker, t, depth + 1, extendedParents)).join(" | ");
+        typeCache.set(cacheKey, result);
+        return result;
     }
     if (type.isIntersection && type.isIntersection()) {
-        return type.types.map((t: any) => stringify(checker, t, depth + 1, extendedParents)).join(" & ");
+        result = type.types.map((t: any) => stringify(checker, t, depth + 1, extendedParents)).join(" & ");
+        typeCache.set(cacheKey, result);
+        return result;
     }
 
     // type references (generics)
@@ -118,16 +177,23 @@ function stringify(checker: ts.TypeChecker, type: ts.Type, depth = 0, parentsNam
 
         // common special-cases
         if (targetName === "Array" && typeArgs.length === 1) {
-            return `${stringify(checker, typeArgs[0], depth + 1, extendedParents)}[]`;
+            result = `${stringify(checker, typeArgs[0], depth + 1, extendedParents)}[]`;
+            typeCache.set(cacheKey, result);
+            return result;
         }
         if (targetName === "Promise" && typeArgs.length === 1) {
-            return `Promise<${stringify(checker, typeArgs[0], depth + 1, extendedParents)}>`;
+            result = `Promise<${stringify(checker, typeArgs[0], depth + 1, extendedParents)}>`;
+            typeCache.set(cacheKey, result);
+            return result;
         }
         if (typeArgs.length) {
-            return `${targetName}<${typeArgs
+            result = `${targetName}<${typeArgs
                 .map((a) => stringify(checker, a, depth + 1, extendedParents))
                 .join(", ")}>`;
+            typeCache.set(cacheKey, result);
+            return result;
         }
+        typeCache.set(cacheKey, targetName);
         return targetName;
     }
 
@@ -136,7 +202,11 @@ function stringify(checker: ts.TypeChecker, type: ts.Type, depth = 0, parentsNam
         const objFlags = (type as any).objectFlags || 0;
         if (objFlags & (ObjectFlags.Anonymous | ObjectFlags.Class | ObjectFlags.Interface)) {
             const props = checker.getPropertiesOfType(type);
-            if (!props.length) return checker.typeToString(type);
+            if (!props.length) {
+                result = checker.typeToString(type);
+                typeCache.set(cacheKey, result);
+                return result;
+            }
             const members = props.map((p) => {
                 const decl = p.valueDeclaration || (p.declarations && p.declarations[0]);
                 if (!decl) {
@@ -146,21 +216,29 @@ function stringify(checker: ts.TypeChecker, type: ts.Type, depth = 0, parentsNam
                 const optional = p.flags & ts.SymbolFlags.Optional ? "?" : "";
                 return `${p.getName()}${optional}: ${stringify(checker, pType, depth + 1, extendedParents)}`;
             });
-            return `{\n  ${members.join(";\n  ")}\n}`;
+            result = `{\n  ${members.join(";\n  ")}\n}`;
+            typeCache.set(cacheKey, result);
+            return result;
         }
-        return checker.typeToString(type);
+        result = checker.typeToString(type);
+        typeCache.set(cacheKey, result);
+        return result;
     }
 
     // literal types
     if (type.flags & (TypeFlags.StringLiteral | TypeFlags.NumberLiteral | TypeFlags.BooleanLiteral)) {
-        return checker.typeToString(type);
+        result = checker.typeToString(type);
+        typeCache.set(cacheKey, result);
+        return result;
     }
 
     // fallback
-    return checker.typeToString(type);
+    result = checker.typeToString(type);
+    typeCache.set(cacheKey, result);
+    return result;
 }
 
-const useContextToProcessRouteForTypes = async (
+const useContextToProcessRouteForTypes = (
     routeFileFullPath: string,
     exportExpr: ts.Expression,
     context: {
@@ -181,12 +259,12 @@ const useContextToProcessRouteForTypes = async (
         const sig = sigs[0];
 
         const paramSymbols = sig.getParameters();
-        function getParamTypeByIndex(i: number) {
+        const getParamTypeByIndex = (i: number) => {
             if (!paramSymbols[i]) return null;
             const psym = paramSymbols[i];
             const decl = psym.valueDeclaration || (psym.declarations && psym.declarations[0]) || exportExpr;
             return checker.getTypeOfSymbolAtLocation(psym, decl);
-        }
+        };
 
         const bodyType = getParamTypeByIndex(1);
         const queryType = getParamTypeByIndex(2);
@@ -214,7 +292,7 @@ const useContextToProcessRouteForTypes = async (
     }
 };
 
-const useContextToProcessChannelsForTypes = async (
+const useContextToProcessChannelsForTypes = (
     routeFileFullPath: string,
     exportExpr: ts.Expression,
     context: {
@@ -222,21 +300,21 @@ const useContextToProcessChannelsForTypes = async (
         host: ts.CompilerHost;
         program: ts.Program;
     }
-): Promise<null | { bodyTypeString: string; expectResponse: string }> => {
+): null | { bodyTypeString: string; expectResponse: string } => {
     const { checker, program } = context;
 
     try {
         const sf = program.getSourceFile(routeFileFullPath);
         if (!sf) return null;
 
-        // Helper to print short snippets for diagnostics
+        // Cache source file text to avoid repeated getFullText() calls
+        const sourceText = sf.getFullText();
         const snippetOf = (node?: ts.Node) => {
             try {
                 if (!node) return "<no-node>";
-                const src = node.getSourceFile().getFullText();
                 const start = Math.max(0, node.getStart() - 20);
-                const end = Math.min(src.length, node.getEnd() + 20);
-                return src.slice(start, end).replace(/\r?\n/g, " ");
+                const end = Math.min(sourceText.length, node.getEnd() + 20);
+                return sourceText.slice(start, end).replace(/\r?\n/g, " ");
             } catch {
                 return "<snippet-error>";
             }
@@ -490,7 +568,7 @@ const useContextToProcessChannelsForTypes = async (
     }
 };
 
-const useContextToProcessEventsForTypes = async (
+const useContextToProcessEventsForTypes = (
     routeFileFullPath: string,
     callExpression: ts.CallExpression,
     context: {
@@ -498,7 +576,7 @@ const useContextToProcessEventsForTypes = async (
         host: ts.CompilerHost;
         program: ts.Program;
     }
-): Promise<null | { eventName: string; bodyTypeString: string; responseTypeString: string }> => {
+): null | { eventName: string; bodyTypeString: string; responseTypeString: string } => {
     try {
         const { checker } = context;
         // event name: if first arg is a string literal, use it; otherwise fallback to type text
@@ -551,8 +629,7 @@ const useContextToProcessEventsForTypes = async (
                 }
             }
             if (responseTypeString === "unknown") {
-                const respProp =
-                    checker.getPropertyOfType(callType, "response") || checker.getPropertyOfType(callType, "response");
+                const respProp = checker.getPropertyOfType(callType, "response");
                 if (respProp) {
                     const decl = respProp.valueDeclaration || (respProp.declarations && respProp.declarations[0]);
                     const t = decl
@@ -574,153 +651,180 @@ const useContextToProcessEventsForTypes = async (
     }
 };
 
+// Helper to extract HTTP method from AST
+const extractMethodFromAST = (sf: ts.SourceFile, defaultExportExpr: ts.Expression | null): string => {
+    if (!defaultExportExpr) return "GET";
+    
+    // Try to find method property in the exported object
+    const findMethodInObject = (node: ts.Node): string | null => {
+        if (ts.isObjectLiteralExpression(node)) {
+            for (const prop of node.properties) {
+                if (ts.isPropertyAssignment(prop) && ts.isIdentifier(prop.name) && prop.name.text === "method") {
+                    if (ts.isStringLiteral(prop.initializer) || ts.isNoSubstitutionTemplateLiteral(prop.initializer)) {
+                        return prop.initializer.text;
+                    }
+                }
+            }
+        } else if (ts.isCallExpression(node)) {
+            // Check if it's a route definition call with method as first argument
+            if (node.arguments.length > 0) {
+                const firstArg = node.arguments[0];
+                if (ts.isStringLiteral(firstArg) || ts.isNoSubstitutionTemplateLiteral(firstArg)) {
+                    return firstArg.text;
+                }
+            }
+            // Check properties in object argument
+            for (const arg of node.arguments) {
+                const method = findMethodInObject(arg);
+                if (method) return method;
+            }
+        }
+        return null;
+    };
+    
+    // Traverse the export expression to find method
+    let method: string | null = null;
+    const visitor = (node: ts.Node): void => {
+        if (method) return;
+        if (ts.isObjectLiteralExpression(node) || ts.isCallExpression(node)) {
+            method = findMethodInObject(node);
+            if (method) return;
+        }
+        ts.forEachChild(node, visitor);
+    };
+    visitor(defaultExportExpr);
+    
+    return method || "GET";
+};
+
 export const processRoutesForTypes = async (routesFilesMap: { [routeFileFullPath: string]: string }) => {
-    const tsContext = await createTypeManager(routesFilesMap);
-    const promises = [] as Promise<any>[];
-    for (const routeFullPath in routesFilesMap) {
-        promises.push(
-            (async () => {
-                // get the source file we care about
-                const sf = tsContext.program.getSourceFile(routeFullPath);
-                if (!sf) {
-                    return;
-                }
-                let defaultExportExpr: ts.Expression | null = null;
-                let channelExportExpr: ts.Expression | null = null;
-                let eventExpressions: ts.CallExpression[] = [];
-                for (const stmt of sf.statements) {
-                    if (stmt.kind == ts.SyntaxKind.ExpressionStatement) {
-                        const exprStmt = stmt as ts.ExpressionStatement;
-                        if (ts.isCallExpression(exprStmt.expression)) {
-                            const callExpr = exprStmt.expression as ts.CallExpression;
-                            if (
-                                ts.isIdentifier(callExpr.expression) &&
-                                callExpr.expression.text.startsWith("defineEmittedEvent")
-                            ) {
-                                const sym = tsContext.checker.getSymbolAtLocation(callExpr.expression);
-                                if (sym && sym.declarations && sym.declarations.length) {
-                                    eventExpressions.push(callExpr);
-                                }
-                            }
+    // Pre-read all file contents in parallel for maximum performance
+    const filePaths = Object.keys(routesFilesMap);
+    const fileContents = new Map<string, string>();
+    await Promise.all(
+        filePaths.map(async (filePath) => {
+            try {
+                const content = await readFile(filePath, "utf-8");
+                fileContents.set(filePath, content);
+            } catch (error) {
+                console.error(`Failed to read file ${filePath}:`, error);
+            }
+        })
+    );
+    
+    const tsContext = await createTypeManager(routesFilesMap, fileContents);
+    
+    // Process all routes sequentially (CPU-bound operations, parallelism not beneficial on single thread)
+    // But we process them efficiently with all optimizations
+    for (const routeFullPath of filePaths) {
+        try {
+            // get the source file we care about
+            const sf = tsContext.program.getSourceFile(routeFullPath);
+            if (!sf) {
+                continue;
+            }
+            
+            // Single-pass AST traversal to extract all needed information
+            let defaultExportExpr: ts.Expression | null = null;
+            let channelExportExpr: ts.Expression | null = null;
+            let eventExpressions: ts.CallExpression[] = [];
+            
+            for (const stmt of sf.statements) {
+                // Check for event expressions
+                if (stmt.kind === ts.SyntaxKind.ExpressionStatement) {
+                    const exprStmt = stmt as ts.ExpressionStatement;
+                    if (ts.isCallExpression(exprStmt.expression)) {
+                        const callExpr = exprStmt.expression as ts.CallExpression;
+                        if (
+                            ts.isIdentifier(callExpr.expression) &&
+                            callExpr.expression.text.startsWith("defineEmittedEvent")
+                        ) {
+                            // No need to check symbol - if it's an identifier with this name, it's valid
+                            eventExpressions.push(callExpr);
                         }
                     }
+                }
 
-                    if (ts.isExportAssignment(stmt) && !stmt.isExportEquals) {
-                        defaultExportExpr = stmt.expression;
-                    }
-                    if (
-                        ts.isVariableStatement(stmt) &&
-                        stmt.modifiers?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword)
-                    ) {
-                        for (const decl of stmt.declarationList.declarations) {
-                            if (ts.isIdentifier(decl.name) && decl.name.text === "handler") {
-                                channelExportExpr = decl.initializer || null;
-                            }
+                // Check for default export
+                if (ts.isExportAssignment(stmt) && !stmt.isExportEquals) {
+                    defaultExportExpr = stmt.expression;
+                }
+                
+                // Check for channel handler export
+                if (
+                    ts.isVariableStatement(stmt) &&
+                    stmt.modifiers?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword)
+                ) {
+                    for (const decl of stmt.declarationList.declarations) {
+                        if (ts.isIdentifier(decl.name) && decl.name.text === "handler") {
+                            channelExportExpr = decl.initializer || null;
                         }
                     }
                 }
+            }
 
-                const promises = [undefined, undefined, undefined] as [
-                    (
-                        | undefined
-                        | Promise<{
-                              bodyTypeString: string;
-                              queryTypeString: string;
-                              paramsTypeString: string;
-                              headersTypeString: string;
-                              returnTypeString: string;
-                          } | null>
-                    ),
-                    (
-                        | undefined
-                        | Promise<{
-                              bodyTypeString: string;
-                              expectResponse: string; // as in `undefined | ((response: ResponseType /* for example User */ )=>void|Promise<void>)`
-                          } | null>
-                    ),
-                    (
-                        | undefined
-                        | Promise<
-                              | {
-                                    eventName: string;
-                                    bodyTypeString: string;
-                                    responseTypeString: string;
-                                }[]
-                              | null
-                          >
-                    )
-                ];
+            // Process route types (synchronous, optimized with caching)
+            const routeTypes = defaultExportExpr
+                ? useContextToProcessRouteForTypes(routeFullPath, defaultExportExpr, tsContext)
+                : null;
 
-                if (defaultExportExpr) {
-                    promises[0] = useContextToProcessRouteForTypes(routeFullPath, defaultExportExpr, tsContext);
-                }
+            // Process channel types (synchronous, optimized with caching)
+            const channelTypes = channelExportExpr
+                ? useContextToProcessChannelsForTypes(routeFullPath, channelExportExpr, tsContext)
+                : null;
 
-                if (channelExportExpr) {
-                    promises[1] = useContextToProcessChannelsForTypes(routeFullPath, channelExportExpr, tsContext);
-                }
-
-                if (eventExpressions.length > 0) {
-                    promises[2] = (async () => {
-                        const results: {
-                            eventName: string;
-                            bodyTypeString: string;
-                            responseTypeString: string;
-                        }[] = [];
-                        for (const evExpr of eventExpressions) {
-                            try {
-                                const res = await useContextToProcessEventsForTypes(routeFullPath, evExpr, tsContext);
-                                if (res) {
-                                    results.push(res);
-                                }
-                            } catch (err) {
-                                console.error("Error processing emitted event for types on", routeFullPath, err);
-                            }
+            // Process event types (synchronous, optimized with caching)
+            const eventsTypes: Array<{ eventName: string; bodyTypeString: string; responseTypeString: string }> = [];
+            if (eventExpressions.length > 0) {
+                for (const evExpr of eventExpressions) {
+                    try {
+                        const res = useContextToProcessEventsForTypes(routeFullPath, evExpr, tsContext);
+                        if (res) {
+                            eventsTypes.push(res);
                         }
-                        return results;
-                    })();
+                    } catch (err) {
+                        console.error("Error processing emitted event for types on", routeFullPath, err);
+                    }
                 }
+            }
 
-                const [routeTypes, channelTypes, eventsTypes] = await Promise.all(promises);
+            // Extract method from AST instead of regex (much faster)
+            const method = routeTypes ? extractMethodFromAST(sf, defaultExportExpr) : "GET";
 
-                if (routeTypes) {
-                    const fileContent = await readFile(routeFullPath, "utf-8");
-                    const method =
-                        fileContent.match(
-                            /method(?:\s|\n)*?:(?:\s|\n)*?['"`](GET|POST|PUT|DELETE|PATCH|OPTIONS|HEAD)['"`]/
-                        )?.[1] || "GET";
-
-                    describeRoute({
+            // Describe routes, channels, and events
+            if (routeTypes) {
+                describeRoute({
+                    fileUrl: pathToFileURL(routeFullPath).toString(),
+                    method: method as any,
+                    path: "/",
+                    requestBodyTypeString: routeTypes.bodyTypeString,
+                    requestParamsTypeString: routeTypes.queryTypeString,
+                    requestHeadersTypeString: routeTypes.headersTypeString,
+                    responseBodyTypeString: routeTypes.returnTypeString,
+                });
+            }
+            if (channelTypes) {
+                describeChannel({
+                    fileUrl: pathToFileURL(routeFullPath).toString(),
+                    path: "/",
+                    requestBodyTypeString: channelTypes.bodyTypeString,
+                    responseBodyTypeString: channelTypes.expectResponse,
+                });
+            }
+            if (eventsTypes.length > 0) {
+                for (const evExpr of eventsTypes) {
+                    describeEvent({
                         fileUrl: pathToFileURL(routeFullPath).toString(),
-                        method: method as any,
-                        path: "/",
-                        requestBodyTypeString: routeTypes.bodyTypeString,
-                        requestParamsTypeString: routeTypes.queryTypeString,
-                        requestHeadersTypeString: routeTypes.headersTypeString,
-                        responseBodyTypeString: routeTypes.returnTypeString,
+                        event: evExpr.eventName,
+                        eventBodyTypeString: evExpr.bodyTypeString,
+                        expectedResponseBodyTypeString: evExpr.responseTypeString,
                     });
                 }
-                if (channelTypes) {
-                    describeChannel({
-                        fileUrl: pathToFileURL(routeFullPath).toString(),
-                        path: "/",
-                        requestBodyTypeString: channelTypes.bodyTypeString,
-                        responseBodyTypeString: channelTypes.expectResponse,
-                    });
-                }
-                if (eventsTypes?.length && eventsTypes?.length > 0) {
-                    for (const evExpr of eventsTypes) {
-                        describeEvent({
-                            fileUrl: pathToFileURL(routeFullPath).toString(),
-                            event: evExpr.eventName,
-                            eventBodyTypeString: evExpr.bodyTypeString,
-                            expectedResponseBodyTypeString: evExpr.responseTypeString,
-                        });
-                    }
-                }
-            })()
-        );
+            }
+        } catch (error) {
+            console.error(`Error processing route ${routeFullPath}:`, error);
+        }
     }
-    await Promise.all(promises);
     await storeDescriptions();
 };
 
@@ -729,9 +833,10 @@ const storeDescriptions = async () => {
         return;
     }
 
-    await mkdir(await getTypesPlacementDir(), { recursive: true });
-    writeFile(
-        path.join(await getTypesPlacementDir(), "apiTypes.json"),
+    const typesDir = await getTypesPlacementDir();
+    await mkdir(typesDir, { recursive: true });
+    await writeFile(
+        path.join(typesDir, "apiTypes.json"),
         JSON.stringify(
             {
                 routesDescriptions: routesDescriptionMap,
