@@ -245,5 +245,3 @@ export function createSocketRouter(socket: Socket) {
     ensureAttached,
   };
 }
-
-module.exports = { createSocketRouter };
