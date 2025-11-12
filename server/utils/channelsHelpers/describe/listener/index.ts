@@ -5,7 +5,6 @@ import path from "path";
 import ts from "typescript";
 import url from "url";
 import { getDescriptionPreExtensionSuffix, getRouterDirectory, getRouteSuffix } from "../../../loadConfig/index.js";
-import { lockMethod } from "kt-common";
 
 const descriptionPreExtensionSuffix = await getDescriptionPreExtensionSuffix();
 const routerSuffix = await getRouteSuffix();
@@ -38,74 +37,73 @@ const checkType = (typeString: string) => {
     eval(ts.transpile(sourceCode));
 };
 
-export const describe = lockMethod(
-    (options: DescriptionProps) => {
-        if (!cluster.isPrimary) {
-            return;
+export const describe = (options: DescriptionProps) => {
+    if (!cluster.isPrimary) {
+        return;
+    }
+    try {
+        if (options.requestBodyTypeString) {
+            checkType(options.requestBodyTypeString);
+        } else {
+            options.requestBodyTypeString = "any";
         }
-        try {
-            if (options.requestBodyTypeString) {
-                checkType(options.requestBodyTypeString);
-            } else {
-                options.requestBodyTypeString = "any";
-            }
 
-            if (options.responseBodyTypeString) {
-                checkType(options.responseBodyTypeString);
-            } else {
-                options.responseBodyTypeString = "any";
-            }
+        if (options.responseBodyTypeString) {
+            checkType(options.responseBodyTypeString);
+        } else {
+            options.responseBodyTypeString = "any";
+        }
 
-            if (!options.path) {
-                options.path = "/";
-            }
+        if (!options.path) {
+            options.path = "/";
+        }
 
-            const channelPath = url.fileURLToPath(options.fileUrl);
-            const channelDirectory = path.dirname(channelPath);
+        const channelPath = url.fileURLToPath(options.fileUrl);
+        const channelDirectory = path.dirname(channelPath);
 
-            const channelRelativePath = url.fileURLToPath(options.fileUrl).replace(channelsDirectory, "");
-            const channelRelativeDirectory = path.dirname(channelRelativePath);
+        const channelRelativePath = url.fileURLToPath(options.fileUrl).replace(channelsDirectory, "");
+        const channelRelativeDirectory = path.dirname(channelRelativePath);
 
-            const channelFileName = path.basename(channelPath);
-            const channelSuffixMatch = channelFileName.match(channelsSuffixRegx);
-            if (!channelSuffixMatch) {
-                console.error(
-                    'Invalid Channel Name, a channel file should end with "' + routerSuffix + '" provided is: ',
-                    channelFileName
-                );
-                throw new Error();
-            }
-
-            const channelFileNameWithoutExtension = channelFileName.slice(
-                0,
-                channelFileName.indexOf(channelSuffixMatch[0])
+        const channelFileName = path.basename(channelPath);
+        const channelSuffixMatch = channelFileName.match(channelsSuffixRegx);
+        if (!channelSuffixMatch) {
+            console.error(
+                'Invalid Channel Name, a channel file should end with "' + routerSuffix + '" provided is: ',
+                channelFileName
             );
+            throw new Error();
+        }
 
-            const channelPrecisePath = path.join(
-                channelFileNameWithoutExtension == "index"
-                    ? channelRelativeDirectory
-                    : path.join(channelRelativeDirectory, channelFileNameWithoutExtension),
-                options.path || ""
-            );
+        const channelFileNameWithoutExtension = channelFileName.slice(
+            0,
+            channelFileName.indexOf(channelSuffixMatch[0])
+        );
 
-            const channelDirectoryContent = fs.readdirSync(channelDirectory);
-            const channelDescriptionRegx = RegExp(
-                `${channelFileNameWithoutExtension}${descriptionSuffixRegx.toString().slice(1, -1)}`
-            );
+        const channelPrecisePath = path.join(
+            channelFileNameWithoutExtension == "index"
+                ? channelRelativeDirectory
+                : path.join(channelRelativeDirectory, channelFileNameWithoutExtension),
+            options.path || ""
+        );
 
-            const descriptionFileName = channelDirectoryContent.find((item) => {
-                const itemStats = fs.statSync(path.join(channelDirectory, item));
-                if (itemStats.isFile()) {
-                    if (item.match(channelDescriptionRegx)) {
-                        return true;
-                    }
+        const channelDirectoryContent = fs.readdirSync(channelDirectory);
+        const channelDescriptionRegx = RegExp(
+            `${channelFileNameWithoutExtension}${descriptionSuffixRegx.toString().slice(1, -1)}`
+        );
+
+        const descriptionFileName = channelDirectoryContent.find((item) => {
+            const itemStats = fs.statSync(path.join(channelDirectory, item));
+            if (itemStats.isFile()) {
+                if (item.match(channelDescriptionRegx)) {
+                    return true;
                 }
-                return false;
-            });
-            const descriptionFileFullPath = !descriptionFileName
-                ? path.join(channelDirectory, channelFileNameWithoutExtension + descriptionPreExtensionSuffix + ".md")
-                : path.join(channelDirectory, descriptionFileName);
-            const channelDescriptionContent = `<!-- --start--channel-- ${channelPrecisePath} -->
+            }
+            return false;
+        });
+        const descriptionFileFullPath = !descriptionFileName
+            ? path.join(channelDirectory, channelFileNameWithoutExtension + descriptionPreExtensionSuffix + ".md")
+            : path.join(channelDirectory, descriptionFileName);
+        const channelDescriptionContent = `<!-- --start--channel-- ${channelPrecisePath} -->
 
 # Channel Description 
 ${options.descriptionText || "No description Text Provided"}
@@ -138,62 +136,58 @@ type Response = ${options.responseBodyTypeString || "any"}
 
 <!-- --end--channel-- ${channelPrecisePath} -->`;
 
-            if (!descriptionFileName) {
-                fs.writeFileSync(descriptionFileFullPath, channelDescriptionContent);
-            } else {
-                const content = fs.readFileSync(descriptionFileFullPath, "utf-8");
+        if (!descriptionFileName) {
+            fs.writeFileSync(descriptionFileFullPath, channelDescriptionContent);
+        } else {
+            const content = fs.readFileSync(descriptionFileFullPath, "utf-8");
 
-                if (!content.includes(channelPrecisePath)) {
-                    fs.writeFileSync(descriptionFileFullPath, content + "\n\n" + channelDescriptionContent);
+            if (!content.includes(channelPrecisePath)) {
+                fs.writeFileSync(descriptionFileFullPath, content + "\n\n" + channelDescriptionContent);
+            } else {
+                if (!content.includes(`<!-- --start--channel-- ${channelPrecisePath} -->`)) {
+                    fs.writeFileSync(descriptionFileFullPath, content + `\n\n` + channelDescriptionContent);
                 } else {
-                    if (!content.includes(`<!-- --start--channel-- ${channelPrecisePath} -->`)) {
-                        fs.writeFileSync(descriptionFileFullPath, content + `\n\n` + channelDescriptionContent);
-                    } else {
-                        fs.writeFileSync(
-                            descriptionFileFullPath,
-                            content.replace(
-                                RegExp(
-                                    `\\<\\!-- --start--channel-- ${channelPrecisePath.replaceAll(
-                                        "/",
-                                        "\\/"
-                                    )} --\\>(.|\n)*?\\<\\!-- --end--channel-- ${channelPrecisePath.replaceAll(
-                                        "/",
-                                        "\\/"
-                                    )} --\\>`
-                                ),
-                                channelDescriptionContent
-                            )
-                        );
-                    }
+                    fs.writeFileSync(
+                        descriptionFileFullPath,
+                        content.replace(
+                            RegExp(
+                                `\\<\\!-- --start--channel-- ${channelPrecisePath.replaceAll(
+                                    "/",
+                                    "\\/"
+                                )} --\\>(.|\n)*?\\<\\!-- --end--channel-- ${channelPrecisePath.replaceAll(
+                                    "/",
+                                    "\\/"
+                                )} --\\>`
+                            ),
+                            channelDescriptionContent
+                        )
+                    );
                 }
             }
-
-            options.fullChannelPath = channelPrecisePath;
-            options.descriptionFileFullPath = path.join(channelPrecisePath, "/describe");
-
-            if (descriptionsMap[options.fullChannelPath]) {
-                console.error(
-                    "Channel Descriptor Already Registered",
-                    "\nNew Registration:",
-                    options,
-                    "\nOld Registration:",
-                    descriptionsMap[options.fullChannelPath]
-                );
-                throw new Error();
-            }
-            options.fileUrl = options.fullChannelPath;
-            descriptionsMap[options.fullChannelPath] = {
-                ...descriptionsMap[options.fullChannelPath],
-                ...options,
-            };
-        } catch (error: any) {
-            console.error(error);
-            console.error("CRITICAL: Invalid Channel Descriptor", options);
-            process.exit(-1);
         }
-    },
-    {
-        lockName: "settingUpChannelDescriptions",
+
+        options.fullChannelPath = channelPrecisePath;
+        options.descriptionFileFullPath = path.join(channelPrecisePath, "/describe");
+
+        if (descriptionsMap[options.fullChannelPath]) {
+            console.error(
+                "Channel Descriptor Already Registered",
+                "\nNew Registration:",
+                options,
+                "\nOld Registration:",
+                descriptionsMap[options.fullChannelPath]
+            );
+            throw new Error();
+        }
+        options.fileUrl = options.fullChannelPath;
+        descriptionsMap[options.fullChannelPath] = {
+            ...descriptionsMap[options.fullChannelPath],
+            ...options,
+        };
+    } catch (error: any) {
+        console.error(error);
+        console.error("CRITICAL: Invalid Channel Descriptor", options);
+        process.exit(-1);
     }
-);
+};
 export const describeChannel = describe;

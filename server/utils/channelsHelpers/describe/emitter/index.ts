@@ -1,6 +1,5 @@
 import cluster from "cluster";
 import fs from "fs";
-import { lockMethod } from "kt-common";
 import path from "path";
 import ts from "typescript";
 import url from "url";
@@ -33,61 +32,60 @@ const checkType = (typeString: string) => {
 const descriptionPreExtensionSuffix = await getDescriptionPreExtensionSuffix();
 const routerSuffix = await getRouteSuffix();
 
-export const describe = lockMethod(
-    (options: DescriptionProps) => {
-        if (!cluster.isPrimary) {
-            return;
+export const describe = (options: DescriptionProps) => {
+    if (!cluster.isPrimary) {
+        return;
+    }
+    try {
+        if (options.eventBodyTypeString) {
+            checkType(options.eventBodyTypeString);
+        } else {
+            options.eventBodyTypeString = "any";
         }
-        try {
-            if (options.eventBodyTypeString) {
-                checkType(options.eventBodyTypeString);
-            } else {
-                options.eventBodyTypeString = "any";
-            }
 
-            if (options.expectedResponseBodyTypeString) {
-                checkType(options.expectedResponseBodyTypeString);
-            } else {
-                options.expectedResponseBodyTypeString = "never";
-            }
+        if (options.expectedResponseBodyTypeString) {
+            checkType(options.expectedResponseBodyTypeString);
+        } else {
+            options.expectedResponseBodyTypeString = "never";
+        }
 
-            const routePath = url.fileURLToPath(options.fileUrl);
-            const routeDirectory = path.dirname(routePath);
+        const routePath = url.fileURLToPath(options.fileUrl);
+        const routeDirectory = path.dirname(routePath);
 
-            const routeRelativePath = url.fileURLToPath(options.fileUrl).replace(routeDirectory, "");
-            const routeRelativeDirectory = path.dirname(routeRelativePath);
+        const routeRelativePath = url.fileURLToPath(options.fileUrl).replace(routeDirectory, "");
+        const routeRelativeDirectory = path.dirname(routeRelativePath);
 
-            const routeFileName = path.basename(routePath);
+        const routeFileName = path.basename(routePath);
 
-            const routeSuffixMatch = routeFileName.match(routerSuffixRegx);
-            if (!routeSuffixMatch) {
-                console.error(
-                    'Invalid Route Name, a Route file should end with "' + routerSuffix + '" provided is: ',
-                    routeFileName
-                );
-                throw new Error();
-            }
-
-            const routeFileNameWithoutExtension = routeFileName.slice(0, routeFileName.indexOf(routeSuffixMatch[0]));
-
-            const routeDirectoryContent = fs.readdirSync(routeDirectory);
-            const routeDescriptionRegx = RegExp(
-                `${routeFileNameWithoutExtension}${descriptionSuffixRegx.toString().slice(1, -1)}`
+        const routeSuffixMatch = routeFileName.match(routerSuffixRegx);
+        if (!routeSuffixMatch) {
+            console.error(
+                'Invalid Route Name, a Route file should end with "' + routerSuffix + '" provided is: ',
+                routeFileName
             );
+            throw new Error();
+        }
 
-            const descriptionFileName = routeDirectoryContent.find((item) => {
-                const itemStats = fs.statSync(path.join(routeDirectory, item));
-                if (itemStats.isFile()) {
-                    if (item.match(routeDescriptionRegx)) {
-                        return true;
-                    }
+        const routeFileNameWithoutExtension = routeFileName.slice(0, routeFileName.indexOf(routeSuffixMatch[0]));
+
+        const routeDirectoryContent = fs.readdirSync(routeDirectory);
+        const routeDescriptionRegx = RegExp(
+            `${routeFileNameWithoutExtension}${descriptionSuffixRegx.toString().slice(1, -1)}`
+        );
+
+        const descriptionFileName = routeDirectoryContent.find((item) => {
+            const itemStats = fs.statSync(path.join(routeDirectory, item));
+            if (itemStats.isFile()) {
+                if (item.match(routeDescriptionRegx)) {
+                    return true;
                 }
-                return false;
-            });
-            const descriptionFileFullPath = !descriptionFileName
-                ? path.join(routeDirectory, routeFileNameWithoutExtension + descriptionPreExtensionSuffix + ".md")
-                : path.join(routeDirectory, descriptionFileName);
-            const eventDescriptionContent = `<!-- --start--event-- ${options.event} -->
+            }
+            return false;
+        });
+        const descriptionFileFullPath = !descriptionFileName
+            ? path.join(routeDirectory, routeFileNameWithoutExtension + descriptionPreExtensionSuffix + ".md")
+            : path.join(routeDirectory, descriptionFileName);
+        const eventDescriptionContent = `<!-- --start--event-- ${options.event} -->
 
 # Event Description 
 ${options.descriptionText || "No description Text Provided"}
@@ -125,59 +123,55 @@ type ExpectedResponseBody = ${options.expectedResponseBodyTypeString || "any"}
 
 <!-- --end--event-- ${options.event} -->`;
 
-            if (!descriptionFileName) {
-                fs.writeFileSync(descriptionFileFullPath, eventDescriptionContent);
+        if (!descriptionFileName) {
+            fs.writeFileSync(descriptionFileFullPath, eventDescriptionContent);
+        } else {
+            const content = fs.readFileSync(descriptionFileFullPath, "utf-8");
+
+            if (!content.includes("<!-- --start--event-- " + options.event + " -->")) {
+                fs.writeFileSync(descriptionFileFullPath, content + "\n\n" + eventDescriptionContent);
             } else {
-                const content = fs.readFileSync(descriptionFileFullPath, "utf-8");
-
-                if (!content.includes("<!-- --start--event-- " + options.event + " -->")) {
-                    fs.writeFileSync(descriptionFileFullPath, content + "\n\n" + eventDescriptionContent);
-                } else {
-                    fs.writeFileSync(
-                        descriptionFileFullPath,
-                        content.replace(
-                            RegExp(
-                                `\\<\\!-- --start--event-- ${options.event.replaceAll(
-                                    "/",
-                                    "\\/"
-                                )} --\\>(.|\n)*?\\<\\!-- --end--event-- ${options.event.replaceAll("/", "\\/")} --\\>`
-                            ),
-                            eventDescriptionContent
-                        )
-                    );
-                }
-            }
-
-            const routePrecisePath =
-                routeFileNameWithoutExtension == "index"
-                    ? routeRelativeDirectory
-                    : path.join(routeRelativeDirectory, routeFileNameWithoutExtension);
-
-            options.descriptionFileFullPath = path.join(routePrecisePath, "/describe");
-
-            options.fileUrl = routePrecisePath;
-
-            if (descriptionsMap[options.event]) {
-                console.warn(
-                    "Event Descriptor Already Registered",
-                    "\nNew Registration:",
-                    options,
-                    "\nOld Registration:",
-                    descriptionsMap[options.event]
+                fs.writeFileSync(
+                    descriptionFileFullPath,
+                    content.replace(
+                        RegExp(
+                            `\\<\\!-- --start--event-- ${options.event.replaceAll(
+                                "/",
+                                "\\/"
+                            )} --\\>(.|\n)*?\\<\\!-- --end--event-- ${options.event.replaceAll("/", "\\/")} --\\>`
+                        ),
+                        eventDescriptionContent
+                    )
                 );
             }
-            descriptionsMap[options.event] = {
-                ...descriptionsMap[options.event],
-                ...options,
-            };
-        } catch (error: any) {
-            console.error(error);
-            console.error("CRITICAL: Invalid Event Descriptor", options);
-            process.exit(-1);
         }
-    },
-    {
-        lockName: "settingUpEventDescriptions",
+
+        const routePrecisePath =
+            routeFileNameWithoutExtension == "index"
+                ? routeRelativeDirectory
+                : path.join(routeRelativeDirectory, routeFileNameWithoutExtension);
+
+        options.descriptionFileFullPath = path.join(routePrecisePath, "/describe");
+
+        options.fileUrl = routePrecisePath;
+
+        if (descriptionsMap[options.event]) {
+            console.warn(
+                "Event Descriptor Already Registered",
+                "\nNew Registration:",
+                options,
+                "\nOld Registration:",
+                descriptionsMap[options.event]
+            );
+        }
+        descriptionsMap[options.event] = {
+            ...descriptionsMap[options.event],
+            ...options,
+        };
+    } catch (error: any) {
+        console.error(error);
+        console.error("CRITICAL: Invalid Event Descriptor", options);
+        process.exit(-1);
     }
-);
+};
 export const describeEvent = describe;

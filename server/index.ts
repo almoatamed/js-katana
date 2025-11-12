@@ -18,6 +18,7 @@ export * from "./utils/typesScanner/index.js";
 export * from "./utils/renderDescriptionFile/index.js";
 export * from "./utils/renderDescriptionFile/processMdToHtml.js"; 
 export * from "./utils/mainRouterBuilder/index.js"; 
+export * from "./utils/channelsBuilder/sucketRouter/index.js"; 
 
 export {
     describeEvent,
