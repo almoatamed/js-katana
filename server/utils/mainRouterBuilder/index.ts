@@ -92,7 +92,7 @@ export async function getMiddlewaresArray(routerDirectory: string): Promise<Hand
     const content = fs.readdirSync(routerDirectory);
     const filePaths = content.map((f) => path.join(routerDirectory, f));
     const statsMap = await getFileStats(filePaths);
-    
+
     const middlewareFiles = content.filter((f, i) => {
         const filePath = filePaths[i];
         const stats = statsMap.get(filePath);
@@ -105,7 +105,7 @@ export async function getMiddlewaresArray(routerDirectory: string): Promise<Hand
             try {
                 const middleware: Handler<any, any, any, any, any> = (await import(fullPath)).default;
                 if (typeof middleware !== "function") {
-                    return null
+                    return null;
                 }
                 return middleware;
             } catch (error) {
@@ -114,7 +114,7 @@ export async function getMiddlewaresArray(routerDirectory: string): Promise<Hand
             }
         })
     );
-    
+
     return middlewares.filter((m): m is Handler<any, any, any, any, any> => m !== null && m !== undefined);
 }
 
@@ -124,6 +124,24 @@ const defaultRoutesDirectory = await getRouterDirectory();
 function normalizeRoutePath(routePath: string): string {
     return routePath.replace(paramReplaceRegex, ":$1");
 }
+
+const getDescriptionMiddleware: (devMode: boolean, secret?: string | null) => Middleware<any, any, any, any, any>[] = (
+    devMode,
+    secret
+) => [
+    async (context) => {
+        if (devMode) {
+            return;
+        }
+        if (!secret) {
+            return;
+        }
+        const authorizationHeader = context.headers["authorization"] || context.headers["Authorization"];
+        if (authorizationHeader !== `Secret ${secret}`) {
+            throwUnauthorizedError("Unauthorized to access descriptions");
+        }
+    },
+];
 
 export default async function buildRouter(
     providedMiddlewares: Middleware<any, any, any, any, any>[] = [],
@@ -135,16 +153,17 @@ export default async function buildRouter(
         routesRegistryMap = {};
         statCache.clear(); // Clear cache on root build
     }
-    
+
     const content = fs.readdirSync(routerDirectory);
     const directoryPath = routerDirectory;
 
     // Load middlewares
     const directoryMiddlewares = await getMiddlewaresArray(routerDirectory);
-    
-    const allMiddlewares = providedMiddlewares.length > 0 || directoryMiddlewares.length > 0
-        ? [...providedMiddlewares, ...directoryMiddlewares]
-        : providedMiddlewares;
+
+    const allMiddlewares =
+        providedMiddlewares.length > 0 || directoryMiddlewares.length > 0
+            ? [...providedMiddlewares, ...directoryMiddlewares]
+            : providedMiddlewares;
 
     // Batch file stats for all items
     const itemPaths = content.map((item) => path.join(directoryPath, item));
@@ -161,7 +180,7 @@ export default async function buildRouter(
         const item = content[i];
         const itemPath = itemPaths[i];
         const itemStat = itemStatsMap.get(itemPath);
-        
+
         if (!itemStat) continue;
 
         if (itemStat.isDirectory()) {
@@ -210,9 +229,7 @@ export default async function buildRouter(
         routesFilesMap[routeFullPath] = routePath;
 
         // Assign middlewares directly (avoid spread if possible)
-        routerInstance.externalMiddlewares = allMiddlewares.length > 0 
-            ? allMiddlewares.slice() 
-            : [];
+        routerInstance.externalMiddlewares = allMiddlewares.length > 0 ? allMiddlewares.slice() : [];
 
         const descriptionFile = descriptionFiles.get(routerName);
         const descriptionRoutePath = path.join(routePath, "/describe");
@@ -238,9 +255,9 @@ export default async function buildRouter(
         if (descriptionFile) {
             const descriptionFullPath = path.join(directoryPath, descriptionFile);
             const isMarkdown = descriptionFullPath.endsWith(".md");
-            const renderPath = routerName === "index" 
-                ? fullPrefix 
-                : path.join(fullPrefix, routerName);
+            const renderPath = routerName === "index" ? fullPrefix : path.join(fullPrefix, routerName);
+
+            const [devMode, secret] = await Promise.all([isDev(), getAllDescriptionsSecret()]);
 
             routesRegistryMap[descriptionRoutePath] = {
                 __symbol: routerSymbol,
@@ -253,8 +270,8 @@ export default async function buildRouter(
                     }
                     return context.respond.file(descriptionFullPath);
                 },
+                middleWares: getDescriptionMiddleware(devMode, secret),
                 method: "GET",
-                middleWares: [],
             };
         }
     }
@@ -281,13 +298,13 @@ export default async function buildRouter(
                 if (routePath.startsWith(aliasPath)) {
                     const newRoute = { ...route };
                     const newPath = routePath.replace(aliasPath, fullRoute);
-                    
+
                     if (routerAlias.includeOriginalMIddlewares) {
                         newRoute.externalMiddlewares = [...middlewares, ...route.externalMiddlewares];
                     } else {
                         newRoute.externalMiddlewares = middlewares.slice();
                     }
-                    
+
                     matchingRoutes[newPath] = newRoute;
                 }
             }
@@ -300,12 +317,7 @@ export default async function buildRouter(
     if (directories.length > 0) {
         await Promise.all(
             directories.map((item) =>
-                buildRouter(
-                    allMiddlewares,
-                    path.join(routerDirectory, item),
-                    false,
-                    path.join(fullPrefix, item)
-                )
+                buildRouter(allMiddlewares, path.join(routerDirectory, item), false, path.join(fullPrefix, item))
             )
         );
     }
@@ -314,11 +326,11 @@ export default async function buildRouter(
         await Promise.all(aliases.map((f) => f()));
         await processRouterForChannels();
         await maybeProcessRoutesForTypes();
-        
+
         const typesPlacementDir = await getTypesPlacementDir();
         const typesPath = path.join(typesPlacementDir, "apiTypes.json");
         const [devMode, secret] = await Promise.all([isDev(), getAllDescriptionsSecret()]);
-        
+
         routesRegistryMap[path.join(fullPrefix, "/__describe-json")] = {
             __symbol: routerSymbol,
             externalMiddlewares: [],
@@ -333,26 +345,33 @@ export default async function buildRouter(
                 return context.respond.file(typesPath);
             },
             method: "GET",
-            middleWares: [
-                async (context) => {
-                    if (devMode) {
-                        return;
-                    }
-                    if (!secret) {
-                        return;
-                    }
-                    const authorizationHeader = context.headers["authorization"] || context.headers["Authorization"];
-                    if (authorizationHeader !== `Secret ${secret}`) {
-                        throwUnauthorizedError("Unauthorized to access descriptions");
-                    }
-                },
-            ],
+            middleWares: getDescriptionMiddleware(devMode, secret),
+            serveVia: ["Http"],
+        };
+
+        routesRegistryMap[path.join(fullPrefix, "/__routes-list")] = {
+            __symbol: routerSymbol,
+            externalMiddlewares: [],
+            handler: async (context) => {
+                return context.respond.json({
+                    routesList: Object.entries(routesRegistryMap).map(([path, route]) => {
+                        return {
+                            path: path,
+                            method: route.method,
+                            servedVia: route.serveVia,
+                        };
+                    }),
+                });
+            },
+            method: "GET",
+            middleWares: getDescriptionMiddleware(devMode, secret),
             serveVia: ["Http"],
         };
 
         log("finished Building Router:", Object.keys(routesRegistryMap));
     }
 }
+
 
 export async function getChannelMiddlewaresArray(currentChannelsDirectory: string): Promise<
     {
@@ -364,7 +383,7 @@ export async function getChannelMiddlewaresArray(currentChannelsDirectory: strin
     const content = fs.readdirSync(currentChannelsDirectory);
     const filePaths = content.map((f) => path.join(currentChannelsDirectory, f));
     const statsMap = await getFileStats(filePaths);
-    
+
     const middlewareFiles = content.filter((f, i) => {
         const filePath = filePaths[i];
         const stats = statsMap.get(filePath);
@@ -382,8 +401,8 @@ export async function getChannelMiddlewaresArray(currentChannelsDirectory: strin
             }
         })
     );
-    
-    return middlewares.filter((m): m is NonNullable<typeof middlewares[0]> => m !== null);
+
+    return middlewares.filter((m): m is NonNullable<(typeof middlewares)[0]> => m !== null);
 }
 
 async function buildChannelling(
@@ -485,7 +504,7 @@ async function buildChannelling(
         const item = content[i];
         const itemPath = itemPaths[i];
         const itemStat = itemStatsMap.get(itemPath);
-        
+
         if (!itemStat) continue;
 
         if (itemStat.isDirectory()) {
@@ -509,20 +528,16 @@ async function buildChannelling(
     const currentMounted = mountedMap.get(fullPrefix) || [];
 
     // Convert to expected format
-    const beforeMountedMiddlewaresArray = currentBeforeMounted.length > 0
-        ? [{ middleware: currentBeforeMounted, path: fullPrefix }]
-        : [];
-    const middlewaresArray = currentMiddlewares.length > 0
-        ? [{ middleware: currentMiddlewares, path: fullPrefix }]
-        : [];
-    const mountedMiddlewaresArray = currentMounted.length > 0
-        ? [{ middleware: currentMounted, path: fullPrefix }]
-        : [];
+    const beforeMountedMiddlewaresArray =
+        currentBeforeMounted.length > 0 ? [{ middleware: currentBeforeMounted, path: fullPrefix }] : [];
+    const middlewaresArray =
+        currentMiddlewares.length > 0 ? [{ middleware: currentMiddlewares, path: fullPrefix }] : [];
+    const mountedMiddlewaresArray = currentMounted.length > 0 ? [{ middleware: currentMounted, path: fullPrefix }] : [];
 
     // Process channel files in parallel
     const channelPromises = channelFiles.map(async ({ name, path: handlerPath, match }) => {
         const routerName = name.slice(0, name.indexOf(match[0]));
-        
+
         let routePath: string;
         if (routerName === "index") {
             routePath = fullPrefix;
@@ -530,7 +545,7 @@ async function buildChannelling(
             routePath = path.join(fullPrefix, routerName);
         }
         routePath = normalizeRoutePath(routePath);
-        
+
         const { handler, mounted, beforeMounted } = await import(handlerPath);
         if (!handler) {
             return null;
@@ -562,28 +577,25 @@ async function buildChannelling(
                 log.error("Expected router alias at", itemFullPath, " but got", routerAlias);
                 process.exit(1);
             }
-            
+
             const routerName = name.slice(0, name.indexOf(match[0]));
             const aliasPathPattern = new RegExp(`^${routerAlias.path.replaceAll("/", "\\/")}`);
             const newPathPrefix = path.join(fullPrefix, routerName);
-            
+
             // Convert to expected format
-            const aliasBeforeMountedArray = currentBeforeMounted.length > 0
-                ? [{ middleware: currentBeforeMounted, path: fullPrefix }]
-                : [];
-            const aliasMiddlewaresArray = currentMiddlewares.length > 0
-                ? [{ middleware: currentMiddlewares, path: fullPrefix }]
-                : [];
-            const aliasMountedArray = currentMounted.length > 0
-                ? [{ middleware: currentMounted, path: fullPrefix }]
-                : [];
-            
+            const aliasBeforeMountedArray =
+                currentBeforeMounted.length > 0 ? [{ middleware: currentBeforeMounted, path: fullPrefix }] : [];
+            const aliasMiddlewaresArray =
+                currentMiddlewares.length > 0 ? [{ middleware: currentMiddlewares, path: fullPrefix }] : [];
+            const aliasMountedArray =
+                currentMounted.length > 0 ? [{ middleware: currentMounted, path: fullPrefix }] : [];
+
             const aliasedHandlers = handlers
                 .filter((h) => h.path.startsWith(routerAlias.path))
                 .map((h) => {
                     const newHandler = { ...h };
                     newHandler.path = newHandler.path.replace(aliasPathPattern, newPathPrefix);
-                    
+
                     if (routerAlias.includeOriginalMIddlewares) {
                         newHandler.beforeMountedMiddlewares = [
                             ...aliasBeforeMountedArray,
@@ -703,9 +715,10 @@ const loadCompatibleRoutesIntoChannels = async () => {
                             };
 
                             // Combine middlewares once
-                            const allMiddlewares = route.externalMiddlewares.length > 0 || route.middleWares.length > 0
-                                ? [...route.externalMiddlewares, ...route.middleWares]
-                                : route.externalMiddlewares;
+                            const allMiddlewares =
+                                route.externalMiddlewares.length > 0 || route.middleWares.length > 0
+                                    ? [...route.externalMiddlewares, ...route.middleWares]
+                                    : route.externalMiddlewares;
 
                             for (const middleware of allMiddlewares) {
                                 await middleware(context, body, query, params, headers);
