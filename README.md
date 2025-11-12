@@ -1,59 +1,51 @@
-# js-kt
+# js-kt 🚀
 
-A modern, type-safe Node.js framework for building scalable web servers with built-in support for HTTP routing, WebSocket channels, event-driven communication, and automatic type generation. Inspired by file-based routing patterns, js-kt simplifies server development with TypeScript-first design.
+> **The TypeScript-First Framework That Makes Building Web Servers a Joy**
 
-## Features
+Build scalable, type-safe Node.js servers with zero configuration overhead. js-kt combines the simplicity of file-based routing with the power of TypeScript, WebSockets, and automatic type generation—all while delivering production-ready performance out of the box.
 
-- **File-Based Routing**: Define routes, channels, and events directly in your file system structure.
-- **Type-Safe**: Full TypeScript support with automatic type generation from your handlers.
-- **WebSocket Channels**: Built-in support for real-time communication via Socket.IO.
-- **Event System**: Define and emit events with type-safe payloads.
-- **Dual Protocol Support**: Routes can be served via both HTTP and WebSocket connections using the `serveVia` property.
-- **CLI Tools**: Powerful command-line interface for development, building, and maintenance.
-- **Auto-Generated Documentation**: Generate Markdown documentation for your API endpoints.
-- **Flexible Configuration**: Customize routing, middleware, and more via config files.
-- **Startup Scripts**: Organize and run initialization code easily.
-- **Type-Safe API Client**: Use `js-kt-client` for fully type-safe API interactions with autocomplete and performance optimizations. Visit the [js-kt-client repository](https://github.com/almoatamed/js-kt-client) for more information.
+---
 
-## Installation
+## ✨ Why js-kt?
 
-### Prerequisites
+### 🎯 **Developer Experience First**
+- **Zero Boilerplate**: Your file structure IS your API. No manual route registration needed.
+- **Full Type Safety**: End-to-end TypeScript with automatic type inference and generation.
+- **Hot Reload**: Instant feedback during development with automatic route discovery.
+- **Auto-Documentation**: Beautiful, interactive API docs generated automatically from your code.
 
-- Node.js 18+ or Bun
-- TypeScript 5+
+### ⚡ **Performance Built-In**
+- **Optimized Routing**: O(1) lookups, pattern caching, and intelligent route matching.
+- **Multi-Threading**: Built-in cluster support for maximum CPU utilization.
+- **Redis-Ready**: Seamless Socket.IO scaling with Redis adapter support.
+- **Smart Caching**: File stat caching, compiled pattern reuse, and efficient middleware execution.
 
-### Install js-kt
+### 🔄 **Unified Protocol Support**
+- **Dual Transport**: Serve the same route logic via HTTP, WebSocket, or both—seamlessly.
+- **Type-Safe WebSockets**: Real-time communication with the same type safety as REST APIs.
+- **Event-Driven Architecture**: Built-in event system with type-safe payloads and responses.
+
+### 🛠️ **Production-Ready Features**
+- **Middleware System**: Hierarchical middleware with directory-based scoping.
+- **Error Handling**: Structured error responses with automatic type inference.
+- **Startup Scripts**: Organized initialization with dependency management.
+- **Static File Serving**: Built-in support with optional middleware protection.
+
+---
+
+## 🚀 Quick Start
+
+### Installation
 
 ```bash
 npm install js-kt
 # or
 bun add js-kt
-
-## Quick Start
 ```
 
-#### 1. **Create a new project:**
+### Your First Server (30 seconds)
 
-```bash
-mkdir my-js-kt-app
-cd my-js-kt-app
-npm init -y
-npm install js-kt # plus peer dependencies
-```
-
-#### 2. **Set up your project structure:**
-
-```txt
-my-js-kt-app/
-├── src/
-│   ├── routes/
-│   │   └── index.router.ts
-│   └── router.kt.config.ts
-├── package.json
-└── tsconfig.json
-```
-
-#### 3. **Create your first route** (`src/routes/index.router.ts`)
+**1. Create a route file** (`src/routes/index.router.ts`):
 
 ```typescript
 import { createHandler } from "js-kt";
@@ -61,212 +53,115 @@ import { createHandler } from "js-kt";
 export default createHandler({
     method: "GET",
     handler: (context) => {
-        return context.respond.json({ message: "Hello, js-kt!" });
+        return context.respond.json({ 
+            message: "Hello, js-kt! 🎉",
+            timestamp: Date.now()
+        });
     },
 });
 ```
 
-#### 4. **Create configuration** (`src/router.kt.config.ts`)
-
-use the command `npx kt-cli create-config` or create it manually
-
-you dont have to create it but it will come handy to define many things and configure them to your needs.
-
-```typescript
-import type { RoutingConfig } from "js-kt";
-
-export default {
-    // Configuration options will be detailed later
-} satisfies RoutingConfig;
-```
-
-#### 5. **Run the server:**
+**2. Start the server**:
 
 ```bash
 npx kt-cli dev
 ```
 
-Your server will start at `http://localhost:3000` with the route available at `/`.
+**That's it!** Your server is running at `http://localhost:3000` with full TypeScript support, hot reload, and automatic route registration.
 
-## Configuration
+---
 
-Create a `router.kt.config.ts` file in your source directory to configure js-kt.
+## 📁 File-Based Routing
 
-### Basic Configuration
+js-kt uses your file system structure to define your API. It's that simple.
 
-```typescript
-import type { RoutingConfig } from "js-kt";
+### Route Structure
 
-export default {
-    // Directory where routes are located (relative to config file)
-    routerDirectory: "./routes",
-
-    // API prefix for all routes
-    apiPrefix: "/api",
-
-    // Port to run the server on
-    port: 3000,
-
-    // CORS options
-    cors: {
-        origin: "*",
-        methods: ["GET", "POST", "PUT", "DELETE"],
-    },
-
-    // Static file directories
-    staticDirs: [
-        {
-            local: "./public",
-            remote: "/static",
-        },
-    ],
-
-    // Maximum JSON payload size
-    maxJsonSize: "10mb",
-
-    // Auto-generate descriptions in development
-    autoDescribe: true,
-
-    // Secret for accessing description endpoints in production
-    allDescriptionsSecret: "your-secret-key",
-
-    // File suffixes for different components
-    routerSuffixRegx: "\\.router\\.(?:js|ts)x?$",
-    descriptionSuffixRegx: "\\.description\\.[a-zA-Z]{1,10}$",
-    middlewareSuffixRegx: "\\.middleware\\.(?:js|ts)$",
-    directoryAliasSuffixRegx: "\\.directoryAlias\\.(?:js|ts)$",
-
-    // Description file prefix
-    descriptionPreExtensionSuffix: ".description",
-
-    // Types placement directory
-    typesPlacementDir: "./types",
-
-    // Startup directory
-    startupDirPath: "./startup",
-
-    // Threading mode (single or multi)
-    runSingle: true,
-} satisfies RoutingConfig;
+```
+src/routes/
+├── index.router.ts          → GET /
+├── users/
+│   ├── index.router.ts      → GET /users
+│   ├── [id].router.ts       → GET /users/:id
+│   └── profile.router.ts    → GET /users/profile
+└── posts/
+    └── [slug].router.ts     → GET /posts/:slug
 ```
 
-## Routing
+### Dynamic Routes
 
-js-kt uses file-based routing. Create `.router.ts` files in your routes directory to define HTTP endpoints.
-
-### Basic Route
+Use brackets for URL parameters:
 
 ```typescript
-import { createHandler } from "js-kt";
-
+// src/routes/users/[id].router.ts
 export default createHandler({
     method: "GET",
-    serveVia: ["Http"], // Can be "Http", "Socket", or both ["Http", "Socket"]
-    handler: (context, body, query, params, headers) => {
-        // context: HandlerContext
-        // body: Request body (parsed JSON)
-        // query: Query parameters
-        // params: URL parameters
-        // headers: Request headers
-
-        return context.respond.json({ success: true });
+    handler: (context, _body, _query, params: { id: string }) => {
+        return context.respond.json({
+            userId: params.id,
+            message: `Fetching user ${params.id}`
+        });
     },
 });
 ```
 
-**Note:** Routes can be served via both HTTP and WebSocket connections. Configure this using the `serveVia` property, which accepts an array of `"Http"`, `"Socket"`, or both. This allows the same route logic to work seamlessly across different transport protocols.
+---
 
-### Route with Type Definitions
+## 🎨 Type Safety Made Simple
 
-type of response body will be inferred automatically form you response, for example hera the response will be `{ message: string; user: RequestBody }`
+### Automatic Type Inference
 
-if you have `autoDescribe` (which is on by default) it will automatically be described into the types json and its own markdown file that can be accessed on the `<route-path>/describe` on the server
-
-additionally you only have to specify the body type or what matters to you to be inferred correctly
-
-same can be applied for `channelHandlers` definitions
+js-kt infers types from your handlers automatically:
 
 ```typescript
-import { createHandler } from "js-kt";
-
-interface RequestBody {
+interface CreateUserRequest {
     name: string;
+    email: string;
     age: number;
-}
-
-interface ResponseData {
-    message: string;
-    user: RequestBody;
 }
 
 export default createHandler({
     method: "POST",
     handler: (
         context,
-        body: RequestBody,
-        query: { debug?: boolean }, // for example only define what you need
+        body: CreateUserRequest,  // ← Type inferred automatically
+        query: { debug?: boolean },
         params: { id: string },
         headers
     ) => {
-        /**
-         * type of response body will be inferred automatically form you response; 
-         * for example hera the response will be `{ message: string; user: RequestBody }`
-         * 
-         * if you have `autoDescribe` (which is on by default) it will automatically be described into the types json and its own markdown file that can be accessed on the <route-path>/describe on the server
-         */
+        // Response type is automatically inferred from your return statement
         return context.respond.json({
-            message: `Hello ${body.name}!`,
-            user: body,
+            success: true,
+            user: {
+                id: params.id,
+                ...body,
+                createdAt: new Date().toISOString()
+            }
         });
     },
 });
 ```
 
-### Route Methods
+### Generated Types
 
-Supported HTTP methods: `GET`, `POST`, `PUT`, `DELETE`, `PATCH`, `OPTIONS`, `HEAD`, `ALL`.
+Run `npx kt-cli scan-types` to generate:
+- ✅ Request/response types for all routes
+- ✅ WebSocket channel types
+- ✅ Event emitter types
+- ✅ Complete API type definitions in `./types/apiTypes.json`
 
-### Dynamic Routes
+Use these types with `js-kt-client` for end-to-end type safety from server to client!
 
-Create folders for dynamic segments:
+---
 
-```txt
-routes/
-├── users/
-│   ├── index.router.ts      # GET /users
-│   └── details.router.ts      
-└── posts/
-    └── details/
-        └── comments.router.ts
-```
+## 🔌 WebSocket Channels
 
-### Middleware
+### Real-Time Communication, Type-Safe
 
-Create `.middleware.ts` files in your routes directory:
+Define WebSocket handlers with the same simplicity as HTTP routes:
 
 ```typescript
-import { createHandler } from "js-kt";
-
-export default defineMiddleware(async (context, body, query, params, headers) => {
-    // Authentication logic
-    const authHeader = headers.authorization;
-    if (!authHeader) {
-        // this method wil throw proper error
-        throwRequestError(401, "Missing auth header"); // respond directly 
-    } 
-
-    // Add user to context
-    context.locals.user = { id: 123 };
-});
-```
-
-## Channels (WebSocket)
-
-js-kt provides built-in WebSocket support via Socket.IO for real-time communication.
-
-### Defining a Channel Handler
-
-```typescript
+// src/routes/chat.router.ts
 import { defineChannelHandler } from "js-kt";
 import type { Respond } from "js-kt";
 
@@ -275,272 +170,459 @@ export const handler = defineChannelHandler((socket) => {
 
     return {
         handler(
-            body: { message: string },
-            respond?: Respond<{ reply: string }>
+            body: { message: string; roomId: string },
+            respond?: Respond<{ success: boolean; timestamp: number }>
         ) {
-            console.log("Received:", body.message);
+            // Broadcast to room
+            socket.to(body.roomId).emit("message", {
+                from: socket.id,
+                message: body.message,
+                timestamp: Date.now()
+            });
 
+            // Optional response
             respond?.({
-                reply: `Echo: ${body.message}`,
+                success: true,
+                timestamp: Date.now()
             });
         },
     };
 });
 ```
 
-### Channel File Structure
-
-Channels are defined in the same directory structure as routes, using `.router.ts` files that export a `handler` constant.
-
-### Client-Side Usage
+### Client Usage
 
 ```javascript
 import io from 'socket.io-client';
 
 const socket = io('http://localhost:3000');
 
-socket.emit('message', { message: 'Hello Server!' });
-
-socket.on('reply', (data) => {
-    console.log(data.reply); // "Echo: Hello Server!"
+socket.emit('chat', { 
+    message: 'Hello!', 
+    roomId: 'room-1' 
+}, (response) => {
+    console.log('Server responded:', response);
+    // response is fully typed: { success: boolean; timestamp: number }
 });
 ```
 
-For a superior development experience, use the official `js-kt-client` library which provides:
+### Middleware for Channels
 
-- **Full Type Safety**: Autocomplete and type checking for all API interactions
-- **Adaptive Transport**: Automatically switches between HTTP and WebSocket based on route configuration
-- **Performance Optimizations**: Intelligent caching and connection management
-- **Seamless Integration**: Works with all js-kt features out of the box
+```typescript
+// src/routes/chat.middleware.ts
+import { defineChannelHandler } from "js-kt";
 
-Visit the [js-kt-client repository](https://github.com/almoatamed/js-kt-client) for installation and usage instructions.
+export const channelBeforeMounted = defineChannelBeforeMounted(async (socket) => {
+    // Authentication check before socket is fully connected
+    const token = socket.handshake.auth.token;
+    if (!token || !await validateToken(token)) {
+        return "Authentication required"; // Reject connection
+    }
+    return true; // Accept connection
+});
 
-## Events
+export const channelMiddleware = defineChannelHandler((socket) => {
+    return {
+        handler(body: any, respond, ev) {
+            // Log all incoming events
+            console.log(`[${socket.id}] Event: ${ev}`, body);
+        }
+    };
+});
 
-Define events that can be emitted from your server or client.
+export const channelMounted = defineChannelMounted((socket) => {
+    // Called after socket is successfully connected
+    console.log(`Socket ${socket.id} is ready for events`);
+});
+```
 
-### Defining an Event
+---
+
+## 🔄 Dual Protocol Support
+
+Serve the same route logic via HTTP, WebSocket, or both:
+
+```typescript
+export default createHandler({
+    method: "POST",
+    serveVia: ["Http", "Socket"], // Works on both protocols!
+    handler: (context, body: { action: string }) => {
+        return context.respond.json({
+            action: body.action,
+            processed: true
+        });
+    },
+});
+```
+
+**HTTP Request:**
+```bash
+curl -X POST http://localhost:3000/api/action \
+  -H "Content-Type: application/json" \
+  -d '{"action": "process"}'
+```
+
+**WebSocket Request:**
+```javascript
+socket.emit('/api/action', { action: 'process' }, (response) => {
+    console.log(response); // Same response structure!
+});
+```
+
+---
+
+## 🎭 Middleware System
+
+### Directory-Based Middleware
+
+Middleware is automatically applied based on directory structure:
+
+```
+src/routes/
+├── auth.middleware.ts        → Applied to all routes in this directory
+├── users/
+│   ├── admin.middleware.ts   → Applied to all routes in users/
+│   ├── index.router.ts
+│   └── [id].router.ts
+```
+
+### Middleware Example
+
+```typescript
+// src/routes/auth.middleware.ts
+import { defineMiddleware } from "js-kt";
+import { throwUnauthorizedError } from "js-kt";
+
+export default defineMiddleware(async (context, _body, _query, _params, headers) => {
+    const token = headers.authorization?.replace('Bearer ', '');
+    
+    if (!token) {
+        throwUnauthorizedError("Missing authentication token");
+    }
+
+    // Verify token and attach user to context
+    const user = await verifyToken(token);
+    context.locals.user = user; // Available in all handlers
+});
+```
+
+### Extending Context
+
+```typescript
+// Extend the Locals interface
+declare module "js-kt" {
+    interface Locals {
+        user?: {
+            id: string;
+            email: string;
+            role: string;
+        };
+    }
+}
+
+// Use in handlers
+export default createHandler({
+    method: "GET",
+    handler: (context) => {
+        const user = context.locals.user; // Fully typed!
+        return context.respond.json({ user });
+    },
+});
+```
+
+---
+
+## 🎯 Error Handling
+
+### Structured Error Responses
+
+```typescript
+import { throwRequestError, createRequestError } from "js-kt";
+
+export default createHandler({
+    method: "POST",
+    handler: (context, body: { email: string }) => {
+        if (!body.email) {
+            throwRequestError(400, [
+                {
+                    error: "Email is required",
+                    errors: ["email field is missing"]
+                }
+            ]);
+        }
+
+        // Or create errors without throwing
+        if (body.email.includes("test")) {
+            return context.respond.json(
+                createRequestError(422, [
+                    { error: "Test emails are not allowed" }
+                ])
+            );
+        }
+
+        return context.respond.json({ success: true });
+    },
+});
+```
+
+### Error Response Format
+
+```json
+{
+    "statusCode": 400,
+    "errors": [
+        {
+            "error": "Email is required",
+            "errors": ["email field is missing"],
+            "data": {}
+        }
+    ]
+}
+```
+
+---
+
+## 📚 Auto-Generated Documentation
+
+### Automatic API Documentation
+
+With `autoDescribe: true` (default in development), js-kt automatically generates:
+- 📄 Markdown documentation for each route
+- 🔍 Interactive HTML docs at `/{route-path}/describe`
+- 📦 Complete API types JSON at `/__describe-json`
+
+### Accessing Documentation
+
+**Development Mode:**
+```bash
+# Visit any route with /describe
+http://localhost:3000/api/users/describe
+```
+
+**Production Mode:**
+```bash
+# Protected with secret
+curl -H "Authorization: Secret your-secret-key" \
+  http://localhost:3000/__describe-json
+```
+
+### Custom Descriptions
+
+Create `.description.md` files alongside your routes for custom documentation that gets automatically merged with generated types.
+
+---
+
+## ⚙️ Configuration
+
+Create `router.kt.config.ts` in your source directory:
+
+```typescript
+import type { RoutingConfig } from "js-kt";
+
+export default {
+    // Routes directory
+    routerDirectory: "./routes",
+    
+    // API prefix
+    apiPrefix: "/api",
+    
+    // Server port
+    port: 3000,
+    
+    // CORS configuration
+    cors: {
+        origin: "*",
+        methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
+    },
+    
+    // Static file directories
+    staticDirs: [
+        {
+            local: "./public",
+            remote: "/static",
+            middlewares: [] // Optional middleware for static files
+        },
+    ],
+    
+    // JSON payload limit
+    maxJsonSize: "10mb",
+    
+    // Auto-generate descriptions in development
+    autoDescribe: true,
+    
+    // Secret for production documentation access
+    allDescriptionsSecret: "your-secret-key",
+    
+    // File patterns
+    routerSuffixRegx: "\\.router\\.(?:js|ts)x?$",
+    middlewareSuffixRegx: "\\.middleware\\.(?:js|ts)$",
+    
+    // Types output directory
+    typesPlacementDir: "./types",
+    
+    // Startup scripts directory
+    startupDirPath: "./startup",
+    
+    // Single-threaded mode (false = multi-threaded with clustering)
+    runSingle: false,
+    
+    // Redis configuration (optional, for Socket.IO scaling)
+    redisClient: undefined, // Provide your Redis client instance
+    socketPrefix: "/socket.io",
+    
+    // Server timeouts
+    keepAliveTimeout: 65000,
+    headersTimeout: 66000,
+    
+    // Maximum worker forks (for multi-threading)
+    maxForks: 8,
+} satisfies RoutingConfig;
+```
+
+---
+
+## 🚀 Startup Scripts
+
+Organize initialization code in the `startup` directory:
+
+```
+src/startup/
+├── 01-database.run.ts
+├── 02-cache.run.ts
+└── 03-jobs.run.ts
+```
+
+### Startup Script Example
+
+```typescript
+// src/startup/01-database.run.ts
+import { Application } from "express";
+import { connectToDatabase } from "./db";
+
+export const run = async (app: Application) => {
+    // Initialize database connection
+    await connectToDatabase();
+    
+    // Add global middleware
+    app.use(customMiddleware);
+    
+    console.log("Database initialized!");
+};
+```
+
+Startup scripts run in order (based on filename) before the server starts accepting requests.
+
+---
+
+## 🎪 Events System
+
+### Define Events
 
 ```typescript
 import { defineEmittedEvent } from "js-kt";
 
-defineEmittedEvent<
-    { msg: string },      // Event body type
-    { reply: string }     // Expected response type
->("hello");
+// Define event with type-safe payload and response
+defineEmittedEvent<{ msg: string }, { reply: string }>("hello");
 ```
 
-### Emitting Events
+### Emit Events
 
 ```typescript
 import { emitEvent } from "js-kt";
 
 // Server-side emission
 await emitEvent("hello", { msg: "Hello World!" }, (response) => {
-    console.log(response.reply);
+    console.log(response.reply); // Fully typed!
 });
 ```
 
-## CLI Commands
+Events are type-safe and work seamlessly with the type generation system.
 
-js-kt comes with a powerful CLI for development and maintenance.
+---
 
-### Development Server
+## 📂 Directory Aliases
+
+Create route aliases for flexible path mapping:
+
+```typescript
+// src/routes/api.directoryAlias.ts
+import { createAlias } from "js-kt";
+
+export default createAlias({
+    path: "/api/v1/users",
+    includeOriginalMIddlewares: true, // Include middlewares from original routes
+});
+```
+
+This creates an alias that maps `/api/v1/users/*` routes to your existing user routes.
+
+---
+
+## 🛠️ CLI Commands
+
+### Development
 
 ```bash
+# Start development server with hot reload
 npx kt-cli dev
 ```
 
-Starts the server in development mode with hot reloading.
-
-### Production Server
+### Production
 
 ```bash
+# Start production server
 npx kt-cli start
 ```
 
-Starts the server in production mode.
-
-### Type Scanning
+### Type Generation
 
 ```bash
+# Generate TypeScript types from your routes
 npx kt-cli scan-types
 ```
 
-Scans your routes and generates TypeScript types in `./types/apiTypes.json`.
-and also generate `*.md` description files for each route.
-
-### Organize Routes
+### Route Organization
 
 ```bash
+# Organize routes into directories
 npx kt-cli put-routes-in-directories
 ```
 
-Moves route files into their own directories (e.g., `user.router.ts` → `user/index.router.ts`).
-
-### Create Config
+### Configuration
 
 ```bash
+# Create default configuration file
 npx kt-cli create-config
 ```
 
-Creates a default `router.kt.config.ts` file.
+---
 
-## Type Generation
+## 🎯 Complete Example
 
-js-kt can automatically generate TypeScript types from your route definitions.
+### Project Structure
 
-### Generated Types
-
-After running `scan-types`, you'll get:
-
-- routes types
-  - Request body types
-  - Query parameter types
-  - URL parameter types
-  - Response types
-  - Header types
-
-- emitted events types
-  - body types, emitted body
-  - expected reply types, if expected a response and what that response could be
-
-- channels types (listened on events)
-  - body types, expected body
-  - reply types, if the server will reply and what the reply will be (body)
-
-## Auto-Generated Documentation
-
-js-kt can generate Markdown documentation for your API.
-
-### Description Files
-
-Create `.description.md` files alongside your route files:
-
-```markdown
-<!-- --start-- / -->
-
-# Route Description 
-No description Text Provided
-
-## Route Path: 
-/
-
-## Route Method:
-GET
-
-
-
-
-## route Request Headers type definition:
-type RequestHeader = unknown
-
-## route Request Params type definition
-type RequestQueryParams = unknown
-
-## route Request Body type definition
-
-type RequestBody = {
-  msg: "Hello, World!"
-}
-
-## Response Content Mimetype
-
-application/json
-
-## Response Content Type Definition
-
-type Response = string
-
-<!-- --end-- / -->
-
-<!-- --start--event-- hello -->
-
-## Event Description
-
-No description Text Provided
-
-## Event
-
-hello
-
-## Event Body type definition
-
-type EventBody = {
-  msg: string
-}
-
-## Expected Response Content Type Definition
-
-type ExpectedResponseBody = {
-  reply: string
-}
-
-<!-- --end--event-- hello -->
 ```
-
-### Accessing Descriptions
-
-- In development: Visit `/describe` on any route
-- JSON API: `/__describe-json` (requires secret in production if configured)
-
-## Startup Scripts
-
-Organize initialization code in the `startup` directory.
-
-### Startup File Structure
-
-```txt
-src/
-└── startup/
-    ├── 01-seed.run.ts
-    ├── 02-cache.run.ts
-    └── 03-jobs.run.ts
-```
-
-### Startup Script Example
-
-```typescript
-// 01-database.run.ts
-import { Application } from "express";
-
-export const run = async (app: Application) => {
-    // Initialize database connection
-    await connectToDatabase();
-
-    // Add database middleware
-    app.use(databaseMiddleware);
-};
-```
-
-## Examples
-
-### Complete API Example
-
-**Project Structure:**
-
-```txt
-src/
-├── routes/
-│   ├── index.router.ts
-│   ├── users/
-│   │   ├── isAuthorized.middleware.ts      
+my-app/
+├── src/
+│   ├── routes/
 │   │   ├── index.router.ts
-│   │   └── id.router.ts
-│   ├── auth.router.ts
-│   │    
-│   └──chat.router.ts
-│
-├── startup/
-│   └── database.run.ts
-│
-└── router.kt.config.ts
+│   │   ├── auth.middleware.ts
+│   │   ├── users/
+│   │   │   ├── index.router.ts
+│   │   │   ├── [id].router.ts
+│   │   │   └── profile.router.ts
+│   │   └── chat.router.ts
+│   ├── startup/
+│   │   └── 01-database.run.ts
+│   └── router.kt.config.ts
+├── package.json
+└── tsconfig.json
 ```
 
-**Route Examples:**
+### Example Routes
 
+**Home Route** (`src/routes/index.router.ts`):
 ```typescript
-// src/routes/index.router.ts
 import { createHandler } from "js-kt";
 
 export default createHandler({
@@ -554,55 +636,62 @@ export default createHandler({
 });
 ```
 
+**Users Route** (`src/routes/users/index.router.ts`):
 ```typescript
-// src/routes/users/index.router.ts
 import { createHandler } from "js-kt";
+
+interface User {
+    id: string;
+    name: string;
+    email: string;
+}
 
 export default createHandler({
     method: "GET",
     handler: (context) => {
-        // Return list of users
-        return context.respond.json([
-            { id: 1, name: "John Doe", email: "john@example.com" }
-        ]);
+        const users: User[] = [
+            { id: "1", name: "John Doe", email: "john@example.com" }
+        ];
+        return context.respond.json(users);
     },
 });
 ```
 
+**User Detail Route** (`src/routes/users/[id].router.ts`):
 ```typescript
-// src/routes/users/id.router.ts
 import { createHandler } from "js-kt";
+import { throwRequestError } from "js-kt";
 
 export default createHandler({
     method: "GET",
-    handler: (context, _body, query: { id: string }) => {
-        const userId = parseInt(query.id);
+    handler: (context, _body, _query, params: { id: string }) => {
         // Fetch user by ID
-        return context.respond.json({ id: userId, name: "John Doe", email: "john@example.com" });
+        const user = await getUserById(params.id);
+        
+        if (!user) {
+            throwRequestError(404, [{ error: "User not found" }]);
+        }
+        
+        return context.respond.json(user);
     },
 });
 ```
 
-**Channel Example:**
-
+**Chat Channel** (`src/routes/chat.router.ts`):
 ```typescript
-// src/routes/chat.router.ts
-import { type Respond,  defineChannelHandler } from "js-kt";
-
-
+import { defineChannelHandler } from "js-kt";
+import type { Respond } from "js-kt";
 
 export const handler = defineChannelHandler((socket) => {
-    // this listener can be defined here but it can be defined into the before-mounted interceptor for better code and concern separation
-    socket.on('join-room', (roomId) => {
+    socket.on('join-room', (roomId: string) => {
         socket.join(roomId);
     });
 
     return {
         handler(
             body: { message: string; roomId: string },
-            respond: Respond<{success}>,
+            respond?: Respond<{ success: boolean }>
         ) {
-            // Broadcast to room
             socket.to(body.roomId).emit('message', {
                 from: socket.id,
                 message: body.message
@@ -612,103 +701,113 @@ export const handler = defineChannelHandler((socket) => {
         },
     };
 });
-
-
 ```
 
-**Event Example:**
+---
+
+## 🔥 Performance Features
+
+### Built-In Optimizations
+
+- **Pattern Caching**: Compiled route patterns are cached for instant matching
+- **O(1) Lookups**: Exact route matches use Map-based lookups
+- **Batch Operations**: File operations are batched for efficiency
+- **Stat Caching**: File system stats are cached to reduce I/O
+- **Middleware Deduplication**: Middleware results are cached per request
+- **Cluster Support**: Multi-threading with intelligent load balancing
+
+### Scaling
+
+- **Redis Adapter**: Scale Socket.IO across multiple servers
+- **Cluster Adapter**: Built-in support for Socket.IO clustering
+- **Worker Management**: Automatic worker spawning and management
+- **Connection Pooling**: Efficient resource utilization
+
+---
+
+## 🎨 Type-Safe Client
+
+Use `js-kt-client` for end-to-end type safety:
+
+```bash
+npm install js-kt-client
+```
 
 ```typescript
-// src/routes/notifications.router.ts
-import { defineEmittedEvent, emitEvent } from "js-kt";
+import { createClient } from 'js-kt-client';
 
-defineEmittedEvent<{ title: string; body: string }, { sent: boolean }>("notification");
+const client = createClient('http://localhost:3000');
 
+// Fully typed API calls with autocomplete!
+const users = await client.get('/users');
+const user = await client.get('/users/:id', { params: { id: '1' } });
+const newUser = await client.post('/users', { 
+    body: { name: 'John', email: 'john@example.com' }
+});
+```
+
+Visit the [js-kt-client repository](https://github.com/almoatamed/js-kt-client) for more information.
+
+---
+
+## 📖 Advanced Features
+
+### Custom Response Types
+
+```typescript
+export default createHandler({
+    method: "GET",
+    handler: (context) => {
+        // JSON response
+        return context.respond.json({ data: "json" });
+        
+        // HTML response
+        return context.respond.html("<h1>Hello</h1>");
+        
+        // Text response
+        return context.respond.text("Plain text");
+        
+        // File response
+        return context.respond.file("/path/to/file.pdf");
+    },
+});
+```
+
+### Status Codes
+
+```typescript
 export default createHandler({
     method: "POST",
-    handler: async (context, body: { userId: string; title: string; body: string }) => {
-        // Send notification
-        await emitEvent("notification", {
-            title: body.title,
-            body: body.body
+    handler: (context) => {
+        context.setStatus(201); // Set status code
+        return context.respond.json({ created: true });
+    },
+});
+```
+
+### Query Parameters
+
+```typescript
+export default createHandler({
+    method: "GET",
+    handler: (context, _body, query: { page?: number; limit?: number }) => {
+        const page = query.page || 1;
+        const limit = query.limit || 10;
+        
+        return context.respond.json({
+            page,
+            limit,
+            data: await fetchData(page, limit)
         });
-
-        return context.respond.json({ sent: true });
     },
 });
 ```
 
-## Advanced Features
+---
 
-### Directory Aliases
+## 🤝 Contributing
 
-Create `.directoryAlias.ts` files to alias route directories:
-
-```typescript
-import { RouterAlias } from "js-kt";
-
-const alias: RouterAlias = {
-    path: "/api/v1/users",
-    includeOriginalMiddlewares: true,
-};
-
-export default alias;
-```
-
-### Custom Middleware
-
-```typescript
-// src/routes/auth.middleware.ts
-import { createHandler } from "js-kt";
-
-export default createMiddleware( (context, body, query, params, headers) => {
-    const token = headers.authorization?.replace('Bearer ', '');
-    if (!token) {
-        throwUnauthorizedError("No token provided");
-
-        // or 
-
-        throw createRequestError(401, "Unauthorized")    
-    }
-
-    // Verify token and set user
-    context.locals.user = verifyToken(token);    
-});
-```
-
-### Error Handling
-
-js-kt provides built-in error handling. Throw errors in your handlers:
-
-```typescript
-export default createHandler({
-    method: "POST",
-    handler: (context, body) => {
-        if (!body.email) {
-            throw createRequestError(400, "Email is required");
-        }
-
-        // Handler logic
-    },
-});
-```
-
-### Context Extensions
-
-Extend the handler locals context with custom properties:
-
-```typescript
-declare module "js-kt" {
-    interface Locals {
-        user?: {
-            id: number;
-            role: string;
-        };
-    }
-}
-```
-
-## Contributing
+We welcome contributions! Please see our contributing guidelines for more information.
 
 1. Fork the repository
 2. Create a feature branch
@@ -716,11 +815,28 @@ declare module "js-kt" {
 4. Run tests
 5. Submit a pull request
 
-## License
+---
+
+## 📄 License
 
 MIT License - see LICENSE file for details.
 
-## Support
+---
 
-- GitHub Issues: [Report bugs or request features](https://github.com/almoatamed/js-kt/issues)
-- Documentation: [Full API Reference](https://your-docs-site.com)
+## 🆘 Support
+
+- **GitHub Issues**: [Report bugs or request features](https://github.com/almoatamed/js-kt/issues)
+- **Documentation**: Check the docs for detailed API reference
+- **Community**: Join our community for discussions and support
+
+---
+
+## 🎉 Get Started Today
+
+```bash
+npm install js-kt
+npx kt-cli create-config
+npx kt-cli dev
+```
+
+**Build something amazing with js-kt! 🚀**
