@@ -10,6 +10,7 @@ export type DescriptionProps = {
     fileUrl: string;
     path?: string;
     fullRoutePath?: string;
+    requiresAuth?: boolean;
     descriptionText?: string;
     method: "ALL" | "GET" | "PUT" | "POST" | "DELETE" | "PATCH";
     requestParamsTypeString?: string;

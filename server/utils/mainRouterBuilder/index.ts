@@ -368,6 +368,19 @@ export default async function buildRouter(
             serveVia: ["Http"],
         };
 
+        routesRegistryMap[path.join(fullPrefix, "/__channels-list")] = {
+            __symbol: routerSymbol,
+            externalMiddlewares: [],
+            handler: async (context) => {
+                return context.respond.json({
+                    routesList: handlers.map(c=>c.path)
+                });
+            },
+            method: "GET",
+            middleWares: getDescriptionMiddleware(devMode, secret),
+            serveVia: ["Http"],
+        };
+
         log("finished Building Router:", Object.keys(routesRegistryMap));
     }
 }
@@ -659,7 +672,7 @@ const loadCompatibleRoutesIntoChannels = async () => {
             beforeMounted: undefined,
             handler: (_socket) => {
                 return [
-                    async (body: any, cb, _ev) => {
+                    async (body: any, cb, _ev, params) => {
                         if (!cb) {
                             return;
                         }
@@ -669,7 +682,6 @@ const loadCompatibleRoutesIntoChannels = async () => {
                             let statusCode = 200;
 
                             const query = body?.__query ? { ...body.__query } : {};
-                            const params = body?.__params ? { ...body.__params } : {};
                             const headers = body?.__headers ? { ...body.__headers } : {};
 
                             const context: HandlerContext<any, any, any, any> = {
