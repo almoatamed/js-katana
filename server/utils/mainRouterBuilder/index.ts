@@ -136,7 +136,7 @@ const getDescriptionMiddleware: (devMode: boolean, secret?: string | null) => Mi
         if (!secret) {
             return;
         }
-        const authorizationHeader = context.headers["authorization"] || context.headers["Authorization"];
+        const authorizationHeader = context.headers["authorization"] || context.headers["Authorization"] || context.query["mes"];
         if (authorizationHeader !== `Secret ${secret}`) {
             throwUnauthorizedError("Unauthorized to access descriptions");
         }
