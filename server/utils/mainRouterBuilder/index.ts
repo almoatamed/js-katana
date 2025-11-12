@@ -52,7 +52,7 @@ type RouteRegistry = {
 
 export let routesRegistryMap: RouteRegistry = {};
 
-const aliases = [] as any;
+const aliases = [] as (()=>Promise<void>)[];
 
 const routesFilesMap: {
     [key: string]: string;
