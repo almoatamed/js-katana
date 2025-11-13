@@ -727,27 +727,73 @@ export const handler = defineChannelHandler((socket) => {
 
 ## 🎨 Type-Safe Client
 
-Use `js-kt-client` for end-to-end type safety:
+`kt-client` is the official, type-safe bridge between your js-kt server and every JavaScript runtime. It marries a CLI that keeps your API contract fresh with a runtime client that speaks HTTP and Socket.IO using the exact same types.
 
-```bash
-npm install js-kt-client
-```
+### ⭐ Highlights
+- **Server-Sourced Types**: Pull live route, channel, and event signatures straight from your running server.
+- **Unified Transport**: Share configuration across HTTP and Socket.IO with identical method signatures.
+- **Production-Ready UX**: Token hooks, scoped access, caching, and reconnection helpers built in.
 
+### 🚀 Setup in Minutes
+1. Install the package:
+   ```bash
+   npm install js-kt-api-client
+   # or
+   bun add js-kt-api-client
+   ```
+2. (Optional) add overrides to `package.json`:
+   ```jsonc
+   {
+       "apiTypes": {
+           "baseUrl": "http://localhost:3000",
+           "apiPrefix": "/api",
+           "scope": "dashboard"
+       }
+   }
+   ```
+3. Generate fresh types whenever the backend contract changes:
+   ```bash
+   npx kt-client load-types
+   # short alias
+   npx kt-client l
+   ```
+   The CLI discovers your project root, calls `/__describe-json`, and writes `apiTypes.d.ts`. Export `DESCRIPTION_SECRET` before running if your describe endpoint is protected.
+
+### 🧰 Runtime Client Overview
 ```typescript
-import { createClient } from 'js-kt-client';
+import createClient, { createWebStorage } from "kt-client";
 
-const client = createClient('http://localhost:3000');
-
-// Fully typed API calls with autocomplete!
-const users = await client.get('/users');
-const user = await client.get('/users/:id', { params: { id: '1' } });
-const newUser = await client.post('/users', { 
-    body: { name: 'John', email: 'john@example.com' }
+const kt = createClient({
+    baseUrl: "http://localhost:3000",
+    getToken: () => process.env.USER_TOKEN,
+    storage: createWebStorage(), // opt-in caching helper
 });
+
+const users = await kt.api.get("users/profile", {
+    params: { includeStats: true },
+});
+
+const ack = await kt.socket.asyncEmit("chat/message", {
+    roomId: "general",
+    message: "Hello from kt-client!",
+});
+
+await kt.close();
 ```
 
-Visit the [js-kt-client repository](https://github.com/almoatamed/js-kt-client) for more information.
+- **`api`**: http client that respects generated route types and supports `requestVia` to pin HTTP or socket transports (by default if abailable will use socket for better performance).
+- **`socket`**: Typed `asyncEmit`, `on`, and `off` helpers with acknowledgements and smart reconnection.
+- **Lifecycle helpers**: `reloadConfig()` swaps runtime options on the fly, `close()` tears everything down cleanly.
 
+### 🧊 Smart Caching & Transport Control
+- Provide `createWebStorage()` (or your own storage) and use `sinceMins`, `now`, or `noCaching` to control reuse windows.
+- HTTP calls opportunistically reuse the socket transport; fall back or force HTTP with `requestVia: ["http"]` or `httpOnly`.
+
+### 🔄 Keep Types Fresh
+- Re-run `npx kt-client load-types` after backend changes or wire it into `postinstall`/CI scripts.
+- Include `apiTypes.d.ts` in your TypeScript config so editors pick up the generated definitions automatically.
+
+read the full docs on https://github.com/almoatamed/js-katana-api-client
 ---
 
 ## 📖 Advanced Features
