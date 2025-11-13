@@ -578,7 +578,7 @@ async function buildChannelling(
     const channelResults = await Promise.all(channelPromises);
     for (const result of channelResults) {
         if (result) {
-            handlers.push(result);
+            handlers.unshift(result);
         }
     }
 
@@ -668,7 +668,7 @@ const loadCompatibleRoutesIntoChannels = async () => {
             beforeMountedMiddlewares: [],
             middlewares: [],
             mountedMiddlewares: [],
-            path: routePath,
+            path: `---%http%---${routePath}`,
             beforeMounted: undefined,
             handler: (_socket) => {
                 return [

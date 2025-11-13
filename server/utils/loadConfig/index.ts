@@ -107,7 +107,7 @@ export async function gerRedisClient() {
 
 export async function getSocketPrefix() {
     const config = await loadConfig();
-    return (await valueOf(config.getSocketPrefix)) ?? "channel";
+    return (await valueOf(config.getSocketPrefix)) ?? "/channel";
 }
 
 export async function getHeadersTimeout() {
