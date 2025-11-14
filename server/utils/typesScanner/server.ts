@@ -1,13 +1,16 @@
 import express from "express";
 import cors from "cors";
-import { collectRoutesFilesAndDeleteDescriptions, useContextToProcessTypes } from "./index.js";
+import { collectRoutesFiles, collectRoutesFilesAndDeleteDescriptions, useContextToProcessTypes } from "./index.js";
 import { readFile } from "fs/promises";
 import ts from "typescript";
-import { getTypeScannerBatchingPeriod } from "../loadConfig/index.js";
+import { getDescriptionPreExtensionSuffix, getTypeScannerBatchingPeriod } from "../loadConfig/index.js";
 import { removeFilesFromEventsDescriptionMap } from "../channelsHelpers/describe/emitter/index.js";
 import { createHash } from "crypto";
 import { removeFilesFromChannelsDescriptionMap } from "../channelsHelpers/describe/listener/index.js";
 import { removeFilesFromRoutesDescriptionMap } from "../routersHelpers/describe/index.js";
+import { routerSuffixRegx } from "../routersHelpers/matchers.js";
+import path from "path";
+import { execSync } from "child_process";
 const app = express();
 app.use(cors());
 app.use(express.urlencoded({ extended: true }));
@@ -239,6 +242,8 @@ const readFiles = async (fileMap: { [fileFullPath: string]: string }) => {
 };
 
 let running = false;
+
+const descriptionPreExtensionSuffix = await getDescriptionPreExtensionSuffix();
 const runProcessorCycle = async () => {
     if (running) {
         return;
@@ -247,22 +252,34 @@ const runProcessorCycle = async () => {
     console.log("Running process cycle");
     try {
         console.time("Collecting routes");
-        const routesFilesMap = await collectRoutesFilesAndDeleteDescriptions();
+        const { routesFilesMap } = await collectRoutesFiles();
         await readFiles(routesFilesMap);
         console.timeEnd("Collecting routes");
         const { filesChanged, context, filesToInvalidate } = await getTypeManager(routesFilesMap, fileContents);
 
         if (filesToInvalidate.size) {
             const list = Array.from(filesToInvalidate);
+
+            const toBeDeletedDescriptions: string[] = [];
+            for (const file of filesToInvalidate) {
+                const routerMatch = file.match(routerSuffixRegx);
+                if (!routerMatch) {
+                    continue;
+                }
+                const routerName = file.slice(0, file.indexOf(routerMatch[0]));
+                toBeDeletedDescriptions.push(`${routerName}${descriptionPreExtensionSuffix}.md`);
+            }
+            console.log("Deleting description files", toBeDeletedDescriptions.join(" "));
+            execSync(`npx rimraf ${toBeDeletedDescriptions.join(" ")}`);
+
             removeFilesFromRoutesDescriptionMap(list);
             removeFilesFromEventsDescriptionMap(list);
             removeFilesFromChannelsDescriptionMap(list);
-
             await useContextToProcessTypes(context, list);
         } else if (filesChanged) {
+            await collectRoutesFilesAndDeleteDescriptions();
             await useContextToProcessTypes(context, Object.keys(routesFilesMap));
         }
-
     } catch (error) {
         console.error("type processor cycle error", error);
     } finally {

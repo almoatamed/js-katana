@@ -739,6 +739,38 @@ export const collectRoutesFilesAndDeleteDescriptions = async () => {
     return routesFilesMap;
 };
 
+export const collectRoutesFiles = async () => {
+    const routerDirectory = await getRouterDirectory();
+    const fs = (await import("fs/promises")).default;
+    const path = (await import("path")).default;
+
+    const routesFilesMap: { [key: string]: string } = {};
+    const descriptionPreExtensionSuffix = await getDescriptionPreExtensionSuffix();
+    const toBeDeletedDescriptions: string[] = [];
+
+    const traverseDirectory = async (directory: string) => {
+        const items = await fs.readdir(directory, { withFileTypes: true });
+
+        for (const item of items) {
+            const itemPath = path.join(directory, item.name);
+            if (item.isDirectory()) {
+                await traverseDirectory(itemPath);
+            } else {
+                const routerMatch = item.name.match(routerSuffixRegx);
+                if (!routerMatch) {
+                    continue;
+                }
+                const routerName = item.name.slice(0, item.name.indexOf(routerMatch[0]));
+                toBeDeletedDescriptions.push(path.join(directory, `${routerName}${descriptionPreExtensionSuffix}.md`));
+                routesFilesMap[itemPath] = itemPath;
+            }
+        }
+    };
+    await traverseDirectory(routerDirectory);
+
+    return { routesFilesMap, toBeDeletedDescriptions };
+};
+
 export const processRoutesForTypes = async (routesFilesMap: { [routeFileFullPath: string]: string }) => {
     // Pre-read all file contents in parallel for maximum performance
     const fileContents = new Map<string, string>();

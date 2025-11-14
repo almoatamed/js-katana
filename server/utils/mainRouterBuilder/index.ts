@@ -26,16 +26,12 @@ import {
     type Middleware,
     type Route,
 } from "../router/index.js";
-import {
-    getAllDescriptionsSecret,
-    getRouterDirectory,
-    getTypesPlacementDir,
-    isDev,
-} from "../loadConfig/index.js";
+import { getAllDescriptionsSecret, getRouterDirectory, getTypesPlacementDir, isDev } from "../loadConfig/index.js";
 import { readFile } from "fs/promises";
 import path from "path";
 import fs from "fs";
-import { renderMdDescriptionFile } from "../renderDescriptionFile/index.js";
+import { RenderMdDescriptionFile } from "../renderDescriptionFile/index.js";
+import { readdir } from "fs/promises";
 
 const log = await createLogger({
     color: "blue",
@@ -49,7 +45,7 @@ type RouteRegistry = {
 
 export let routesRegistryMap: RouteRegistry = {};
 
-const aliases = [] as (()=>Promise<void>)[];
+const aliases = [] as (() => Promise<void>)[];
 
 const routesFilesMap: {
     [key: string]: string;
@@ -133,7 +129,8 @@ const getDescriptionMiddleware: (devMode: boolean, secret?: string | null) => Mi
         if (!secret) {
             return;
         }
-        const authorizationHeader = context.headers["authorization"] || context.headers["Authorization"] || context.query["mes"];
+        const authorizationHeader =
+            context.headers["authorization"] || context.headers["Authorization"] || context.query["mes"];
         if (authorizationHeader !== `Secret ${secret}`) {
             throwUnauthorizedError("Unauthorized to access descriptions");
         }
@@ -191,11 +188,12 @@ export default async function buildRouter(
                 if (aliasMatch) {
                     aliasFiles.push({ name: item, path: itemPath, match: aliasMatch });
                 } else {
+                    console.log(item);
                     // Check if it's a description file
                     const descMatch = item.match(descriptionSuffixRegx);
                     if (descMatch) {
-                        const routerName = item.slice(0, item.indexOf(descMatch[0]));
-                        descriptionFiles.set(routerName, item);
+                        console.log("Found description", itemPath, descMatch);
+                        descriptionFiles.set(itemPath, item);
                     }
                 }
             }
@@ -228,11 +226,13 @@ export default async function buildRouter(
         // Assign middlewares directly (avoid spread if possible)
         routerInstance.externalMiddlewares = allMiddlewares.length > 0 ? allMiddlewares.slice() : [];
 
-        const descriptionFile = descriptionFiles.get(routerName);
-        const descriptionRoutePath = path.join(routePath, "/describe");
+        const descriptionFile = descriptionFiles.get(routeFullPath);
 
+        const descriptionRoutePath = path.join(routePath, "/describe");
+        console.log(routeFullPath, descriptionFile, descriptionRoutePath, descriptionFiles.keys());
         return {
             routePath,
+            fullRouteFilePath: routeFullPath,
             routerInstance,
             routerName,
             descriptionFile,
@@ -241,6 +241,7 @@ export default async function buildRouter(
     });
 
     const routerResults = await Promise.all(routerPromises);
+    const [devMode, secret] = await Promise.all([isDev(), getAllDescriptionsSecret()]);
 
     // Process router results
     for (const result of routerResults) {
@@ -249,28 +250,54 @@ export default async function buildRouter(
         const { routePath, routerInstance, routerName, descriptionFile, descriptionRoutePath } = result;
         routesRegistryMap[routePath] = routerInstance;
 
-        if (descriptionFile) {
-            const descriptionFullPath = path.join(directoryPath, descriptionFile);
-            const isMarkdown = descriptionFullPath.endsWith(".md");
-            const renderPath = routerName === "index" ? fullPrefix : path.join(fullPrefix, routerName);
+        routesRegistryMap[descriptionRoutePath] = {
+            __symbol: routerSymbol,
+            serveVia: ["Http"],
+            externalMiddlewares: [],
+            handler: async (context) => {
+                if (await isDev()) {
+                    const dirContent = await readdir(path.dirname(result.fullRouteFilePath), {
+                        withFileTypes: true,
+                    });
+                    const regex = new RegExp(`${result.routerName}${String(descriptionSuffixRegx).slice(1, -1)}`);
 
-            const [devMode, secret] = await Promise.all([isDev(), getAllDescriptionsSecret()]);
+                    const firstDescription = dirContent.find((f) => {
+                        return f.name.match(regex);
+                    });
+                    if (firstDescription) {
+                        const descriptionFullPath = path.join(firstDescription.parentPath, firstDescription.name);
+                        const isMarkdown = descriptionFullPath.endsWith(".md");
+                        const renderPath = routerName === "index" ? fullPrefix : path.join(fullPrefix, routerName);
 
-            routesRegistryMap[descriptionRoutePath] = {
-                __symbol: routerSymbol,
-                serveVia: ["Http"],
-                externalMiddlewares: [],
-                handler: async (context) => {
+                        if (isMarkdown) {
+                            const rendered = (await RenderMdDescriptionFile(renderPath, descriptionFullPath)) as JSX.Element;
+                            return context.respond.html(rendered.toString());
+                        }
+                        return context.respond.file(descriptionFullPath);
+                    }
+                    console.log(dirContent);
+                } else 
+                    
+                    if (descriptionFile) {
+                    const descriptionFullPath = path.join(directoryPath, descriptionFile);
+                    const isMarkdown = descriptionFullPath.endsWith(".md");
+                    const renderPath = routerName === "index" ? fullPrefix : path.join(fullPrefix, routerName);
+
                     if (isMarkdown) {
-                        const rendered = await renderMdDescriptionFile(renderPath, descriptionFullPath);
+                        const rendered = await RenderMdDescriptionFile(renderPath, descriptionFullPath);
                         return context.respond.html(rendered);
                     }
                     return context.respond.file(descriptionFullPath);
-                },
-                middleWares: getDescriptionMiddleware(devMode, secret),
-                method: "GET",
-            };
-        }
+                }
+                throwRequestError(404, [
+                    {
+                        error: "There is no description for this route",
+                    },
+                ]);
+            },
+            middleWares: getDescriptionMiddleware(devMode, secret),
+            method: "GET",
+        };
     }
 
     // Process alias files
@@ -369,7 +396,7 @@ export default async function buildRouter(
             externalMiddlewares: [],
             handler: async (context) => {
                 return context.respond.json({
-                    routesList: handlers.map(c=>c.path)
+                    routesList: handlers.map((c) => c.path),
                 });
             },
             method: "GET",
@@ -380,7 +407,6 @@ export default async function buildRouter(
         log("finished Building Router:", Object.keys(routesRegistryMap));
     }
 }
-
 
 export async function getChannelMiddlewaresArray(currentChannelsDirectory: string): Promise<
     {
@@ -772,4 +798,3 @@ async function processRouterForChannels() {
     // Rebuild handler path map after all handlers are registered for O(1) lookups
     rebuildHandlerPathMap();
 }
-

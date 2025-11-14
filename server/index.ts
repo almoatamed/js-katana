@@ -2,12 +2,13 @@ import { runSingle } from "./utils/loadConfig/index.js";
 import { maybeSignalTypeProcessor } from "./utils/typesScanner/signal.js";
 
 export const runServer = async () => {
-    maybeSignalTypeProcessor();
     if (await runSingle()) {
         await import("./utils/main/single.js");
     } else {
         await import("./utils/main/threaded.js");
     }
+    maybeSignalTypeProcessor();
+
 };
 
 export * from "./utils/router/index.js";

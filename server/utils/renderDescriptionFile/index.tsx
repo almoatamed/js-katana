@@ -1,3 +1,4 @@
+import * as _Kita from "@kitajs/html";
 import { PropsWithChildren } from "@kitajs/html";
 import { readFile } from "fs/promises";
 import { cap } from "kt-common";
@@ -194,7 +195,7 @@ export const Container = (props: PropsWithChildren<JSX.HtmlTag>) => {
     );
 };
 
-export async function renderMdDescriptionFile(routePath: string, fileFullPath: string) {
+export async function RenderMdDescriptionFile(routePath: string, fileFullPath: string): Promise<string> {
     const fileContent = await readFile(fileFullPath, "utf-8");
 
     return (
