@@ -188,11 +188,9 @@ export default async function buildRouter(
                 if (aliasMatch) {
                     aliasFiles.push({ name: item, path: itemPath, match: aliasMatch });
                 } else {
-                    console.log(item);
                     // Check if it's a description file
                     const descMatch = item.match(descriptionSuffixRegx);
                     if (descMatch) {
-                        console.log("Found description", itemPath, descMatch);
                         descriptionFiles.set(itemPath, item);
                     }
                 }
@@ -229,7 +227,6 @@ export default async function buildRouter(
         const descriptionFile = descriptionFiles.get(routeFullPath);
 
         const descriptionRoutePath = path.join(routePath, "/describe");
-        console.log(routeFullPath, descriptionFile, descriptionRoutePath, descriptionFiles.keys());
         return {
             routePath,
             fullRouteFilePath: routeFullPath,
@@ -275,7 +272,6 @@ export default async function buildRouter(
                         }
                         return context.respond.file(descriptionFullPath);
                     }
-                    console.log(dirContent);
                 } else 
                     
                     if (descriptionFile) {

@@ -9,8 +9,16 @@ import { createHash } from "crypto";
 import { removeFilesFromChannelsDescriptionMap } from "../channelsHelpers/describe/listener/index.js";
 import { removeFilesFromRoutesDescriptionMap } from "../routersHelpers/describe/index.js";
 import { routerSuffixRegx } from "../routersHelpers/matchers.js";
-import path from "path";
 import { execSync } from "child_process";
+import { createLogger } from "kt-logger";
+
+const log = await createLogger({
+    color: "yellow", 
+    logLevel: "Info", 
+    name: "Type Scanner", 
+    worker: false, 
+})
+
 const app = express();
 app.use(cors());
 app.use(express.urlencoded({ extended: true }));
@@ -92,7 +100,6 @@ const createTypeManager = async (
         skipLibCheck: true,
     };
 
-    console.time("Creating TS Host");
     // Create a CompilerHost with optimized caching
     const host = ts.createCompilerHost(options);
 
@@ -136,15 +143,10 @@ const createTypeManager = async (
     host.fileExists = (fileName) => {
         return fileContents.has(fileName) || ts.sys.fileExists(fileName);
     };
-    console.timeEnd("Creating TS Host");
 
     // Create program - always create fresh to pick up changes
-    console.time("Creating TS Program");
     const program = ts.createProgram(Object.keys(routesFilesMap), options, host);
-    console.timeEnd("Creating TS Program");
-    console.time("Creating TS Checker");
     const checker = program.getTypeChecker();
-    console.timeEnd("Creating TS Checker");
     return {
         checker,
         host,
@@ -175,7 +177,7 @@ const getTypeManager = async (
     }
 
     // Files changed or context doesn't exist - recreate
-    console.log(filesChanged ? "Files changed, recreating type manager" : "Creating initial type manager");
+    log(filesChanged ? "Files changed, recreating type manager" : "Creating initial type manager");
 
     // Determine which files need invalidation
     const filesToInvalidate = new Set<string>();
@@ -235,7 +237,7 @@ const readFiles = async (fileMap: { [fileFullPath: string]: string }) => {
                 const content = await readFile(filePath, "utf-8");
                 fileContents.set(filePath, content);
             } catch (error) {
-                console.error(`Failed to read file ${filePath}:`, error);
+                log.error(`Failed to read file ${filePath}:`, error);
             }
         })
     );
@@ -249,12 +251,10 @@ const runProcessorCycle = async () => {
         return;
     }
     running = true;
-    console.log("Running process cycle");
+    log("Running process cycle");
     try {
-        console.time("Collecting routes");
         const { routesFilesMap } = await collectRoutesFiles();
         await readFiles(routesFilesMap);
-        console.timeEnd("Collecting routes");
         const { filesChanged, context, filesToInvalidate } = await getTypeManager(routesFilesMap, fileContents);
 
         if (filesToInvalidate.size) {
@@ -269,7 +269,7 @@ const runProcessorCycle = async () => {
                 const routerName = file.slice(0, file.indexOf(routerMatch[0]));
                 toBeDeletedDescriptions.push(`${routerName}${descriptionPreExtensionSuffix}.md`);
             }
-            console.log("Deleting description files", toBeDeletedDescriptions.join(" "));
+            log("Deleting description files", toBeDeletedDescriptions.join(" "));
             execSync(`npx rimraf ${toBeDeletedDescriptions.join(" ")}`);
 
             removeFilesFromRoutesDescriptionMap(list);
@@ -281,7 +281,7 @@ const runProcessorCycle = async () => {
             await useContextToProcessTypes(context, Object.keys(routesFilesMap));
         }
     } catch (error) {
-        console.error("type processor cycle error", error);
+        log.error("type processor cycle error", error);
     } finally {
         running = false;
     }
@@ -289,7 +289,7 @@ const runProcessorCycle = async () => {
 
 app.get("/process", async (_request, response) => {
     await batchCycle();
-    console.log("Received process request");
+    log("Received process request");
     response.status(200);
 });
 
