@@ -1,12 +1,13 @@
 import express from "express";
 import cors from "cors";
-import { collectRoutesFilesAndDeleteDescriptions, createTypeManager, useContextToProcessTypes } from "./index.js";
+import { collectRoutesFilesAndDeleteDescriptions, useContextToProcessTypes } from "./index.js";
 import { readFile } from "fs/promises";
 import ts from "typescript";
 import { getTypeScannerBatchingPeriod } from "../loadConfig/index.js";
 import { clearEventsDescriptionMap } from "../channelsHelpers/describe/emitter/index.js";
 import { clearChannelsDescriptionMap } from "../channelsHelpers/describe/listener/index.js";
 import { clearRoutesDescriptionMap } from "../routersHelpers/describe/index.js";
+import { createHash } from "crypto";
 
 const app = express();
 app.use(cors());
@@ -20,18 +21,190 @@ let context: {
     sourceFileMap: Map<string, ts.SourceFile>;
 } | null = null;
 
+// Track file state for change detection
+let previousFileHashes = new Map<string, string>();
+let previousFilePaths = new Set<string>();
+
+// Helper to compute content hash for change detection
+const computeFileHash = (content: string): string => {
+    return createHash("sha256").update(content).digest("hex");
+};
+
+// Check if files have changed by comparing paths and content hashes
+const hasFilesChanged = (
+    currentFilePaths: string[],
+    currentFileContents: Map<string, string>
+): boolean => {
+    const currentPathsSet = new Set(currentFilePaths);
+    
+    // Check if file set changed (new files added or removed)
+    if (currentPathsSet.size !== previousFilePaths.size) {
+        return true;
+    }
+    
+    // Check for new files (in current but not in previous)
+    for (const path of currentPathsSet) {
+        if (!previousFilePaths.has(path)) {
+            return true; // New file added
+        }
+    }
+    
+    // Check for deleted files (in previous but not in current)
+    for (const path of previousFilePaths) {
+        if (!currentPathsSet.has(path)) {
+            return true; // File removed
+        }
+    }
+    
+    // Check if any existing file content changed
+    for (const [filePath, content] of currentFileContents.entries()) {
+        const currentHash = computeFileHash(content);
+        const previousHash = previousFileHashes.get(filePath);
+        
+        if (previousHash === undefined || previousHash !== currentHash) {
+            return true; // File content changed
+        }
+    }
+    
+    return false;
+};
+
+// Update file tracking state
+const updateFileTracking = (
+    filePaths: string[],
+    fileContents: Map<string, string>
+) => {
+    previousFilePaths = new Set(filePaths);
+    previousFileHashes.clear();
+    
+    for (const [filePath, content] of fileContents.entries()) {
+        previousFileHashes.set(filePath, computeFileHash(content));
+    }
+};
+
+const createTypeManager = async (
+    routesFilesMap: { [key: string]: string },
+    fileContents: Map<string, string>,
+    invalidateSourceFiles?: Set<string>
+) => {
+    // Basic compiler options
+    const options = {
+        target: ts.ScriptTarget.Latest,
+        module: ts.ModuleKind.CommonJS,
+        strict: true,
+        esModuleInterop: true,
+        skipLibCheck: true,
+    };
+
+    console.time("Creating TS Host");
+    // Create a CompilerHost with optimized caching
+    const host = ts.createCompilerHost(options);
+    
+    // Reuse existing sourceFileMap if context exists, otherwise create new
+    const sourceFileMap = context?.sourceFileMap || new Map<string, ts.SourceFile>();
+    
+    // Clear invalidated source files from cache
+    if (invalidateSourceFiles) {
+        for (const filePath of invalidateSourceFiles) {
+            sourceFileMap.delete(filePath);
+        }
+    }
+
+    host.getSourceFile = (fileName: string, languageVersion: ts.ScriptTarget | ts.CreateSourceFileOptions) => {
+        // Always get fresh content from fileContents map to ensure we have latest
+        const content = fileContents.get(fileName);
+        
+        // If we have a cached source file and content hasn't changed, reuse it
+        if (sourceFileMap.has(fileName) && !invalidateSourceFiles?.has(fileName)) {
+            const cached = sourceFileMap.get(fileName);
+            if (cached) {
+                // Verify content matches (defensive check)
+                const cachedContent = cached.getFullText();
+                if (cachedContent === content) {
+                    return cached;
+                }
+            }
+        }
+
+        // Create new source file from current content
+        const fileContent = content || ts.sys.readFile(fileName) || "";
+        const sourceFile = ts.createSourceFile(fileName, fileContent, languageVersion);
+        sourceFileMap.set(fileName, sourceFile);
+        return sourceFile;
+    };
+
+    host.readFile = (fileName) => {
+        // Always return latest content from fileContents map
+        return fileContents.get(fileName) || ts.sys.readFile(fileName);
+    };
+    host.fileExists = (fileName) => {
+        return fileContents.has(fileName) || ts.sys.fileExists(fileName);
+    };
+    console.timeEnd("Creating TS Host");
+
+    // Create program - always create fresh to pick up changes
+    console.time("Creating TS Program");
+    const program = ts.createProgram(Object.keys(routesFilesMap), options, host);
+    console.timeEnd("Creating TS Program");
+    console.time("Creating TS Checker");
+    const checker = program.getTypeChecker();
+    console.timeEnd("Creating TS Checker");
+    return {
+        checker,
+        host,
+        program,
+        sourceFileMap,
+    };
+};
+
+
 const getTypeManager = async (
     routesFilesMap: {
         [filePath: string]: string;
     },
     fileContents: Map<string, string>
 ) => {
-    if (context) {
-        return context;
+    const currentFilePaths = Object.keys(routesFilesMap);
+    const filesChanged = hasFilesChanged(currentFilePaths, fileContents);
+    
+    if (context && !filesChanged) {
+        // No changes detected, reuse existing context
+        // But still update source files that might have been modified
+        // (This is a defensive measure - the hash check should catch changes)
+        return {context, filesToInvalidate: new Set<string>()};
     }
 
-    context = await createTypeManager(routesFilesMap, fileContents);
-    return context;
+    // Files changed or context doesn't exist - recreate
+    console.log(filesChanged ? "Files changed, recreating type manager" : "Creating initial type manager");
+    
+    // Determine which files need invalidation
+    const filesToInvalidate = new Set<string>();
+    if (context && filesChanged) {
+        // Invalidate all files that changed or are new
+        for (const filePath of currentFilePaths) {
+            const currentHash = computeFileHash(fileContents.get(filePath) || "");
+            const previousHash = previousFileHashes.get(filePath);
+            if (!previousHash || previousHash !== currentHash) {
+                filesToInvalidate.add(filePath);
+            }
+        }
+        // Also invalidate files that were removed (though they won't be in currentFilePaths)
+        for (const oldPath of previousFilePaths) {
+            if (!currentFilePaths.includes(oldPath)) {
+                filesToInvalidate.add(oldPath);
+            }
+        }
+    }
+
+    context = await createTypeManager(routesFilesMap, fileContents, filesToInvalidate);
+    
+    // Update tracking state for next cycle
+    updateFileTracking(currentFilePaths, fileContents);
+    
+    return {
+        context, 
+        filesToInvalidate
+    };
 };
 
 let timeout: null | NodeJS.Timeout | number = null;
@@ -76,11 +249,13 @@ const runProcessorCycle = async () => {
         const routesFilesMap = await collectRoutesFilesAndDeleteDescriptions();
         await readFiles(routesFilesMap);
         console.timeEnd("Collecting routes");
-        const tsContext = await getTypeManager(routesFilesMap, fileContents);
+        const { context, filesToInvalidate} = await getTypeManager(routesFilesMap, fileContents);
         clearChannelsDescriptionMap();
         clearRoutesDescriptionMap();
         clearEventsDescriptionMap();
-        await useContextToProcessTypes(tsContext, Object.keys(routesFilesMap));
+        console.time("Checking for types")
+        await useContextToProcessTypes(context, filesToInvalidate.size ? Array.from(filesToInvalidate) : Object.keys(routesFilesMap));
+        console.timeEnd("Checking for types")
     } catch (error) {
         console.error("type processor cycle error", error);
     } finally {

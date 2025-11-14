@@ -844,11 +844,6 @@ export const useContextToProcessTypes = async (
             // Extract method from AST instead of regex (much faster)
             const method = routeTypes ? extractMethodFromAST(sf, defaultExportExpr) : "GET";
 
-            console.log({
-                routeTypes,
-                eventsTypes,
-                channelTypes,
-            });
             // Describe routes, channels, and events
             if (routeTypes) {
                 describeRoute({

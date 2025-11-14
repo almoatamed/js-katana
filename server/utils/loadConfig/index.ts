@@ -61,7 +61,7 @@ export const getAllDescriptionsSecret = async () => {
 
 export const getTypeScannerBatchingPeriod = async () => {
     const config = await loadConfig();
-    return (await valueOf(config.getTypeScannerBatchingPeriod)) ?? 1e3;
+    return (await valueOf(config.getTypeScannerBatchingPeriod)) ?? 6e3;
 };
 
 export const autoDescribe = async () => {
