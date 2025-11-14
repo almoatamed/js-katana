@@ -163,7 +163,12 @@ const getTypeManager = async (
         // No changes detected, reuse existing context
         // But still update source files that might have been modified
         // (This is a defensive measure - the hash check should catch changes)
-        return { context, filesToInvalidate: new Set<string>(), deletedFilesSet: new Set<string>() };
+        return {
+            context,
+            filesChanged: false,
+            filesToInvalidate: new Set<string>(),
+            deletedFilesSet: new Set<string>(),
+        };
     }
 
     // Files changed or context doesn't exist - recreate
@@ -199,6 +204,7 @@ const getTypeManager = async (
         context,
         deletedFilesSet,
         filesToInvalidate,
+        filesChanged: true,
     };
 };
 
@@ -244,7 +250,7 @@ const runProcessorCycle = async () => {
         const routesFilesMap = await collectRoutesFilesAndDeleteDescriptions();
         await readFiles(routesFilesMap);
         console.timeEnd("Collecting routes");
-        const { context, filesToInvalidate } = await getTypeManager(routesFilesMap, fileContents);
+        const { filesChanged, context, filesToInvalidate } = await getTypeManager(routesFilesMap, fileContents);
 
         if (filesToInvalidate.size) {
             const list = Array.from(filesToInvalidate);
@@ -252,14 +258,11 @@ const runProcessorCycle = async () => {
             removeFilesFromEventsDescriptionMap(list);
             removeFilesFromChannelsDescriptionMap(list);
 
-            console.time("Checking for types");
-            await useContextToProcessTypes(
-                context,
-                filesToInvalidate.size ? Array.from(filesToInvalidate) : Object.keys(routesFilesMap)
-            );
+            await useContextToProcessTypes(context, list);
+        } else if (filesChanged) {
+            await useContextToProcessTypes(context, Object.keys(routesFilesMap));
         }
 
-        console.timeEnd("Checking for types");
     } catch (error) {
         console.error("type processor cycle error", error);
     } finally {
