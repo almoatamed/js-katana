@@ -27,7 +27,6 @@ import {
     type Route,
 } from "../router/index.js";
 import {
-    autoDescribe,
     getAllDescriptionsSecret,
     getRouterDirectory,
     getTypesPlacementDir,
@@ -36,9 +35,7 @@ import {
 import { readFile } from "fs/promises";
 import path from "path";
 import fs from "fs";
-import cluster from "cluster";
 import { renderMdDescriptionFile } from "../renderDescriptionFile/index.js";
-import { processRoutesForTypes } from "../typesScanner/index.js";
 
 const log = await createLogger({
     color: "blue",
@@ -325,7 +322,6 @@ export default async function buildRouter(
     if (root) {
         await Promise.all(aliases.map((f) => f()));
         await processRouterForChannels();
-        await maybeProcessRoutesForTypes();
 
         const typesPlacementDir = await getTypesPlacementDir();
         const typesPath = path.join(typesPlacementDir, "apiTypes.json");
@@ -777,9 +773,3 @@ async function processRouterForChannels() {
     rebuildHandlerPathMap();
 }
 
-const maybeProcessRoutesForTypes = async () => {
-    if (!(await autoDescribe()) || !cluster.isPrimary || !(await isDev())) {
-        return;
-    }
-    await processRoutesForTypes(routesFilesMap);
-};

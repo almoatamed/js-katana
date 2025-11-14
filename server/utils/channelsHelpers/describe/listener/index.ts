@@ -22,10 +22,13 @@ export type DescriptionProps = {
 };
 export type ChannelDescriptionProps = DescriptionProps;
 
-export const descriptionsMap = {} as {
+export let channelsDescriptionsMap = {} as {
     [key: string]: DescriptionProps;
 };
-export const channelsDescriptionsMap = descriptionsMap;
+
+export const clearChannelsDescriptionMap = () => {
+    channelsDescriptionsMap = {};
+};
 
 const routesDir = await getRouterDirectory();
 
@@ -169,25 +172,23 @@ type Response = ${options.responseBodyTypeString || "any"}
         options.fullChannelPath = channelPrecisePath;
         options.descriptionFileFullPath = path.join(channelPrecisePath, "/describe");
 
-        if (descriptionsMap[options.fullChannelPath]) {
-            console.error(
+        if (channelsDescriptionsMap[options.fullChannelPath]) {
+            console.warn(
                 "Channel Descriptor Already Registered",
                 "\nNew Registration:",
                 options,
                 "\nOld Registration:",
-                descriptionsMap[options.fullChannelPath]
+                channelsDescriptionsMap[options.fullChannelPath]
             );
-            throw new Error();
         }
         options.fileUrl = options.fullChannelPath;
-        descriptionsMap[options.fullChannelPath] = {
-            ...descriptionsMap[options.fullChannelPath],
+        channelsDescriptionsMap[options.fullChannelPath] = {
+            ...channelsDescriptionsMap[options.fullChannelPath],
             ...options,
         };
     } catch (error: any) {
         console.error(error);
         console.error("CRITICAL: Invalid Channel Descriptor", options);
-        process.exit(-1);
     }
 };
 export const describeChannel = describe;

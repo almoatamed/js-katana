@@ -2,15 +2,20 @@ import ts from "typescript";
 import { describeRoute, routesDescriptionMap } from "../routersHelpers/describe/index.js";
 import { pathToFileURL } from "url";
 import { channelsDescriptionsMap, describeChannel } from "../channelsHelpers/describe/listener/index.js";
-import { describeEvent, descriptionsMap } from "../channelsHelpers/describe/emitter/index.js";
+import { describeEvent, eventsDescriptionMap } from "../channelsHelpers/describe/emitter/index.js";
 import { readFile } from "fs/promises";
 import { mkdir } from "fs/promises";
-import { getTypesPlacementDir } from "../loadConfig/index.js";
+import { getDescriptionPreExtensionSuffix, getRouterDirectory, getTypesPlacementDir } from "../loadConfig/index.js";
 import { writeFile } from "fs/promises";
 import path from "path";
 import cluster from "cluster";
+import { execSync } from "child_process";
+import { routerSuffixRegx } from "../routersHelpers/matchers.js";
 
-const createTypeManager = async (routesFilesMap: { [key: string]: string }, fileContents: Map<string, string>) => {
+export const createTypeManager = async (
+    routesFilesMap: { [key: string]: string },
+    fileContents: Map<string, string>
+) => {
     // Basic compiler options
     const options = {
         target: ts.ScriptTarget.Latest,
@@ -20,22 +25,23 @@ const createTypeManager = async (routesFilesMap: { [key: string]: string }, file
         skipLibCheck: true,
     };
 
+    console.time("Creating TS Host");
     // Create a CompilerHost with optimized caching
     const host = ts.createCompilerHost(options);
     const sourceFileMap = new Map<string, ts.SourceFile>();
-    
+
     host.getSourceFile = (fileName: string, languageVersion: ts.ScriptTarget | ts.CreateSourceFileOptions) => {
         // Check cache first
         if (sourceFileMap.has(fileName)) {
             return sourceFileMap.get(fileName);
         }
-        
+
         // Check file content cache
         let content = fileContents.get(fileName);
         if (!content) {
             content = ts.sys.readFile(fileName) || "";
+            fileContents.set(fileName, content);
         }
-        
         const sourceFile = ts.createSourceFile(fileName, content, languageVersion);
         sourceFileMap.set(fileName, sourceFile);
         return sourceFile;
@@ -47,10 +53,15 @@ const createTypeManager = async (routesFilesMap: { [key: string]: string }, file
     host.fileExists = (fileName) => {
         return fileContents.has(fileName) || ts.sys.fileExists(fileName);
     };
+    console.timeEnd("Creating TS Host");
 
     // Create program
+    console.time("Creating TS Program");
     const program = ts.createProgram(Object.keys(routesFilesMap), options, host);
+    console.timeEnd("Creating TS Program");
+    console.time("Creating TS Checker");
     const checker = program.getTypeChecker();
+    console.timeEnd("Creating TS Checker");
     return {
         checker,
         host,
@@ -92,11 +103,11 @@ function isTypeReference(t: any): t is ts.TypeReference {
 
 function expandAliasIfNeeded(checker: ts.TypeChecker, type: ts.Type): ts.Type {
     if (!type || !type.aliasSymbol) return type;
-    
+
     // Check cache first
     const cached = aliasExpansionCache.get(type);
     if (cached) return cached;
-    
+
     try {
         const declared = checker.getDeclaredTypeOfSymbol(type.aliasSymbol);
         if (declared && declared !== type) {
@@ -106,7 +117,7 @@ function expandAliasIfNeeded(checker: ts.TypeChecker, type: ts.Type): ts.Type {
     } catch (e) {
         console.error(e);
     }
-    
+
     aliasExpansionCache.set(type, type);
     return type;
 }
@@ -120,7 +131,7 @@ function getCacheKey(depth: number, parentsNames: string[]): string {
 
 function stringify(checker: ts.TypeChecker, type: ts.Type, depth = 0, parentsNames: string[] = []): string {
     if (!type) return "any";
-    
+
     // Check memoization cache
     let typeCache = stringifyCache.get(type);
     if (!typeCache) {
@@ -130,14 +141,11 @@ function stringify(checker: ts.TypeChecker, type: ts.Type, depth = 0, parentsNam
     const cacheKey = getCacheKey(depth, parentsNames);
     const cached = typeCache.get(cacheKey);
     if (cached) return cached;
-    
+
     const typeName = checker.typeToString(type);
-    
+
     // Early return for common cases or circular references
-    if (
-        depth > 20 ||
-        (!COMMON_TYPE_NAMES.has(typeName) && parentsNames.includes(typeName))
-    ) {
+    if (depth > 20 || (!COMMON_TYPE_NAMES.has(typeName) && parentsNames.includes(typeName))) {
         typeCache.set(cacheKey, typeName);
         return typeName;
     }
@@ -654,7 +662,7 @@ const useContextToProcessEventsForTypes = (
 // Helper to extract HTTP method from AST
 const extractMethodFromAST = (sf: ts.SourceFile, defaultExportExpr: ts.Expression | null): string => {
     if (!defaultExportExpr) return "GET";
-    
+
     // Try to find method property in the exported object
     const findMethodInObject = (node: ts.Node): string | null => {
         if (ts.isObjectLiteralExpression(node)) {
@@ -681,7 +689,7 @@ const extractMethodFromAST = (sf: ts.SourceFile, defaultExportExpr: ts.Expressio
         }
         return null;
     };
-    
+
     // Traverse the export expression to find method
     let method: string | null = null;
     const visitor = (node: ts.Node): void => {
@@ -693,14 +701,48 @@ const extractMethodFromAST = (sf: ts.SourceFile, defaultExportExpr: ts.Expressio
         ts.forEachChild(node, visitor);
     };
     visitor(defaultExportExpr);
-    
+
     return method || "GET";
+};
+
+export const collectRoutesFilesAndDeleteDescriptions = async () => {
+    const routerDirectory = await getRouterDirectory();
+    const fs = (await import("fs/promises")).default;
+    const path = (await import("path")).default;
+
+    const routesFilesMap: { [key: string]: string } = {};
+    const descriptionPreExtensionSuffix = await getDescriptionPreExtensionSuffix();
+    const toBeDeletedDescriptions: string[] = [];
+
+    const traverseDirectory = async (directory: string) => {
+        const items = await fs.readdir(directory, { withFileTypes: true });
+
+        for (const item of items) {
+            const itemPath = path.join(directory, item.name);
+            if (item.isDirectory()) {
+                await traverseDirectory(itemPath);
+            } else {
+                const routerMatch = item.name.match(routerSuffixRegx);
+                if (!routerMatch) {
+                    continue;
+                }
+                const routerName = item.name.slice(0, item.name.indexOf(routerMatch[0]));
+                toBeDeletedDescriptions.push(path.join(directory, `${routerName}${descriptionPreExtensionSuffix}.md`));
+                routesFilesMap[itemPath] = itemPath;
+            }
+        }
+    };
+    await traverseDirectory(routerDirectory);
+
+    const command = `npx rimraf ${toBeDeletedDescriptions.join(" ")}`;
+    execSync(command, { shell: "/bin/bash" });
+    return routesFilesMap;
 };
 
 export const processRoutesForTypes = async (routesFilesMap: { [routeFileFullPath: string]: string }) => {
     // Pre-read all file contents in parallel for maximum performance
-    const filePaths = Object.keys(routesFilesMap);
     const fileContents = new Map<string, string>();
+    const filePaths = Object.keys(routesFilesMap);
     await Promise.all(
         filePaths.map(async (filePath) => {
             try {
@@ -711,9 +753,20 @@ export const processRoutesForTypes = async (routesFilesMap: { [routeFileFullPath
             }
         })
     );
-    
+
     const tsContext = await createTypeManager(routesFilesMap, fileContents);
-    
+    await useContextToProcessTypes(tsContext, filePaths);
+};
+
+export const useContextToProcessTypes = async (
+    tsContext: {
+        checker: ts.TypeChecker;
+        host: ts.CompilerHost;
+        program: ts.Program;
+        sourceFileMap: Map<string, ts.SourceFile>;
+    },
+    filePaths: string[]
+) => {
     // Process all routes sequentially (CPU-bound operations, parallelism not beneficial on single thread)
     // But we process them efficiently with all optimizations
     for (const routeFullPath of filePaths) {
@@ -723,12 +776,12 @@ export const processRoutesForTypes = async (routesFilesMap: { [routeFileFullPath
             if (!sf) {
                 continue;
             }
-            
+
             // Single-pass AST traversal to extract all needed information
             let defaultExportExpr: ts.Expression | null = null;
             let channelExportExpr: ts.Expression | null = null;
             let eventExpressions: ts.CallExpression[] = [];
-            
+
             for (const stmt of sf.statements) {
                 // Check for event expressions
                 if (stmt.kind === ts.SyntaxKind.ExpressionStatement) {
@@ -749,7 +802,7 @@ export const processRoutesForTypes = async (routesFilesMap: { [routeFileFullPath
                 if (ts.isExportAssignment(stmt) && !stmt.isExportEquals) {
                     defaultExportExpr = stmt.expression;
                 }
-                
+
                 // Check for channel handler export
                 if (
                     ts.isVariableStatement(stmt) &&
@@ -791,6 +844,11 @@ export const processRoutesForTypes = async (routesFilesMap: { [routeFileFullPath
             // Extract method from AST instead of regex (much faster)
             const method = routeTypes ? extractMethodFromAST(sf, defaultExportExpr) : "GET";
 
+            console.log({
+                routeTypes,
+                eventsTypes,
+                channelTypes,
+            });
             // Describe routes, channels, and events
             if (routeTypes) {
                 describeRoute({
@@ -841,7 +899,7 @@ const storeDescriptions = async () => {
             {
                 routesDescriptions: routesDescriptionMap,
                 channelsDescriptions: channelsDescriptionsMap,
-                eventsDescriptions: descriptionsMap,
+                eventsDescriptions: eventsDescriptionMap,
             },
             null,
             4

@@ -3,7 +3,7 @@ import findRoot from "find-root-kt";
 import { getConfigPath } from "locate-config-kt";
 import path from "path";
 import os from "os";
-import type { Redis } from "ioredis";
+import { Redis, RedisOptions } from "ioredis";
 import { Handler } from "../router/index.js";
 
 type MaybePromise<T> = (() => Promise<T> | T) | T;
@@ -13,10 +13,11 @@ export type RoutingConfig = {
      * Default is true
      */
     allDescriptionsSecret?: MaybePromise<string>;
+    getTypeScannerBatchingPeriod?: MaybePromise<number>;
     runSingle?: MaybePromise<boolean>;
     isDev?: MaybePromise<boolean>;
     autoDescribe?: MaybePromise<boolean>;
-    getRedisClient?: MaybePromise<Redis>;
+    getRedisClient?: MaybePromise<RedisOptions>;
     getMaxForks?: MaybePromise<number>;
     getTypesPlacementDir?: MaybePromise<string>;
     getStartupDirPath?: MaybePromise<string>;
@@ -58,11 +59,16 @@ export const getAllDescriptionsSecret = async () => {
     return (await valueOf(config.allDescriptionsSecret)) ?? process.env.DESCRIPTIONS_SECRET ?? null;
 };
 
+export const getTypeScannerBatchingPeriod = async () => {
+    const config = await loadConfig();
+    return (await valueOf(config.getTypeScannerBatchingPeriod)) ?? 1e3;
+};
+
 export const autoDescribe = async () => {
     const config = await loadConfig();
     const result = await valueOf(config.autoDescribe);
     return result ?? true;
-}
+};
 
 export const valueOf = async <T>(v?: MaybePromise<T>): Promise<T | undefined> => {
     if (typeof v === "function") {
@@ -99,10 +105,18 @@ export async function getMaxForks() {
     return (await valueOf(config.getMaxForks)) || 6;
 }
 
-export async function gerRedisClient() {
+let redisClient: Redis | null = null;
+export async function gerRedisClient(): Promise<Redis | undefined> {
+    if (redisClient) {
+        return redisClient;
+    }
     const config = await loadConfig();
-    const client = await valueOf(config.getRedisClient);
-    return client;
+    const redisConfig = await valueOf(config.getRedisClient);
+    if (redisConfig) {
+        redisClient = new Redis(redisConfig);
+        return redisClient
+    }
+    return undefined;
 }
 
 export async function getSocketPrefix() {

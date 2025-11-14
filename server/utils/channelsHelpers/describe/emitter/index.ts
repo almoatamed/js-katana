@@ -18,11 +18,12 @@ export type DescriptionProps = {
 };
 export type EventDescriptionProps = DescriptionProps;
 
-export const descriptionsMap = {} as {
+export let eventsDescriptionMap = {} as {
     [key: string]: DescriptionProps;
 };
-export const eventsDescriptionMap = descriptionsMap;
-
+export const clearEventsDescriptionMap = () => {
+    eventsDescriptionMap = {};
+};
 const checkType = (typeString: string) => {
     const sourceCode = `type TempType = ${typeString};`;
     // oxlint-disable-next-line no-eval
@@ -155,23 +156,22 @@ type ExpectedResponseBody = ${options.expectedResponseBodyTypeString || "any"}
 
         options.fileUrl = routePrecisePath;
 
-        if (descriptionsMap[options.event]) {
+        if (eventsDescriptionMap[options.event]) {
             console.warn(
                 "Event Descriptor Already Registered",
                 "\nNew Registration:",
                 options,
                 "\nOld Registration:",
-                descriptionsMap[options.event]
+                eventsDescriptionMap[options.event]
             );
         }
-        descriptionsMap[options.event] = {
-            ...descriptionsMap[options.event],
+        eventsDescriptionMap[options.event] = {
+            ...eventsDescriptionMap[options.event],
             ...options,
         };
     } catch (error: any) {
         console.error(error);
         console.error("CRITICAL: Invalid Event Descriptor", options);
-        process.exit(-1);
     }
 };
 export const describeEvent = describe;

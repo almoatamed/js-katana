@@ -1,12 +1,21 @@
 #! /usr/bin/env bun
-import { execSync } from "child_process";
+import { execSync, spawn, spawnSync } from "child_process";
 import { program } from "commander";
 import { readVolatileJSON } from "kt-common";
 import { createLogger } from "kt-logger";
 import { getConfigPath } from "locate-config-kt";
 import path from "path";
-import { getSourceDir } from "../loadConfig/index.js";
+import { autoDescribe, getSourceDir, isDev } from "../loadConfig/index.js";
 import { writeFile } from "fs/promises";
+import cluster from "cluster";
+
+const sleep = (periodInMilliseconds: number) => {
+    return new Promise<void>((resolve) => {
+        setTimeout(() => {
+            resolve();
+        }, periodInMilliseconds);
+    });
+};
 
 const hasBun = async () => {
     try {
@@ -50,13 +59,43 @@ const run = async () => {
         .description("Start the server in development mode using bun or node")
         .action(async () => {
             const useBun = await hasBun();
+
+            const maybeSpawnTypeProcessor = async () => {
+                if (!(await autoDescribe()) || !cluster.isPrimary || !(await isDev())) {
+                    return;
+                }
+                const typeProcessorPath = path.join(import.meta.dirname, "../typesScanner/server.js");
+
+                console.log("starting type processor server");
+
+                const processor = spawn(useBun ? "bun" : "node", [typeProcessorPath], {
+                    stdio: "inherit",
+                    cwd: await getSourceDir(),
+                });
+
+                const cleanup = () => {
+                    console.log("Killing type processor....");
+                    if (!processor.killed) {
+                        processor.kill("SIGTERM"); // graceful kill
+                    }
+                    console.log("type processor killed");
+                };
+                await sleep(1e3);
+                // Handle Ctrl+C, nodemon restarts, etc.
+                process.on("SIGINT", cleanup);
+                process.on("SIGTERM", cleanup);
+                process.on("exit", cleanup);
+            };
+
             if (useBun) {
                 log("Starting server in development mode using bun...");
+                await maybeSpawnTypeProcessor();
                 execSync("bun --watch run ./run.js", {
                     cwd: path.join(import.meta.dirname, "../.."),
                     stdio: "inherit",
                     encoding: "utf-8",
                 });
+                execSync("kill");
             } else {
                 log("Starting server in development mode using node...");
                 execSync("npx tsx --watch ./run.js", {

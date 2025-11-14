@@ -22,7 +22,6 @@
         },
         "./package.json": "./package.json"
     },
-    
     "files": [
         "dist",
         "README.md",
@@ -69,5 +68,9 @@
         "prismjs": "^1.30.0",
         "quick-lru": "^7.3.0",
         "socket.io": "^4.8.1"
+    },
+    "dependencies": {
+        "async-batcher-js": "^1.1.0",
+        "axios": "^1.13.2"
     }
 }

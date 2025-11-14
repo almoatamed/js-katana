@@ -22,10 +22,12 @@ export type DescriptionProps = {
     descriptionFileFullPath?: string;
 };
 export type RouteDescriptionProps = DescriptionProps;
-export const descriptionsMap = {} as {
+export let routesDescriptionMap = {} as {
     [key: string]: DescriptionProps;
 };
-export const routesDescriptionMap = descriptionsMap;
+export const clearRoutesDescriptionMap = () => {
+    routesDescriptionMap = {};
+};
 
 const routerDirectory = await getRouterDirectory();
 
@@ -37,7 +39,6 @@ const checkType = (typeString: string) => {
 
 const descriptionPreExtensionSuffix = await getDescriptionPreExtensionSuffix();
 const routerSuffix = await getRouteSuffix();
-
 
 export const describe = (options: DescriptionProps) => {
     try {
@@ -197,25 +198,24 @@ type Response = ${options.responseBodyTypeString || "any"}
         options.descriptionFileFullPath = path.join(routePrecisePath, "/describe");
 
         options.fileUrl = options.fullRoutePath;
-        if (descriptionsMap[options.fullRoutePath]) {
+        if (routesDescriptionMap[options.fullRoutePath]) {
             console.warn(
                 "Route Descriptor Already Registered: overriding previous registration.",
                 "\nNew Registration:",
                 options,
                 "\nOld Registration:",
-                descriptionsMap[options.fullRoutePath]
+                routesDescriptionMap[options.fullRoutePath]
             );
-            descriptionsMap[options.fullRoutePath] = {
-                ...descriptionsMap[options.fullRoutePath],
+            routesDescriptionMap[options.fullRoutePath] = {
+                ...routesDescriptionMap[options.fullRoutePath],
                 ...options,
             };
         } else {
-            descriptionsMap[options.fullRoutePath] = options;
+            routesDescriptionMap[options.fullRoutePath] = options;
         }
     } catch (error: any) {
         console.error(error);
         console.error("CRITICAL: Invalid Route Descriptor", options);
-        process.exit(-1);
     }
 };
 
