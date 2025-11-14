@@ -1,5 +1,5 @@
 #! /usr/bin/env bun
-import { execSync, spawn, spawnSync } from "child_process";
+import { execSync, spawn } from "child_process";
 import { program } from "commander";
 import { readVolatileJSON } from "kt-common";
 import { createLogger } from "kt-logger";

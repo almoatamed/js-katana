@@ -21,9 +21,27 @@ export type EventDescriptionProps = DescriptionProps;
 export let eventsDescriptionMap = {} as {
     [key: string]: DescriptionProps;
 };
+const fileFullPathToEventMap = new Map<string, string>();
+
 export const clearEventsDescriptionMap = () => {
     eventsDescriptionMap = {};
 };
+
+export const removeFilesFromEventsDescriptionMap = (filesFullPaths: string[]) => {
+    for (const f of filesFullPaths) {
+        const event = fileFullPathToEventMap.get(f);
+        if (event) {
+            (eventsDescriptionMap as any)[event] = undefined;
+        }
+        fileFullPathToEventMap.delete(f);
+    }
+    eventsDescriptionMap = Object.fromEntries(
+        Object.entries(eventsDescriptionMap).filter(([_event, description]) => {
+            return !!description;
+        })
+    );
+};
+
 const checkType = (typeString: string) => {
     const sourceCode = `type TempType = ${typeString};`;
     // oxlint-disable-next-line no-eval
@@ -51,6 +69,7 @@ export const describe = (options: DescriptionProps) => {
         }
 
         const routePath = url.fileURLToPath(options.fileUrl);
+
         const routeDirectory = path.dirname(routePath);
 
         const routeRelativePath = url.fileURLToPath(options.fileUrl).replace(routeDirectory, "");
@@ -169,6 +188,7 @@ type ExpectedResponseBody = ${options.expectedResponseBodyTypeString || "any"}
             ...eventsDescriptionMap[options.event],
             ...options,
         };
+        fileFullPathToEventMap.set(routePath, options.event);
     } catch (error: any) {
         console.error(error);
         console.error("CRITICAL: Invalid Event Descriptor", options);

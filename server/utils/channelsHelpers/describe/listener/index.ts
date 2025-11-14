@@ -29,6 +29,22 @@ export let channelsDescriptionsMap = {} as {
 export const clearChannelsDescriptionMap = () => {
     channelsDescriptionsMap = {};
 };
+const fileFullPathToChannel = new Map<string, string>();
+
+export const removeFilesFromChannelsDescriptionMap = (filesFullPaths: string[]) => {
+    for (const f of filesFullPaths) {
+        const event = fileFullPathToChannel.get(f);
+        if (event) {
+            (channelsDescriptionsMap as any)[event] = undefined;
+        }
+        fileFullPathToChannel.delete(f);
+    }
+    channelsDescriptionsMap = Object.fromEntries(
+        Object.entries(channelsDescriptionsMap).filter(([_, description]) => {
+            return !!description;
+        })
+    );
+};
 
 const routesDir = await getRouterDirectory();
 
@@ -182,6 +198,7 @@ type Response = ${options.responseBodyTypeString || "any"}
             );
         }
         options.fileUrl = options.fullChannelPath;
+        fileFullPathToChannel.set(channelPath, options.fullChannelPath);
         channelsDescriptionsMap[options.fullChannelPath] = {
             ...channelsDescriptionsMap[options.fullChannelPath],
             ...options,

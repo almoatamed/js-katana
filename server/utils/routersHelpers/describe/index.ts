@@ -29,6 +29,22 @@ export const clearRoutesDescriptionMap = () => {
     routesDescriptionMap = {};
 };
 
+const fileFullPathToRoute = new Map<string, string>();
+
+export const removeFilesFromRoutesDescriptionMap = (filesFullPaths: string[]) => {
+    for (const f of filesFullPaths) {
+        const event = fileFullPathToRoute.get(f);
+        if (event) {
+            (routesDescriptionMap as any)[event] = undefined;
+        }
+        fileFullPathToRoute.delete(f);
+    }
+    routesDescriptionMap = Object.fromEntries(
+        Object.entries(routesDescriptionMap).filter(([_, description]) => {
+            return !!description;
+        })
+    );
+};
 const routerDirectory = await getRouterDirectory();
 
 const checkType = (typeString: string) => {
@@ -197,7 +213,8 @@ type Response = ${options.responseBodyTypeString || "any"}
         options.fullRoutePath = routePrecisePath;
         options.descriptionFileFullPath = path.join(routePrecisePath, "/describe");
 
-        options.fileUrl = options.fullRoutePath;
+        // options.fileUrl = options.fullRoutePath;
+        fileFullPathToRoute.set(routePath, options.fullRoutePath);
         if (routesDescriptionMap[options.fullRoutePath]) {
             console.warn(
                 "Route Descriptor Already Registered: overriding previous registration.",
