@@ -92,11 +92,20 @@ export const getDescriptionPreExtensionSuffix = async () => {
     return (await valueOf(config.getDescriptionPreExtensionSuffix)) || ".description";
 };
 
-export const isDev = async () => {
+const hasProductionArg = () => {
+    const result = process.argv.find((arg) => {
+        return arg == "--production" || arg == "--prod" || arg == "-p";
+    });
+    return result;
+};
+
+export const isDev = async (): Promise<boolean> => {
     const config = await loadConfig();
-    return (
+    return !!(
         (await valueOf(config.isDev)) ??
-        (String(process.env.NODE_ENV).toLowerCase() == "dev" || String(process.env.ENV).toLowerCase() == "dev")
+        (!hasProductionArg() ||
+            String(process.env.NODE_ENV).toLowerCase() == "dev" ||
+            String(process.env.ENV).toLowerCase() == "dev")
     );
 };
 
@@ -114,7 +123,7 @@ export async function gerRedisClient(): Promise<Redis | undefined> {
     const redisConfig = await valueOf(config.getRedisClient);
     if (redisConfig) {
         redisClient = new Redis(redisConfig);
-        return redisClient
+        return redisClient;
     }
     return undefined;
 }

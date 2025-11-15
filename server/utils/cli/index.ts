@@ -114,14 +114,14 @@ const run = async () => {
             const useBun = await hasBun();
             if (useBun) {
                 log("Starting server in production mode using bun...");
-                execSync("bun run ./run.js", {
+                execSync("bun run ./run.js --production", {
                     cwd: path.join(import.meta.dirname, "../.."),
                     stdio: "inherit",
                     encoding: "utf-8",
                 });
             } else {
                 log("Starting server in production mode using node...");
-                execSync("node ./run.js", {
+                execSync("node ./run.js --production", {
                     cwd: path.join(import.meta.dirname, "../.."),
                     stdio: "inherit",
                     encoding: "utf-8",
