@@ -26,12 +26,19 @@ import {
     type Middleware,
     type Route,
 } from "../router/index.js";
-import { getAllDescriptionsSecret, getRouterDirectory, getTypesPlacementDir, isDev } from "../loadConfig/index.js";
+import {
+    getAllDescriptionsSecret,
+    getDescriptionPreExtensionSuffix,
+    getRouterDirectory,
+    getTypesPlacementDir,
+    isDev,
+} from "../loadConfig/index.js";
 import { readFile } from "fs/promises";
 import path from "path";
-import fs from "fs";
+import fs, { existsSync } from "fs";
 import { RenderMdDescriptionFile } from "../renderDescriptionFile/index.js";
 import { readdir } from "fs/promises";
+import { trimSlashes } from "kt-common";
 
 const log = await createLogger({
     color: "blue",
@@ -191,7 +198,8 @@ export default async function buildRouter(
                     // Check if it's a description file
                     const descMatch = item.match(descriptionSuffixRegx);
                     if (descMatch) {
-                        descriptionFiles.set(itemPath, item);
+                        const key = itemPath.slice(0, itemPath.indexOf(descMatch[0]));
+                        descriptionFiles.set(key, itemPath);
                     }
                 }
             }
@@ -224,7 +232,8 @@ export default async function buildRouter(
         // Assign middlewares directly (avoid spread if possible)
         routerInstance.externalMiddlewares = allMiddlewares.length > 0 ? allMiddlewares.slice() : [];
 
-        const descriptionFile = descriptionFiles.get(routeFullPath);
+        const key = path.join(path.dirname(routeFullPath), routerName);
+        const descriptionFile = descriptionFiles.get(key);
 
         const descriptionRoutePath = path.join(routePath, "/describe");
         return {
@@ -267,15 +276,16 @@ export default async function buildRouter(
                         const renderPath = routerName === "index" ? fullPrefix : path.join(fullPrefix, routerName);
 
                         if (isMarkdown) {
-                            const rendered = (await RenderMdDescriptionFile(renderPath, descriptionFullPath)) as JSX.Element;
+                            const rendered = (await RenderMdDescriptionFile(
+                                renderPath,
+                                descriptionFullPath
+                            )) as JSX.Element;
                             return context.respond.html(rendered.toString());
                         }
                         return context.respond.file(descriptionFullPath);
                     }
-                } else 
-                    
-                    if (descriptionFile) {
-                    const descriptionFullPath = path.join(directoryPath, descriptionFile);
+                } else if (descriptionFile) {
+                    const descriptionFullPath = descriptionFile;
                     const isMarkdown = descriptionFullPath.endsWith(".md");
                     const renderPath = routerName === "index" ? fullPrefix : path.join(fullPrefix, routerName);
 
@@ -290,6 +300,28 @@ export default async function buildRouter(
                         error: "There is no description for this route",
                     },
                 ]);
+            },
+            middleWares: getDescriptionMiddleware(devMode, secret),
+            method: "GET",
+        };
+
+        routesRegistryMap[`${descriptionRoutePath}.:ext`] = {
+            __symbol: routerSymbol,
+            serveVia: ["Http"],
+            externalMiddlewares: [],
+            handler: async (context) => {
+                console.log(result);
+                const targetPath = `/${trimSlashes(
+                    path.join(path.dirname(result.fullRouteFilePath), result.routerName)
+                )}${await getDescriptionPreExtensionSuffix()}.${context.params?.ext}`;
+                if (!existsSync(targetPath)) {
+                    throwRequestError(404, [
+                        {
+                            error: "There is no description with this extension for this route",
+                        },
+                    ]);
+                }
+                return context.respond.file(targetPath);
             },
             middleWares: getDescriptionMiddleware(devMode, secret),
             method: "GET",
