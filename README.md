@@ -152,6 +152,14 @@ Run `npx kt-cli scan-types` to generate:
 
 Use these types with `js-kt-client` for end-to-end type safety from server to client!
 
+#### Under the Hood: Type Scanner
+
+The background type scanner (`server/utils/typesScanner/server.ts`) keeps generation blazing fast even in large repos:
+- An Express worker listens on port `3751` and batches requests (`/process`) so repeated triggers collapse into a single run.
+- Every route file is hashed (`sha256`) and tracked; the scanner reuses a cached `ts.SourceFile` map and only re-creates the program when the file set or contents change.
+- When a file changes or is deleted, matching `.description.md` artifacts are removed before `useContextToProcessTypes` reprocesses the minimal invalidated list—no stale docs survive.
+- Because change detection happens before the expensive compiler work, full rescans only occur when the route graph actually changes, keeping dev feedback near-instant even with thousands of files.
+
 ---
 
 ## 🔌 WebSocket Channels
@@ -267,6 +275,31 @@ curl -X POST http://localhost:3000/api/action \
 socket.emit('/api/action', { action: 'process' }, (response) => {
     console.log(response); // Same response structure!
 });
+
+### Source-Aware Handlers
+
+Handlers can detect how a request arrived and use transport-specific helpers exposed by `HandlerContext` (`server/utils/router/index.ts`):
+
+```typescript
+import { createHandler } from "js-kt";
+
+export default createHandler({
+    method: "GET",
+    handler: (context) => {
+        if (context.servedVia === "http") {
+            context.setHeader("x-powered-by", "js-kt");
+            context.sourceStream; // Raw Node stream if you need it
+            return context.respond.text("Hello HTTP!");
+        }
+
+        // Socket invocation carries the actual socket instance
+        context.socket.emit("audit", { route: context.fullPath });
+        return context.respond.json({ via: "socket", id: context.socket.id });
+    },
+});
+```
+
+This makes it trivial to branch logic, attach extra headers, or tap into the live `Socket` instance without duplicating handlers.
 ```
 
 ---
@@ -848,6 +881,31 @@ export default createHandler({
     },
 });
 ```
+
+### Streaming FormData Uploads
+
+`createFormDataHandler` (`server/utils/multipartProcessor/index.ts`) turns any route into a zero-copy multipart endpoint: it parses boundaries manually, writes file parts to temp files via streams (respecting per-field, per-file, and total size limits), and exposes a typed `context.files` map while merging simple fields back into `context.body`. Because writes happen directly to disk with backpressure support, uploads stay memory-safe even for multi-gig payloads.
+
+```typescript
+// src/routes/index.router.ts
+import path from "path";
+import { createFormDataHandler } from "js-kt";
+
+export default createFormDataHandler({
+    method: "POST",
+    handler: async (context) => {
+        for (const field in context.files) {
+            for (const file of context.files[field]) {
+                await file.move(path.join(import.meta.dirname, "./uploads"));
+            }
+        }
+
+        return context.respond.json({ stored: true, fields: context.body });
+    },
+});
+```
+
+Each file entry includes `fileName`, `mimeType`, `size`, a temporary `path`, and a `move` helper you can point at your permanent storage directory.
 
 ---
 
