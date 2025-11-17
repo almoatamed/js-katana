@@ -1,10 +1,10 @@
-import { CorsOptions, CorsOptionsDelegate, CorsRequest } from "cors";
 import findRoot from "find-root-kt";
 import { getConfigPath } from "locate-config-kt";
 import path from "path";
 import os from "os";
 import { Redis, RedisOptions } from "ioredis";
 import { Handler } from "../router/index.js";
+import { execSync } from "child_process";
 
 type MaybePromise<T> = (() => Promise<T> | T) | T;
 
@@ -14,6 +14,7 @@ export type RoutingConfig = {
      */
     allDescriptionsSecret?: MaybePromise<string>;
     getTypeScannerBatchingPeriod?: MaybePromise<number>;
+    httpAdapter?: MaybePromise<"express" | "bun">;
     runSingle?: MaybePromise<boolean>;
     isDev?: MaybePromise<boolean>;
     autoDescribe?: MaybePromise<boolean>;
@@ -49,11 +50,40 @@ export type RoutingConfig = {
         {
             local: string;
             remote: string;
-            middlewares?: Handler<any, any, any, any, any>[];
+            middlewares?: Handler<any, any, any, any, any, any>[];
         }[]
     >;
-    getCorsOptions?: <T extends CorsRequest = CorsRequest>() => CorsOptions | CorsOptionsDelegate<T>;
+    getCorsOptions?: MaybePromise<{
+        "Access-Control-Allow-Origin"?: string;
+        "Access-Control-Allow-Methods"?: ("GET" | "POST" | "PUT" | "DELETE" | "OPTIONS")[];
+    }>;
 };
+
+let hasBunCachedValue: boolean | undefined = undefined;
+export const hasBun = async () => {
+    if (typeof hasBunCachedValue == "boolean") {
+        return hasBunCachedValue;
+    }
+
+    try {
+        execSync("bun --version");
+        hasBunCachedValue = true;
+        return true;
+    } catch {
+        console.warn(
+            "Bun is not installed or not found in PATH",
+            "it is recommended to use bun for better performance"
+        );
+        hasBunCachedValue = false;
+        return false;
+    }
+};
+
+export const getHttpAdapter = async () => {
+    const config = await loadConfig();
+    return await valueOf(config.httpAdapter);
+};
+
 export const getAllDescriptionsSecret = async () => {
     const config = await loadConfig();
     return (await valueOf(config.allDescriptionsSecret)) ?? process.env.DESCRIPTIONS_SECRET ?? null;

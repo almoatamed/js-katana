@@ -88,9 +88,9 @@ if (!cluster.isPrimary) {
     await start();
 } else {
     log("Attempting to run startups");
-    const { app, makeServer } = await createApp(true);
+    const { makeServer } = await createApp(true);
     const startup = (await import("../startup/index.js")).default;
-    await startup(app);
+    await startup();
 
     await makeServer();
 

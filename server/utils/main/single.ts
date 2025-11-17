@@ -15,10 +15,10 @@ const startup = (await import("../startup/index.js")).default;
 
 log("finished importing");
 
-const { app, makeServer } = await createApp();
+const { makeServer } = await createApp();
 
 log("Attempting to run startups");
-await startup(app);
+await startup();
 log("Finished running startups");
 
 const port = await getPort();

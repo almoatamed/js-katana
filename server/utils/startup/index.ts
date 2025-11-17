@@ -14,7 +14,7 @@ const getStartupDir = async () => {
 
 const startupDir = await getStartupDir();
 
-const loadStartup = async function (app: Application, root = startupDir) {
+const loadStartup = async function (root = startupDir) {
     if(!fs.existsSync(root)){
         console.warn(`Startup directory not found at path: ${root}`);
         return;
@@ -29,12 +29,12 @@ const loadStartup = async function (app: Application, root = startupDir) {
 
         const itemStats = fs.statSync(itemAbsolutePath);
         if (itemStats.isDirectory()) {
-            await loadStartup(app, itemAbsolutePath);
+            await loadStartup(itemAbsolutePath);
         } else {
             if (item.endsWith(".run.js") || item.endsWith(".run.ts")) {
                 const run = (await import(url.pathToFileURL(itemAbsolutePath).toString())).run;
                 if (typeof run == "function") {
-                    await run(app);
+                    await run();
                 }
             }
         }

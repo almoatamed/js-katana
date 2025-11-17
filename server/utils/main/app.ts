@@ -1,17 +1,23 @@
-import { createServer } from "http";
+import { createServer, IncomingMessage, Server, ServerResponse } from "http";
 import { run, runThreaded } from "../channelsBuilder/index.js";
 import { createLogger } from "kt-logger";
 import express from "express";
 import path from "path";
-import cors from "cors";
 
-import { getApiPrefix, getCorsOptions, getMaxJsonSize, getSourceDir, getStaticDirs } from "../loadConfig/index.js";
+import {
+    getApiPrefix,
+    getHttpAdapter,
+    getMaxJsonSize,
+    getSourceDir,
+    getStaticDirs,
+    hasBun,
+} from "../loadConfig/index.js";
 import compression from "compression";
 import { routesRegistryMap } from "../mainRouterBuilder/index.js";
 import { createHandler, extractRequestError, HandlerContext, Route, throwRequestError } from "../router/index.js";
 import { Handler as ExpressHandler } from "express";
 
-const convertHandlerToExpressMiddleware = (route: Omit<Route<any, any, any, any, any>, "handler">) => {
+const convertHandlerToExpressMiddleware = (route: Omit<Route<any, any, any, any, any, any>, "handler">) => {
     const expressHandler: ExpressHandler = async (request, response, next) => {
         let responded = false;
         try {
@@ -19,8 +25,13 @@ const convertHandlerToExpressMiddleware = (route: Omit<Route<any, any, any, any,
             const params = { ...request.params };
             const headers = { ...request.headers };
             const body = { ...request.body };
-            const context: HandlerContext<any, any, any, any> = {
-                locale: {},
+            const context: HandlerContext<any, any, any, any, any> = {
+                locals: {},
+                servedVia: "http",
+                setHeader(key, value) {
+                    response.setHeader(key, value);
+                },
+                sourceStream: request,
                 fullPath: request.originalUrl,
                 method: route.method,
                 respond: {
@@ -90,7 +101,7 @@ const convertHandlerToExpressMiddleware = (route: Omit<Route<any, any, any, any,
     return expressHandler;
 };
 
-const convertHandlerToExpressRoute = (route: Route<any, any, any, any, any>) => {
+const convertHandlerToExpressRoute = (route: Route<any, any, any, any, any, any>) => {
     const expressHandler: ExpressHandler = async (request, response) => {
         let responded = false;
         try {
@@ -99,8 +110,13 @@ const convertHandlerToExpressRoute = (route: Route<any, any, any, any, any>) => 
             const headers = { ...request.headers };
             const body = { ...request.body };
 
-            const context: HandlerContext<any, any, any, any> = {
-                locale: {},
+            const context: HandlerContext<any, any, any, any, any> = {
+                locals: {},
+                servedVia: "http",
+                setHeader(key, value) {
+                    response.setHeader(key, value);
+                },
+                sourceStream: request,
                 method: route.method,
                 fullPath: request.originalUrl,
                 respond: {
@@ -177,7 +193,9 @@ const convertHandlerToExpressRoute = (route: Route<any, any, any, any, any>) => 
     return expressHandler;
 };
 
-export async function createApp(multithreading = false) {
+export async function createExpressApp(multithreading = false): Promise<{
+    makeServer: () => Promise<Server<typeof IncomingMessage, typeof ServerResponse>>;
+}> {
     const llog = await createLogger({
         color: "red",
         logLevel: "Info",
@@ -191,9 +209,6 @@ export async function createApp(multithreading = false) {
     app.use(compression());
     app.use(express.json({ limit: await getMaxJsonSize() }));
     app.use(express.urlencoded({ extended: false }));
-
-    const corsConfig = await getCorsOptions();
-    app.use(cors(corsConfig));
 
     app.use((await import("./requestLogger.js")).requestLogger);
 
@@ -242,7 +257,7 @@ export async function createApp(multithreading = false) {
     app.use(errorHandler);
 
     return {
-        app,
+        // app,
         makeServer: async () => {
             const httpServer = createServer(app);
 
@@ -255,4 +270,19 @@ export async function createApp(multithreading = false) {
             return httpServer;
         },
     };
+}
+
+export async function createApp(multithreading = false) {
+    const targetAdapter = await getHttpAdapter();
+    const isBun = await hasBun();
+
+    if (!isBun && targetAdapter == "bun") {
+        console.warn("Configured HTTP adapter is `bun` but you dont have bun installed!");
+    }
+
+    // if (isBun && (targetAdapter === undefined || targetAdapter == "bun")) {
+    //     return createBunApp(multithreading);
+    // } else {
+    return createExpressApp(multithreading);
+    // }
 }

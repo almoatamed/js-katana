@@ -1,11 +1,11 @@
-#! /usr/bin/env bun
+#! /usr/bin/env node
 import { execSync, spawn } from "child_process";
 import { program } from "commander";
 import { readVolatileJSON } from "kt-common";
 import { createLogger } from "kt-logger";
 import { getConfigPath } from "locate-config-kt";
 import path from "path";
-import { autoDescribe, getSourceDir, isDev } from "../loadConfig/index.js";
+import { autoDescribe, getSourceDir, hasBun, isDev } from "../loadConfig/index.js";
 import { writeFile } from "fs/promises";
 import cluster from "cluster";
 
@@ -17,18 +17,6 @@ const sleep = (periodInMilliseconds: number) => {
     });
 };
 
-const hasBun = async () => {
-    try {
-        execSync("bun --version");
-        return true;
-    } catch {
-        console.warn(
-            "Bun is not installed or not found in PATH",
-            "it is recommended to use bun for better performance"
-        );
-        return false;
-    }
-};
 
 const log = await createLogger({
     name: "KT CLI",

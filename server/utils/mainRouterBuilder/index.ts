@@ -28,6 +28,7 @@ import {
 } from "../router/index.js";
 import {
     getAllDescriptionsSecret,
+    getCorsOptions,
     getDescriptionPreExtensionSuffix,
     getRouterDirectory,
     getTypesPlacementDir,
@@ -47,7 +48,7 @@ const log = await createLogger({
     worker: false,
 });
 type RouteRegistry = {
-    [key: string]: Route<any, any, any, any, any>;
+    [key: string]: Route<any, any, any, any, any, any>;
 };
 
 export let routesRegistryMap: RouteRegistry = {};
@@ -88,7 +89,7 @@ async function getFileStats(filePaths: string[]): Promise<Map<string, fs.Stats>>
     return statsMap;
 }
 
-export async function getMiddlewaresArray(routerDirectory: string): Promise<Handler<any, any, any, any, any>[]> {
+export async function getMiddlewaresArray(routerDirectory: string): Promise<Handler<any, any, any, any, any, any>[]> {
     const content = fs.readdirSync(routerDirectory);
     const filePaths = content.map((f) => path.join(routerDirectory, f));
     const statsMap = await getFileStats(filePaths);
@@ -103,7 +104,7 @@ export async function getMiddlewaresArray(routerDirectory: string): Promise<Hand
         middlewareFiles.map(async (f) => {
             const fullPath = path.join(routerDirectory, f);
             try {
-                const middleware: Handler<any, any, any, any, any> = (await import(fullPath)).default;
+                const middleware: Handler<any, any, any, any, any, any> = (await import(fullPath)).default;
                 if (typeof middleware !== "function") {
                     return null;
                 }
@@ -115,7 +116,7 @@ export async function getMiddlewaresArray(routerDirectory: string): Promise<Hand
         })
     );
 
-    return middlewares.filter((m): m is Handler<any, any, any, any, any> => m !== null && m !== undefined);
+    return middlewares.filter((m): m is Handler<any, any, any, any, any, any> => m !== null && m !== undefined);
 }
 
 const defaultRoutesDirectory = await getRouterDirectory();
@@ -125,10 +126,10 @@ function normalizeRoutePath(routePath: string): string {
     return routePath.replace(paramReplaceRegex, ":$1");
 }
 
-const getDescriptionMiddleware: (devMode: boolean, secret?: string | null) => Middleware<any, any, any, any, any>[] = (
-    devMode,
-    secret
-) => [
+const getDescriptionMiddleware: (
+    devMode: boolean,
+    secret?: string | null
+) => Middleware<any, any, any, any, any, any>[] = (devMode, secret) => [
     async (context) => {
         if (devMode) {
             return;
@@ -145,7 +146,7 @@ const getDescriptionMiddleware: (devMode: boolean, secret?: string | null) => Mi
 ];
 
 export default async function buildRouter(
-    providedMiddlewares: Middleware<any, any, any, any, any>[] = [],
+    providedMiddlewares: Middleware<any, any, any, any, any, any>[] = [],
     routerDirectory = defaultRoutesDirectory,
     root = true,
     fullPrefix = "/"
@@ -153,6 +154,24 @@ export default async function buildRouter(
     if (root) {
         routesRegistryMap = {};
         statCache.clear(); // Clear cache on root build
+        const configuredCorsOptions = await getCorsOptions();
+        providedMiddlewares.push((context) => {
+            if (context.servedVia != "http") {
+                return;
+            }
+            let corsOptions: typeof configuredCorsOptions = configuredCorsOptions;
+            if (!corsOptions) {
+                corsOptions = {
+                    "Access-Control-Allow-Methods": ["DELETE", "GET", "OPTIONS", "POST", "PUT"],
+                    "Access-Control-Allow-Origin": "*",
+                } satisfies typeof configuredCorsOptions;
+            }
+            for (const header in corsOptions) {
+                if (corsOptions[header]) {
+                    context.setHeader(header, corsOptions[header]);
+                }
+            }
+        });
     }
 
     const content = fs.readdirSync(routerDirectory);
@@ -734,8 +753,10 @@ const loadCompatibleRoutesIntoChannels = async () => {
                             const query = body?.__query ? { ...body.__query } : {};
                             const headers = body?.__headers ? { ...body.__headers } : {};
 
-                            const context: HandlerContext<any, any, any, any> = {
-                                locale: {},
+                            const context: HandlerContext<any, any, any, any, any> = {
+                                locals: {},
+                                servedVia: "socket",
+                                socket: _socket,
                                 method: route.method,
                                 fullPath: routePath,
                                 respond: {

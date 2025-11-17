@@ -1,3 +1,5 @@
+import type { Socket } from "socket.io";
+
 export type JSONResult<T> = T;
 export type FileResult = Promise<{
     path: string;
@@ -5,7 +7,7 @@ export type FileResult = Promise<{
 export type Text = string;
 export type Html = Text;
 
-export type HandlerContext<B, Q, P, H> = {
+export type HandlerContext<B, Q, P, H, SourceStream extends NodeJS.ReadableStream> = {
     respond: {
         json: <D>(data: D) => JSONResult<D>;
         file: (fullPath: string) => FileResult;
@@ -13,38 +15,48 @@ export type HandlerContext<B, Q, P, H> = {
         html: (html: string) => Html;
     };
     method: "GET" | "POST" | "PUT" | "DELETE" | "ALL" | "PATCH";
-    locale: Record<string, any>;
+    locals: Record<string, any>;
     query: Q;
     fullPath: string;
     params: P;
     headers: H;
-    setStatus: (statusCode: number) => HandlerContext<B, Q, P, H>;
+    setStatus: (statusCode: number) => HandlerContext<B, Q, P, H, SourceStream>;
     body: B;
-};
+} & (
+    | {
+          servedVia: "http";
+          sourceStream: SourceStream;
+          setHeader: (key: string, value: string) => void;
+      }
+    | {
+          servedVia: "socket";
+          socket: Socket;
+      }
+);
 
-export type Handler<T, B, Q, P, H> = (
-    context: HandlerContext<B, Q, P, H>,
+export type Handler<T, B, Q, P, H, S extends NodeJS.ReadableStream> = (
+    context: HandlerContext<B, Q, P, H, S>,
     body: B,
     query: Q,
     params: P,
     headers: H
 ) => T;
 
-export type Middleware<T, B, Q, P, H> = Handler<T, B, Q, P, H>;
+export type Middleware<T, B, Q, P, H, S extends NodeJS.ReadableStream> = Handler<T, B, Q, P, H, S>;
 
-export const defineMiddleware = <T, B, Q, P, H>(
-    middleware: Middleware<T, B, Q, P, H>
+export const defineMiddleware = <T, B, Q, P, H, S extends NodeJS.ReadableStream>(
+    middleware: Middleware<T, B, Q, P, H, S>
 ) => {
     return middleware;
 };
 
-export type Route<T, B, Q, P, H> = {
-    externalMiddlewares: Middleware<any, B, Q, P, H>[];
-    middleWares: Middleware<any, B, Q, P, H>[];
+export type Route<T, B, Q, P, H, S extends NodeJS.ReadableStream> = {
+    externalMiddlewares: Middleware<any, B, Q, P, H, S>[];
+    middleWares: Middleware<any, B, Q, P, H, S>[];
     serveVia: ("Http" | "Socket")[];
     __symbol: symbol;
     method: "GET" | "POST" | "PUT" | "DELETE" | "ALL" | "PATCH";
-    handler: Handler<T, B, Q, P, H>;
+    handler: Handler<T, B, Q, P, H, S>;
 };
 
 export const routerSymbol = Symbol("Router symbol");
@@ -63,13 +75,13 @@ export const createAlias = (props: Omit<RouterAlias, "symbol">) => {
     } as RouterAlias;
 };
 
-export const createHandler = <T, B, Q, P, H>(
+export const createHandler = <T, B, Q, P, H, S extends NodeJS.ReadableStream>(
     props: Omit<
-        Omit<Omit<Omit<Route<T, B, Q, P, H>, "externalMiddlewares">, "__symbol">, "serveVia">,
+        Omit<Omit<Omit<Route<T, B, Q, P, H, S>, "externalMiddlewares">, "__symbol">, "serveVia">,
         "middleWares"
     > & {
-        serveVia?: Route<T, B, Q, P, H>["serveVia"];
-        middleWares?: Middleware<any, B, Q, P, H>[];
+        serveVia?: Route<T, B, Q, P, H, S>["serveVia"];
+        middleWares?: Middleware<any, B, Q, P, H, S>[];
     }
 ) => {
     return {
@@ -78,7 +90,7 @@ export const createHandler = <T, B, Q, P, H>(
         externalMiddlewares: [],
         serveVia: props.serveVia || ["Http", "Socket"],
         __symbol: routerSymbol,
-    } as Route<T, B, Q, P, H>;
+    } as Route<T, B, Q, P, H, S>;
 };
 
 export const requestErrorSymbol = Symbol("Request Error");
