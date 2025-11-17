@@ -18,7 +18,7 @@ function sanitizeFilename(name = "file") {
     return path.basename(name).replace(/[^\w.\-() ]+/g, "_");
 }
 
-type CurrentMultipartField =
+export type CurrentMultipartField =
     | {
           isFile: true;
           headers: {
@@ -38,7 +38,7 @@ type CurrentMultipartField =
           name: string;
       };
 
-class MultipartParser<Source extends NodeJS.ReadableStream> {
+export class MultipartParser<Source extends NodeJS.ReadableStream> {
     req: Source;
     boundary: Buffer;
     boundaryDash: Buffer;
