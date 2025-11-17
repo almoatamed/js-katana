@@ -7,11 +7,12 @@ import { createLogger } from "kt-logger";
 import { gerRedisClient, getSocketPrefix } from "../loadConfig/index.js";
 import { createRequestError, extractRequestError } from "../router/index.js";
 import { ChannelHandler, createSocketRouter } from "./sucketRouter/index.js";
+import { Server as BunEngine } from "@socket.io/bun-engine"
 const { setupMaster, setupWorker } = await import("@socket.io/sticky");
 const { createAdapter: createClusterAdapter, setupPrimary } = await import("@socket.io/cluster-adapter");
 
 const log = await createLogger({
-    worker: false,
+    worker: true,
     color: "yellow",
     logLevel: "Info",
     name: "Channels-Manager",
@@ -42,13 +43,13 @@ type ChannelHandlerSimple<B, R> = (body: B, respond: (response: R) => void | und
 const defineChannelHandler = <B, R>(
     definition: (socket: Socket) =>
         | {
-              middlewares?: ChannelHandlerSimple<B, R>[];
-              handler: ChannelHandlerSimple<B, R>;
-          }
+            middlewares?: ChannelHandlerSimple<B, R>[];
+            handler: ChannelHandlerSimple<B, R>;
+        }
         | Promise<{
-              middlewares?: ChannelHandlerSimple<B, R>[];
-              handler: ChannelHandlerSimple<B, R>;
-          }>
+            middlewares?: ChannelHandlerSimple<B, R>[];
+            handler: ChannelHandlerSimple<B, R>;
+        }>
 ): ChannelHandlerBuilder<B, R> => {
     return async (socket) => {
         const result = await definition(socket);
@@ -359,23 +360,12 @@ export const emitToRoom = (room: string, event: string, ...arg: any[]) => {
     io.to(room).emit(event, ...arg);
 };
 
-export const run = async (httpServer: http.Server) => {
+export const runExpress = async (httpServer: http.Server) => {
     io = new Server(httpServer, {
         path: await getSocketPrefix(),
         cors: {
             origin: "*",
             methods: ["GET", "POST"],
-        },
-        perMessageDeflate: {
-            threshold: 1024, // Minimum size in bytes before compressing
-            zlibDeflateOptions: {
-                // Options for zlib's deflate
-                chunkSize: 1024,
-            },
-            zlibInflateOptions: {
-                // Options for zlib's inflate
-                chunkSize: 10 * 1024,
-            },
         },
     });
     const redisClient = await gerRedisClient();
@@ -388,7 +378,7 @@ export const run = async (httpServer: http.Server) => {
         await registerSocket(socket);
     });
 };
-export const runThreaded = async (httpServer: http.Server) => {
+export const runThreadedExpress = async (httpServer: http.Server) => {
     if (cluster.isPrimary) {
         setupMaster(httpServer, {
             loadBalancingMethod: "least-connection",
@@ -401,17 +391,6 @@ export const runThreaded = async (httpServer: http.Server) => {
             cors: {
                 origin: "*",
                 methods: ["GET", "POST"],
-            },
-            perMessageDeflate: {
-                threshold: 1024, // Minimum size in bytes before compressing
-                zlibDeflateOptions: {
-                    // Options for zlib's deflate
-                    chunkSize: 1024,
-                },
-                zlibInflateOptions: {
-                    // Options for zlib's inflate
-                    chunkSize: 10 * 1024,
-                },
             },
         });
 
@@ -428,4 +407,55 @@ export const runThreaded = async (httpServer: http.Server) => {
             await registerSocket(socket);
         });
     }
+};
+
+export const runBun = async () => {
+    const path = await getSocketPrefix();
+
+    // create socket.io server (no http server here)
+    io = new Server({
+        path,
+        cors: { origin: "*", methods: ["GET", "POST"] },
+    });
+
+    // create bun-native engine & bind it
+    const engine = new BunEngine({ path });
+    io.bind(engine);
+
+    const redisClient = await gerRedisClient();
+    if (redisClient) {
+        const pub = redisClient.duplicate();
+        const sub = redisClient.duplicate();
+        // `createRedisAdapter` returns an adapter instance/function depending on version
+        io.adapter(createRedisAdapter(pub, sub));
+    }
+
+    // register connection handler
+    io.on("connection", async (socket) => {
+        await registerSocket(socket);
+    });
+
+    return engine
+};
+export const runThreadedBun = async () => {
+    const path = await getSocketPrefix();
+    const io = new Server({
+        path,
+        cors: { origin: "*", methods: ["GET", "POST"] },
+    });
+
+    const engine = new BunEngine({ path });
+    io.bind(engine);
+
+    const redisClient = await gerRedisClient();
+    if (redisClient) {
+        const pub = redisClient.duplicate();
+        const sub = redisClient.duplicate();
+        io.adapter(createRedisAdapter(pub, sub));
+    }
+
+    io.on("connection", async (socket) => {
+        await registerSocket(socket);
+    });
+    return engine
 };

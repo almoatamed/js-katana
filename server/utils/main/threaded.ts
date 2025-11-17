@@ -2,9 +2,9 @@ process.setMaxListeners(30);
 const cluster = (await import("cluster")).default;
 const os = (await import("os")).default;
 
-import { createLogger, forceLog } from "kt-logger";
+import { createLogger } from "kt-logger";
 import { createApp } from "./app.js";
-import { getHeadersTimeout, getKeepAliveTimeout, getMaxForks, getPort } from "../loadConfig/index.js";
+import { getMaxForks } from "../loadConfig/index.js";
 import { sleep } from "kt-common";
 
 const log = await createLogger({
@@ -53,7 +53,7 @@ if (cluster.isPrimary) {
 }
 
 if (!cluster.isPrimary) {
-    const listener = (msg) => {
+    const listener = (msg: any) => {
         if (msg == "start" || msg == "go ahead") {
             startWorking = true;
         }
@@ -62,17 +62,8 @@ if (!cluster.isPrimary) {
 
     const start = async () => {
         process.removeListener("message", listener);
-
-        log("started", process.pid);
-        const { makeServer } = await createApp(true);
-
-        const port = await getPort();
-        const server = (await makeServer()).listen(port);
-
-        forceLog("Started server on port", port, " PID", process.pid);
-
-        server.keepAliveTimeout = await getKeepAliveTimeout();
-        server.headersTimeout = await getHeadersTimeout();
+        const { startServer } = await createApp(true);
+        await startServer();
     };
 
     const waitForMaster = async () => {
@@ -88,11 +79,11 @@ if (!cluster.isPrimary) {
     await start();
 } else {
     log("Attempting to run startups");
-    const { makeServer } = await createApp(true);
+    const { startServer } = await createApp(true);
     const startup = (await import("../startup/index.js")).default;
     await startup();
 
-    await makeServer();
+    await startServer();
 
     startWorking = true;
 

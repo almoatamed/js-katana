@@ -28,9 +28,12 @@ import {
 } from "../router/index.js";
 import {
     getAllDescriptionsSecret,
+    getApiPrefix,
     getCorsOptions,
     getDescriptionPreExtensionSuffix,
     getRouterDirectory,
+    getSourceDir,
+    getStaticDirs,
     getTypesPlacementDir,
     isDev,
 } from "../loadConfig/index.js";
@@ -40,6 +43,7 @@ import fs, { existsSync } from "fs";
 import { RenderMdDescriptionFile } from "../renderDescriptionFile/index.js";
 import { readdir } from "fs/promises";
 import { trimSlashes } from "kt-common";
+import { mkdir } from "fs/promises";
 
 const log = await createLogger({
     color: "blue",
@@ -145,6 +149,9 @@ const getDescriptionMiddleware: (
     },
 ];
 
+const apiPrefix = await getApiPrefix();
+const srcPath = await getSourceDir();
+
 export default async function buildRouter(
     providedMiddlewares: Middleware<any, any, any, any, any, any>[] = [],
     routerDirectory = defaultRoutesDirectory,
@@ -241,9 +248,9 @@ export default async function buildRouter(
 
         let routePath: string;
         if (routerName === "index") {
-            routePath = fullPrefix;
+            routePath = path.join(apiPrefix, fullPrefix);
         } else {
-            routePath = path.join(fullPrefix, routerName);
+            routePath = path.join(apiPrefix, fullPrefix, routerName);
         }
         routePath = normalizeRoutePath(routePath);
         routesFilesMap[routeFullPath] = routePath;
@@ -362,7 +369,7 @@ export default async function buildRouter(
 
         aliases.push(async () => {
             const matchingRoutes: RouteRegistry = {};
-            const aliasPath = routerAlias.path;
+            const aliasPath = path.join(apiPrefix, routerAlias.path);
 
             // Optimized filtering and mapping
             for (const [routePath, route] of Object.entries(routesRegistryMap)) {
@@ -397,11 +404,45 @@ export default async function buildRouter(
         await Promise.all(aliases.map((f) => f()));
         await processRouterForChannels();
 
+        // Set static folder
+        for (const staticResource of await getStaticDirs()) {
+            const root = path.join(srcPath, staticResource.local);
+            const remotePrefix = staticResource.remote;
+            await mkdir(root, { recursive: true });
+
+            log("created static file server", root, remotePrefix);
+            routesRegistryMap[path.join(staticResource.remote, "*filePath")] = {
+                __symbol: routerSymbol,
+                externalMiddlewares: [],
+                middleWares: staticResource.middlewares || [],
+                handler: (
+                    context,
+                    _body,
+                    _query,
+                    params: {
+                        filePath: string[];
+                    }
+                ) => {
+                    const targetFile = path.join(root, ...(params.filePath || []));
+                    if (!fs.existsSync(targetFile)) {
+                        throwRequestError(404, [
+                            {
+                                error: "File not found",
+                            },
+                        ]);
+                    }
+                    return context.respond.file(targetFile);
+                },
+                serveVia: ["Http"],
+                method: "GET",
+            };
+        }
+
         const typesPlacementDir = await getTypesPlacementDir();
         const typesPath = path.join(typesPlacementDir, "apiTypes.json");
         const [devMode, secret] = await Promise.all([isDev(), getAllDescriptionsSecret()]);
 
-        routesRegistryMap[path.join(fullPrefix, "/__describe-json")] = {
+        routesRegistryMap[path.join(apiPrefix, fullPrefix, "/__describe-json")] = {
             __symbol: routerSymbol,
             externalMiddlewares: [],
             handler: async (context) => {
@@ -419,7 +460,7 @@ export default async function buildRouter(
             serveVia: ["Http"],
         };
 
-        routesRegistryMap[path.join(fullPrefix, "/__routes-list")] = {
+        routesRegistryMap[path.join(apiPrefix, fullPrefix, "/__routes-list")] = {
             __symbol: routerSymbol,
             externalMiddlewares: [],
             handler: async (context) => {
@@ -438,7 +479,7 @@ export default async function buildRouter(
             serveVia: ["Http"],
         };
 
-        routesRegistryMap[path.join(fullPrefix, "/__channels-list")] = {
+        routesRegistryMap[path.join(apiPrefix, fullPrefix, "/__channels-list")] = {
             __symbol: routerSymbol,
             externalMiddlewares: [],
             handler: async (context) => {
@@ -647,6 +688,7 @@ async function buildChannelling(
     const channelResults = await Promise.all(channelPromises);
     for (const result of channelResults) {
         if (result) {
+
             handlers.unshift(result);
         }
     }
@@ -733,11 +775,12 @@ const loadCompatibleRoutesIntoChannels = async () => {
     // Process all socket routes
     for (const routePath of socketRoutes) {
         const route = routesRegistryMap[routePath];
+        const eventPath = `---%http%---${routePath}`
         handlers.push({
             beforeMountedMiddlewares: [],
             middlewares: [],
             mountedMiddlewares: [],
-            path: `---%http%---${routePath}`,
+            path: eventPath,
             beforeMounted: undefined,
             handler: (_socket) => {
                 return [

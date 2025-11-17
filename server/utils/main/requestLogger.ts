@@ -1,54 +1,70 @@
-import { Handler } from "express";
-import moment from "moment";
-import { createLogger } from "kt-logger";
-const requestStartLogger = await createLogger({
-    color: "red",
-    logLevel: "Info",
-    name: "Request Logger: Request",
-    worker: true,
-});
-const requestEndLogger = await createLogger({
-    color: "blue",
-    logLevel: "Info",
-    name: "Request Logger: Response",
-    worker: true,
-});
+import { forceLog } from "kt-logger";
+import { dashDateFormatter } from "kt-common";
 
-export const requestLogger: Handler = async (req, res, next) => {
-    try {
-        requestStartLogger();
-        const logId = Math.floor(Math.random() * 1e10).toString(36);
-        res.locals.logId = logId;
-        const text = `
-        request Id:${logId}
-        method: ${req.method} 
-        url: ${req.protocol}://${req.get("host")}${req.originalUrl} 
-        Authentication: ${
-            req.headers["authorization"]
-                ? "Has Authorization Info in headers"
-                : "Doesn't have Authorization Info in headers"
-        }
-        started at: ${moment()} 
-        `;
-        requestStartLogger(text);
+type LogColor = "black" | "red" | "green" | "yellow" | "blue" | "magenta" | "cyan" | "white" | "consoleColor";
+type LogLevel = "Info" | "Warning" | "Error";
 
-        res.once("close", () => {
-            try {
-                const text = `
-        request Id:${logId}
-        method: ${req.method}
-        url: ${req.protocol}://${req.get("host")}${req.originalUrl} 
-        status code: ${res.statusCode}
-        Ended at: ${moment()} 
-        `;
-                requestEndLogger(text);
-            } catch (error: any) {
-                requestEndLogger.error(error);
-            }
+export class TransactionLogger {
+    logs: {
+        msgs: string[];
+        level: LogLevel;
+        color: LogColor;
+    }[];
+    name: string;
+
+    constructor(name: string) {
+        this.name = name;
+        this.logs = [];
+    }
+    log(color: LogColor, ...msgs: any[]) {
+        this.logs.push({
+            msgs,
+            color: color,
+            level: "Info",
+        });
+        return this;
+    }
+    error(color: LogColor, ...msgs: any[]) {
+        this.logs.push({
+            msgs,
+            color: color,
+            level: "Error",
+        });
+        return this;
+    }
+    warn(color: LogColor, ...msgs: any[]) {
+        this.logs.push({
+            msgs,
+            color: color,
+            level: "Warning",
+        });
+        return this;
+    }
+    colors = {
+        black: "\x1B[30m",
+        red: "\x1B[31m",
+        green: "\x1B[32m",
+        yellow: "\x1B[33m",
+        blue: "\x1B[34m",
+        magenta: "\x1B[35m",
+        cyan: "\x1B[36m",
+        white: "\x1B[37m",
+        consoleColor: "\x1B[0m",
+    };
+    out() {
+        const time = dashDateFormatter(new Date(), {
+            getDate: true,
+            getTime: true,
+            getMilliseconds: true,
+            dateFormat: "yyyy-mm-dd",
+            rtl: false,
         });
 
-        next();
-    } catch (error: any) {
-        next(error);
+        for (const log of this.logs.splice(0)) {
+            const consoleLog = `${this.colors[log.color]}---[${time}]-[ ${process.pid} ]-[ ${String(
+                this.name
+            ).toUpperCase()} ]-[ ${String(log.level).toUpperCase()} ]---${this.colors.consoleColor}`;
+            forceLog(consoleLog, ...log.msgs);
+        }
     }
-};
+}

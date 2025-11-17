@@ -232,10 +232,14 @@ export function createSocketRouter(socket: Socket) {
             }
 
             if (cb) {
+                console.log(eventName)
                 cb(
                     createRequestError(404, [
                         {
                             error: "event not found",
+                            data: {
+                                event: eventName,
+                            }
                         },
                     ])
                 );

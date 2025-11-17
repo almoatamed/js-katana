@@ -3,8 +3,7 @@
   "workspaces": {
     "": {
       "dependencies": {
-        "async-batcher-js": "^1.1.0",
-        "axios": "^1.13.2",
+        "@socket.io/bun-engine": "^0.1.0",
       },
       "devDependencies": {
         "@js-katana/cli": "^2.10.0",
@@ -27,6 +26,8 @@
         "@socket.io/cluster-adapter": "^0.3.0",
         "@socket.io/redis-adapter": "^8.3.0",
         "@socket.io/sticky": "^1.0.4",
+        "async-batcher-js": "^1.1.0",
+        "axios": "^1.13.2",
         "commander": "^12.0.0",
         "compression": "^1.8.1",
         "cors": "^2.8.5",
@@ -39,6 +40,7 @@
         "markdown-it": "^14.1.0",
         "moment": "^2.30.1",
         "prismjs": "^1.30.0",
+        "qs": "^6.14.0",
         "quick-lru": "^7.3.0",
         "socket.io": "^4.8.1",
       },
@@ -84,6 +86,8 @@
     "@octokit/types": ["@octokit/types@14.1.0", "", { "dependencies": { "@octokit/openapi-types": "^25.1.0" } }, "sha512-1y6DgTy8Jomcpu33N+p5w58l6xyt55Ar2I91RPiIA0xCJBXyUAhXCcmZaDWSANiha7R9a6qJJ2CRomGPZ6f46g=="],
 
     "@sindresorhus/merge-streams": ["@sindresorhus/merge-streams@2.3.0", "", {}, "sha512-LtoMMhxAlorcGhmFYI+LhPgbPZCkgP6ra1YL604EeF6U98pLlQ3iWIGMdWSC+vWmPBWBNgmDBAhnAobLROJmwg=="],
+
+    "@socket.io/bun-engine": ["@socket.io/bun-engine@0.1.0", "", { "peerDependencies": { "typescript": "^5" } }, "sha512-B1z6GuAxZlfvjgaa3BHZBOfqHJNfnpebTw15p+Un1HuBL4YM7wUxO9sJa7K4NDTe7XbUBeqLIwTDA5tOOjffog=="],
 
     "@socket.io/cluster-adapter": ["@socket.io/cluster-adapter@0.3.0", "", { "dependencies": { "debug": "~4.4.1" }, "peerDependencies": { "socket.io-adapter": "~2.5.5" } }, "sha512-pHtPlQrKCWb1FE49nSaQSqB0xWYZ/OU8ONxWLWU79u6OA92/IHeHolVTcJfrsiK2Zvrh1yvMo3tVFKKjlKkKRQ=="],
 

@@ -8,8 +8,7 @@
         "kt-cli": "./dist/utils/cli/index.js"
     },
     "scripts": {
-        "build": "rm -rf ./dist && tsc && chmod -R 755 ./dist",
-        "prepare": "npm run build"
+        "build": "rm -rf ./dist && tsc && chmod -R 755 ./dist"
     },
     "main": "dist/index.js",
     "module": "dist/index.js",
@@ -67,10 +66,11 @@
         "moment": "^2.30.1",
         "prismjs": "^1.30.0",
         "quick-lru": "^7.3.0",
-        "socket.io": "^4.8.1"
-    },
-    "dependencies": {
+        "socket.io": "^4.8.1",
         "async-batcher-js": "^1.1.0",
-        "axios": "^1.13.2"
-    }
+        "axios": "^1.13.2",
+        "qs": "^6.14.0",
+        "@socket.io/bun-engine": "^0.1.0"
+    },
+    "dependencies": {}
 }
