@@ -15,8 +15,9 @@ Build scalable, type-safe Node.js servers with zero configuration overhead. js-k
 - **Auto-Documentation**: Beautiful, interactive API docs generated automatically from your code.
 
 ### ⚡ **Performance Built-In**
+- **Bun Adapter**: Optional high-performance Bun runtime for exceptional speed and lower latency.
 - **Optimized Routing**: O(1) lookups, pattern caching, and intelligent route matching.
-- **Multi-Threading**: Built-in cluster support for maximum CPU utilization.
+- **Multi-Threading**: Built-in cluster support with intelligent worker scaling for maximum CPU utilization.
 - **Redis-Ready**: Seamless Socket.IO scaling with Redis adapter support.
 - **Smart Caching**: File stat caching, compiled pattern reuse, and efficient middleware execution.
 
@@ -496,8 +497,16 @@ export default {
     // Startup scripts directory
     startupDirPath: "./startup",
     
+    // HTTP adapter: "bun" (recommended) or "express"
+    // If not specified, automatically uses Bun if available, otherwise Express
+    httpAdapter: "bun",
+    
     // Single-threaded mode (false = multi-threaded with clustering)
     runSingle: false,
+    
+    // Maximum worker forks (for multi-threading)
+    // Default: 6, or based on CPU count and available memory
+    getMaxForks: async () => 8,
     
     // Redis configuration (optional, for Socket.IO scaling)
     redisClient: undefined, // Provide your Redis client instance
@@ -506,9 +515,6 @@ export default {
     // Server timeouts
     keepAliveTimeout: 65000,
     headersTimeout: 66000,
-    
-    // Maximum worker forks (for multi-threading)
-    maxForks: 8,
 } satisfies RoutingConfig;
 ```
 
@@ -755,6 +761,206 @@ export const handler = defineChannelHandler((socket) => {
 - **Cluster Adapter**: Built-in support for Socket.IO clustering
 - **Worker Management**: Automatic worker spawning and management
 - **Connection Pooling**: Efficient resource utilization
+
+---
+
+## ⚡ HTTP Adapters
+
+js-kt supports multiple HTTP adapters, allowing you to choose the best runtime for your performance needs.
+
+### Bun Adapter (Recommended)
+
+The **Bun adapter** leverages Bun's native `serve` API for exceptional performance. When available, it provides:
+- **Native Performance**: Direct integration with Bun's high-performance HTTP server
+- **Lower Latency**: Reduced overhead compared to traditional Node.js servers
+- **Memory Efficiency**: Optimized memory usage for better resource utilization
+- **Automatic Detection**: js-kt automatically detects Bun and uses it by default
+
+**Configuration:**
+```typescript
+export default {
+    httpAdapter: "bun", // or "express"
+    // ... other config
+} satisfies RoutingConfig;
+```
+
+**Note**: If Bun is not installed, js-kt will automatically fall back to Express with a warning.
+
+### Express Adapter
+
+The **Express adapter** provides compatibility with the standard Node.js ecosystem:
+- **Universal Compatibility**: Works on any Node.js runtime
+- **Mature Ecosystem**: Access to the full Express middleware ecosystem
+- **Production Proven**: Battle-tested in countless production deployments
+
+**Configuration:**
+```typescript
+export default {
+    httpAdapter: "express", // explicit Express mode
+    // ... other config
+} satisfies RoutingConfig;
+```
+
+### Adapter Selection Logic
+
+js-kt intelligently selects the adapter based on:
+1. Your explicit `httpAdapter` configuration
+2. Whether Bun is installed and available
+3. Automatic fallback to Express if Bun is unavailable
+
+```typescript
+// Priority order:
+// 1. Explicit config: httpAdapter: "bun" or "express"
+// 2. Auto-detect: If Bun is installed → use Bun
+// 3. Fallback: Use Express if Bun unavailable
+```
+
+---
+
+## 🔄 Multi-Threading & Clustering
+
+js-kt includes built-in support for multi-threaded operation using Node.js cluster module, enabling you to fully utilize multi-core systems for maximum performance.
+
+### How It Works
+
+**Primary Process (Master):**
+- Initializes the cluster and manages worker processes
+- Runs startup scripts **before** workers start (ensuring DB connections, etc. are ready)
+- Forks worker processes based on system resources and configuration
+- Coordinates worker lifecycle and handles graceful shutdown
+- Automatically restarts crashed workers
+
+**Worker Processes:**
+- Each worker runs an independent server instance
+- Workers wait for the primary to complete startup before accepting requests
+- Load is distributed across all workers automatically
+- Each worker can handle requests independently
+
+### Configuration
+
+Control multi-threading behavior in your `router.kt.config.ts`:
+
+```typescript
+export default {
+    // Enable multi-threading (false = multi-threaded, true = single-threaded)
+    runSingle: false,
+    
+    // Maximum number of worker processes to fork
+    // Default: 6, or based on CPU count and available memory
+    getMaxForks: async () => 8,
+    
+    // ... other config
+} satisfies RoutingConfig;
+```
+
+### Intelligent Worker Scaling
+
+js-kt automatically calculates the optimal number of workers based on:
+
+```typescript
+// Worker count formula:
+Math.min(
+    numberOfCPUs,           // System CPU cores
+    Math.floor(mem / 0.5),   // Available memory (GB / 0.5GB per worker)
+    maxForks                 // Your configured maximum
+)
+```
+
+**Example**: On an 8-core system with 16GB RAM:
+- CPU cores: 8
+- Memory-based: floor(16 / 0.5) = 32 workers
+- With `maxForks: 8`: Result = **8 workers**
+
+### Single-Threaded Mode
+
+For development or resource-constrained environments:
+
+```typescript
+export default {
+    runSingle: true, // Disable clustering
+    // ... other config
+} satisfies RoutingConfig;
+```
+
+**When Single-Threaded Mode is Auto-Enabled:**
+- System has only 1 CPU core
+- Available memory is less than 0.5GB per worker
+- You explicitly set `runSingle: true`
+
+### Clustering with Bun
+
+When using the Bun adapter with multi-threading:
+
+```typescript
+// Bun automatically uses reusePort for clustering
+serve({
+    reusePort: true,  // Enabled automatically in multi-threaded mode
+    port: 3000,
+    // ... other options
+});
+```
+
+This allows multiple Bun processes to listen on the same port, with the OS kernel handling load balancing.
+
+### Clustering with Express
+
+When using the Express adapter with multi-threading:
+
+- Each worker runs its own Express server instance
+- Node.js cluster module handles process management
+- Socket.IO uses cluster adapter for WebSocket scaling across workers
+- Redis adapter (if configured) enables cross-server WebSocket communication
+
+### Worker Lifecycle
+
+1. **Initialization**: Primary process forks workers based on system resources
+2. **Startup Coordination**: 
+   - Primary runs startup scripts (database seeds, cache, etc.)
+   - Workers wait in a ready state
+   - Primary signals workers to start after initialization
+3. **Request Handling**: Workers independently handle incoming requests
+4. **Failure Recovery**: If a worker crashes, a new one is automatically forked
+5. **Graceful Shutdown**: All workers are terminated cleanly on process exit
+
+### Production Recommendations
+
+**For High-Traffic Applications:**
+```typescript
+export default {
+    runSingle: false,
+    getMaxForks: async () => {
+        // Match your CPU cores for optimal performance
+        const os = await import("os");
+        return os.cpus().length;
+    },
+    httpAdapter: "bun", // Use Bun for best performance
+    // ... other config
+} satisfies RoutingConfig;
+```
+
+**For Development:**
+```typescript
+export default {
+    runSingle: true, // Simpler debugging, faster startup
+    // ... other config
+} satisfies RoutingConfig;
+```
+
+**For Memory-Constrained Environments:**
+```typescript
+export default {
+    runSingle: false,
+    getMaxForks: async () => 2, // Limit workers to conserve memory
+    // ... other config
+} satisfies RoutingConfig;
+```
+
+### Monitoring & Debugging
+
+- Each worker logs its PID for easy identification
+- Primary process logs worker lifecycle events
+- Worker crashes are automatically logged with exit codes
+- Use process managers (PM2, systemd) for production monitoring
 
 ---
 
