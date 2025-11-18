@@ -437,25 +437,3 @@ export const runBun = async () => {
 
     return engine
 };
-export const runThreadedBun = async () => {
-    const path = await getSocketPrefix();
-    const io = new Server({
-        path,
-        cors: { origin: "*", methods: ["GET", "POST"] },
-    });
-
-    const engine = new BunEngine({ path });
-    io.bind(engine);
-
-    const redisClient = await gerRedisClient();
-    if (redisClient) {
-        const pub = redisClient.duplicate();
-        const sub = redisClient.duplicate();
-        io.adapter(createRedisAdapter(pub, sub));
-    }
-
-    io.on("connection", async (socket) => {
-        await registerSocket(socket);
-    });
-    return engine
-};

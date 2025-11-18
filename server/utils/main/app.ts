@@ -19,8 +19,8 @@ import { TransactionLogger } from "./requestLogger.js";
 import { dashDateFormatter, trimSlashes } from "kt-common";
 import { MaybePromise } from "bun";
 import cluster from "cluster";
-import { runBun, runExpress, runThreadedBun, runThreadedExpress } from "../channelsBuilder/index.js";
-import type { Server as BunEngine } from "@socket.io/bun-engine"
+import { runBun, runExpress, runThreadedExpress } from "../channelsBuilder/index.js";
+
 const log = await createLogger({
     color: "red",
     logLevel: "Info",
@@ -569,23 +569,17 @@ export async function createBunApp(multithreading: boolean = false): Promise<{
         async startServer() {
             const port = await getPort();
             const { bunErrorHandler } = await import("./errorHandler.js");
-            let engine: BunEngine
-            if (multithreading) {
-                engine = await runThreadedBun();
-            } else {
-                engine = await runBun();
-            }
-
-            const routerHandler = handleGeneralBunRequest()
-
+            
             if ((multithreading && !cluster.isPrimary) || (!multithreading && cluster.isPrimary)) {
+                const engine = await runBun();
+                const routerHandler = handleGeneralBunRequest()
+               
                 serve({
                     reusePort: multithreading,
                     port,
                     ...engine.handler(),
                     error: bunErrorHandler,
                     fetch: async (req, server: any) => {
-
                         const url = new URL(req.url);
                         if (trimSlashes(url.pathname) === trimSlashes(engine.opts.path)) {
                             try {
