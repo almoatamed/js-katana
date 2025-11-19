@@ -9,12 +9,14 @@ Build scalable, type-safe Node.js servers with zero configuration overhead. js-k
 ## ✨ Why js-kt?
 
 ### 🎯 **Developer Experience First**
+
 - **Zero Boilerplate**: Your file structure IS your API. No manual route registration needed.
 - **Full Type Safety**: End-to-end TypeScript with automatic type inference and generation.
 - **Hot Reload**: Instant feedback during development with automatic route discovery.
 - **Auto-Documentation**: Beautiful, interactive API docs generated automatically from your code.
 
 ### ⚡ **Performance Built-In**
+
 - **Bun Adapter**: Optional high-performance Bun runtime for exceptional speed and lower latency.
 - **Optimized Routing**: O(1) lookups, pattern caching, and intelligent route matching.
 - **Multi-Threading**: Built-in cluster support with intelligent worker scaling for maximum CPU utilization.
@@ -22,11 +24,13 @@ Build scalable, type-safe Node.js servers with zero configuration overhead. js-k
 - **Smart Caching**: File stat caching, compiled pattern reuse, and efficient middleware execution.
 
 ### 🔄 **Unified Protocol Support**
+
 - **Dual Transport**: Serve the same route logic via HTTP, WebSocket, or both—seamlessly.
 - **Type-Safe WebSockets**: Real-time communication with the same type safety as REST APIs.
 - **Event-Driven Architecture**: Built-in event system with type-safe payloads and responses.
 
 ### 🛠️ **Production-Ready Features**
+
 - **Middleware System**: Hierarchical middleware with directory-based scoping.
 - **Error Handling**: Structured error responses with automatic type inference.
 - **Startup Scripts**: Organized initialization with dependency management.
@@ -78,7 +82,7 @@ js-kt uses your file system structure to define your API. It's that simple.
 
 ### Route Structure
 
-```
+```txt
 src/routes/
 ├── index.router.ts          → GET /
 ├── users/
@@ -146,6 +150,7 @@ export default createHandler({
 ### Generated Types
 
 Run `npx kt-cli scan-types` to generate:
+
 - ✅ Request/response types for all routes
 - ✅ WebSocket channel types
 - ✅ Event emitter types
@@ -156,6 +161,7 @@ Use these types with `js-kt-client` for end-to-end type safety from server to cl
 #### Under the Hood: Type Scanner
 
 The background type scanner (`server/utils/typesScanner/server.ts`) keeps generation blazing fast even in large repos:
+
 - An Express worker listens on port `3751` and batches requests (`/process`) so repeated triggers collapse into a single run.
 - Every route file is hashed (`sha256`) and tracked; the scanner reuses a cached `ts.SourceFile` map and only re-creates the program when the file set or contents change.
 - When a file changes or is deleted, matching `.description.md` artifacts are removed before `useContextToProcessTypes` reprocesses the minimal invalidated list—no stale docs survive.
@@ -265,6 +271,7 @@ export default createHandler({
 ```
 
 **HTTP Request:**
+
 ```bash
 curl -X POST http://localhost:3000/api/action \
   -H "Content-Type: application/json" \
@@ -272,10 +279,12 @@ curl -X POST http://localhost:3000/api/action \
 ```
 
 **WebSocket Request:**
+
 ```javascript
 socket.emit('/api/action', { action: 'process' }, (response) => {
     console.log(response); // Same response structure!
 });
+```
 
 ### Source-Aware Handlers
 
@@ -298,10 +307,10 @@ export default createHandler({
         return context.respond.json({ via: "socket", id: context.socket.id });
     },
 });
+
 ```
 
 This makes it trivial to branch logic, attach extra headers, or tap into the live `Socket` instance without duplicating handlers.
-```
 
 ---
 
@@ -311,7 +320,7 @@ This makes it trivial to branch logic, attach extra headers, or tap into the liv
 
 Middleware is automatically applied based on directory structure:
 
-```
+```txt
 src/routes/
 ├── auth.middleware.ts        → Applied to all routes in this directory
 ├── users/
@@ -421,6 +430,7 @@ export default createHandler({
 ### Automatic API Documentation
 
 With `autoDescribe: true` (default in development), js-kt automatically generates:
+
 - 📄 Markdown documentation for each route
 - 🔍 Interactive HTML docs at `/{route-path}/describe`
 - 📦 Complete API types JSON at `/__describe-json`
@@ -428,12 +438,14 @@ With `autoDescribe: true` (default in development), js-kt automatically generate
 ### Accessing Documentation
 
 **Development Mode:**
+
 ```bash
 # Visit any route with /describe
 http://localhost:3000/api/users/describe
 ```
 
 **Production Mode:**
+
 ```bash
 # Protected with secret
 curl -H "Authorization: Secret your-secret-key" \
@@ -524,7 +536,7 @@ export default {
 
 Organize initialization code in the `startup` directory:
 
-```
+```txt
 src/startup/
 ├── 01-database.run.ts
 ├── 02-cache.run.ts
@@ -640,7 +652,7 @@ npx kt-cli create-config
 
 ### Project Structure
 
-```
+```txt
 my-app/
 ├── src/
 │   ├── routes/
@@ -661,6 +673,7 @@ my-app/
 ### Example Routes
 
 **Home Route** (`src/routes/index.router.ts`):
+
 ```typescript
 import { createHandler } from "js-kt";
 
@@ -676,6 +689,7 @@ export default createHandler({
 ```
 
 **Users Route** (`src/routes/users/index.router.ts`):
+
 ```typescript
 import { createHandler } from "js-kt";
 
@@ -697,6 +711,7 @@ export default createHandler({
 ```
 
 **User Detail Route** (`src/routes/users/[id].router.ts`):
+
 ```typescript
 import { createHandler } from "js-kt";
 import { throwRequestError } from "js-kt";
@@ -717,6 +732,7 @@ export default createHandler({
 ```
 
 **Chat Channel** (`src/routes/chat.router.ts`):
+
 ```typescript
 import { defineChannelHandler } from "js-kt";
 import type { Respond } from "js-kt";
@@ -771,12 +787,14 @@ js-kt supports multiple HTTP adapters, allowing you to choose the best runtime f
 ### Bun Adapter (Recommended)
 
 The **Bun adapter** leverages Bun's native `serve` API for exceptional performance. When available, it provides:
+
 - **Native Performance**: Direct integration with Bun's high-performance HTTP server
 - **Lower Latency**: Reduced overhead compared to traditional Node.js servers
 - **Memory Efficiency**: Optimized memory usage for better resource utilization
 - **Automatic Detection**: js-kt automatically detects Bun and uses it by default
 
 **Configuration:**
+
 ```typescript
 export default {
     httpAdapter: "bun", // or "express"
@@ -789,11 +807,13 @@ export default {
 ### Express Adapter
 
 The **Express adapter** provides compatibility with the standard Node.js ecosystem:
+
 - **Universal Compatibility**: Works on any Node.js runtime
 - **Mature Ecosystem**: Access to the full Express middleware ecosystem
 - **Production Proven**: Battle-tested in countless production deployments
 
 **Configuration:**
+
 ```typescript
 export default {
     httpAdapter: "express", // explicit Express mode
@@ -804,6 +824,7 @@ export default {
 ### Adapter Selection Logic
 
 js-kt intelligently selects the adapter based on:
+
 1. Your explicit `httpAdapter` configuration
 2. Whether Bun is installed and available
 3. Automatic fallback to Express if Bun is unavailable
@@ -824,6 +845,7 @@ js-kt includes built-in support for multi-threaded operation using Node.js clust
 ### How It Works
 
 **Primary Process (Master):**
+
 - Initializes the cluster and manages worker processes
 - Runs startup scripts **before** workers start (ensuring DB connections, etc. are ready)
 - Forks worker processes based on system resources and configuration
@@ -831,6 +853,7 @@ js-kt includes built-in support for multi-threaded operation using Node.js clust
 - Automatically restarts crashed workers
 
 **Worker Processes:**
+
 - Each worker runs an independent server instance
 - Workers wait for the primary to complete startup before accepting requests
 - Load is distributed across all workers automatically
@@ -838,7 +861,7 @@ js-kt includes built-in support for multi-threaded operation using Node.js clust
 
 ### Configuration
 
-Control multi-threading behavior in your `router.kt.config.ts`:
+Control multi-threading behaviour in your `router.kt.config.ts`:
 
 ```typescript
 export default {
@@ -867,6 +890,7 @@ Math.min(
 ```
 
 **Example**: On an 8-core system with 16GB RAM:
+
 - CPU cores: 8
 - Memory-based: floor(16 / 0.5) = 32 workers
 - With `maxForks: 8`: Result = **8 workers**
@@ -883,6 +907,7 @@ export default {
 ```
 
 **When Single-Threaded Mode is Auto-Enabled:**
+
 - System has only 1 CPU core
 - Available memory is less than 0.5GB per worker
 - You explicitly set `runSingle: true`
@@ -914,7 +939,7 @@ When using the Express adapter with multi-threading:
 ### Worker Lifecycle
 
 1. **Initialization**: Primary process forks workers based on system resources
-2. **Startup Coordination**: 
+2. **Startup Coordination**:
    - Primary runs startup scripts (database seeds, cache, etc.)
    - Workers wait in a ready state
    - Primary signals workers to start after initialization
@@ -925,6 +950,7 @@ When using the Express adapter with multi-threading:
 ### Production Recommendations
 
 **For High-Traffic Applications:**
+
 ```typescript
 export default {
     runSingle: false,
@@ -939,6 +965,7 @@ export default {
 ```
 
 **For Development:**
+
 ```typescript
 export default {
     runSingle: true, // Simpler debugging, faster startup
@@ -947,6 +974,7 @@ export default {
 ```
 
 **For Memory-Constrained Environments:**
+
 ```typescript
 export default {
     runSingle: false,
@@ -969,18 +997,23 @@ export default {
 `kt-client` is the official, type-safe bridge between your js-kt server and every JavaScript runtime. It marries a CLI that keeps your API contract fresh with a runtime client that speaks HTTP and Socket.IO using the exact same types.
 
 ### ⭐ Highlights
+
 - **Server-Sourced Types**: Pull live route, channel, and event signatures straight from your running server.
 - **Unified Transport**: Share configuration across HTTP and Socket.IO with identical method signatures.
 - **Production-Ready UX**: Token hooks, scoped access, caching, and reconnection helpers built in.
 
 ### 🚀 Setup in Minutes
+
 1. Install the package:
+
    ```bash
    npm install js-kt-api-client
    # or
    bun add js-kt-api-client
    ```
+
 2. (Optional) add overrides to `package.json`:
+
    ```jsonc
    {
        "apiTypes": {
@@ -990,15 +1023,19 @@ export default {
        }
    }
    ```
+
 3. Generate fresh types whenever the backend contract changes:
+
    ```bash
    npx kt-client load-types
    # short alias
    npx kt-client l
    ```
+
    The CLI discovers your project root, calls `/__describe-json`, and writes `apiTypes.d.ts`. Export `DESCRIPTION_SECRET` before running if your describe endpoint is protected.
 
 ### 🧰 Runtime Client Overview
+
 ```typescript
 import createClient, { createWebStorage } from "kt-client";
 
@@ -1020,19 +1057,22 @@ const ack = await kt.socket.asyncEmit("chat/message", {
 await kt.close();
 ```
 
-- **`api`**: http client that respects generated route types and supports `requestVia` to pin HTTP or socket transports (by default if abailable will use socket for better performance).
+- **`api`**: http client that respects generated route types and supports `requestVia` to pin HTTP or socket transports (by default if available will use socket for better performance).
 - **`socket`**: Typed `asyncEmit`, `on`, and `off` helpers with acknowledgements and smart reconnection.
 - **Lifecycle helpers**: `reloadConfig()` swaps runtime options on the fly, `close()` tears everything down cleanly.
 
 ### 🧊 Smart Caching & Transport Control
+
 - Provide `createWebStorage()` (or your own storage) and use `sinceMins`, `now`, or `noCaching` to control reuse windows.
 - HTTP calls opportunistically reuse the socket transport; fall back or force HTTP with `requestVia: ["http"]` or `httpOnly`.
 
 ### 🔄 Keep Types Fresh
+
 - Re-run `npx kt-client load-types` after backend changes or wire it into `postinstall`/CI scripts.
 - Include `apiTypes.d.ts` in your TypeScript config so editors pick up the generated definitions automatically.
 
-read the full docs on https://github.com/almoatamed/js-katana-api-client
+read the full docs on <https://github.com/almoatamed/js-katana-api-client>
+
 ---
 
 ## 📖 Advanced Features
