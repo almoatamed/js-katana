@@ -1,7 +1,21 @@
 {
   "name": "js-kt",
   "description": "Kata for building JavaScript/TypeScript web servers with ease",
-  "version": "1.6.4",
+  "version": "1.6.5",
+  "keywords": [
+    "typescript",
+    "nodejs",
+    "web framework",
+    "file-based routing",
+    "websocket",
+    "socket.io",
+    "bun",
+    "express",
+    "type-safe",
+    "api documentation",
+    "cli",
+    "web server"
+  ],
   "type": "module",
   "license": "MIT",
   "bin": {
