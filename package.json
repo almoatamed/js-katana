@@ -1,7 +1,7 @@
 {
   "name": "js-kt",
   "description": "Kata for building JavaScript/TypeScript web servers with ease",
-  "version": "1.6.7",
+  "version": "1.6.8",
   "keywords": [
     "typescript",
     "nodejs",
