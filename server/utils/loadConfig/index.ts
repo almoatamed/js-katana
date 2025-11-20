@@ -129,14 +129,30 @@ const hasProductionArg = () => {
     return result;
 };
 
+let cachedIsDev: boolean | undefined = undefined
 export const isDev = async (): Promise<boolean> => {
+    if (typeof cachedIsDev == "boolean") {
+        return cachedIsDev
+    }
+
     const config = await loadConfig();
-    return !!(
-        (await valueOf(config.isDev)) ??
-        (!hasProductionArg() ||
-            String(process.env.NODE_ENV).toLowerCase() == "dev" ||
-            String(process.env.ENV).toLowerCase() == "dev")
-    );
+
+    const configValue = (await valueOf(config.isDev))
+    if (typeof configValue == 'boolean') {
+        cachedIsDev = configValue
+        return configValue
+    }
+
+    const productionArg = hasProductionArg()
+    if (typeof productionArg == 'string') {
+        cachedIsDev = false;
+        return false
+    }
+
+
+    cachedIsDev = !!(String(process.env.NODE_ENV).toLowerCase() == "dev" ||
+        String(process.env.ENV).toLowerCase() == "dev")
+    return cachedIsDev
 };
 
 export async function getMaxForks() {
