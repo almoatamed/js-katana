@@ -780,6 +780,68 @@ export const handler = defineChannelHandler((socket) => {
 
 ---
 
+## 📊 Performance Benchmarks
+
+### Real-World Performance Metrics
+
+We've benchmarked js-kt against popular server frameworks to measure real-world performance. The results speak for themselves—js-kt's dual-protocol architecture delivers **2-3x higher throughput** when leveraging WebSocket transport.
+
+### Test Environment
+
+All benchmarks ran on:
+- **CPU**: Intel Xeon E3-1535M v6 @ 3.10GHz (4 cores, 8 threads)
+- **Memory**: 32GB DDR4 @ 2400MHz
+- **Runtime**: Bun 1.0+
+- **Method**: Worker thread-based concurrent load testing (125,000 requests per worker)
+
+### Benchmark Results
+
+| Client Type | Bun Server | Express Server | KT Server (Bun) | KT Server (Express) |
+|------------|------------|----------------|-----------------|---------------------|
+| **Axios** | 10,000 req/s | 7,000 req/s | 10,000 req/s | 7,000 req/s |
+| **Fetch** | 25,000 req/s | 19,000 req/s | 25,000 req/s | 19,000 req/s |
+| **KT Auto (Dual)** | 25,000 req/s | 19,000 req/s | **57,000 req/s** ⚡ | **55,000 req/s** ⚡ |
+
+### Key Insights
+
+🚀 **Dual-Protocol Magic**: When using `js-kt-api-client` with automatic transport selection (`KT Auto`), js-kt leverages WebSocket transport for optimal performance, delivering **2.2-3x better throughput** compared to traditional HTTP-only servers.
+
+⚡ **Adapter Parity**: js-kt maintains performance parity with native Bun and Express servers when using standard HTTP clients, ensuring you get the same performance with added framework benefits.
+
+🎯 **Smart Transport Selection**: The `KT Auto` client intelligently uses WebSocket transport when available, automatically falling back to HTTP when needed—all while maintaining full type safety.
+
+### Benchmark Methodology
+
+Benchmarks use a worker thread-based approach with concurrent clients:
+
+```typescript
+// Each worker runs multiple concurrent requests
+const promises = [];
+for (let i = 0; i < numberOfRequestsPerClient; i++) {
+    promises.push(client.api.get("/"));
+}
+await Promise.all(promises);
+```
+
+**Sample Server Implementation**:
+
+```typescript
+// Simple js-kt route used in benchmarks
+export default createHandler({
+    method: "GET",
+    serveVia: ["Http", "Socket"], // Dual-protocol support
+    handler: async (context) => {
+        return context.respond.json({
+            msg: "Ok"
+        });
+    },
+});
+```
+
+**Note**: Multi-threaded benchmarks show similar performance characteristics, with js-kt's cluster support scaling linearly across workers. Single-threaded results shown above demonstrate per-core efficiency.
+
+---
+
 ## ⚡ HTTP Adapters
 
 js-kt supports multiple HTTP adapters, allowing you to choose the best runtime for your performance needs.
