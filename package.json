@@ -1,7 +1,7 @@
 {
   "name": "js-kt",
   "description": "Kata for building JavaScript/TypeScript web servers with ease",
-  "version": "1.6.6",
+  "version": "1.6.7",
   "keywords": [
     "typescript",
     "nodejs",
@@ -19,10 +19,10 @@
   "type": "module",
   "license": "MIT",
   "bin": {
-    "kt-cli": "./dist/utils/cli/index.js"
+    "kt-cli": "dist/utils/cli/index.js"
   },
   "scripts": {
-    "build": "rm -rf ./dist && tsc && chmod -R 755 ./dist"
+    "build": "rm -rf ./dist && tsc && chmod -R 755 ./dist && chmod +x ./dist/utils/cli/index.js"
   },
   "main": "dist/index.js",
   "module": "dist/index.js",
@@ -44,7 +44,7 @@
   "author": "Salem Elmotamed s.elmotamed96@gmail.com",
   "repository": {
     "type": "git",
-    "url": "https://github.com/almoatamed/js-katana.git"
+    "url": "git+https://github.com/almoatamed/js-katana.git"
   },
   "devDependencies": {
     "@js-katana/cli": "^2.10.0",
