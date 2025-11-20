@@ -84,7 +84,9 @@
     "async-batcher-js": "^1.1.0",
     "axios": "^1.13.2",
     "qs": "^6.14.0",
-    "@socket.io/bun-engine": "^0.1.0"
+    "@socket.io/bun-engine": "^0.1.0",
+    "dotenv": "^17.2.3"
   },
-  "dependencies": {}
+  "dependencies": {
+  }
 }
