@@ -1,7 +1,7 @@
 import type { Socket } from "socket.io";
 
 export type JSONResult<T> = T;
-export type FileResult = Promise<any>;
+export type FileResult = any;
 export type Text = string;
 export type Html = Text;
 
