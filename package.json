@@ -1,7 +1,7 @@
 {
   "name": "js-kt",
   "description": "Kata for building JavaScript/TypeScript web servers with ease",
-  "version": "1.6.8",
+  "version": "1.6.13",
   "keywords": [
     "typescript",
     "nodejs",
@@ -22,7 +22,8 @@
     "kt-cli": "dist/utils/cli/index.js"
   },
   "scripts": {
-    "build": "rm -rf ./dist && tsc && chmod -R 755 ./dist && chmod +x ./dist/utils/cli/index.js"
+    "build": "rm -rf ./dist && tsc && chmod -R 755 ./dist && chmod +x ./dist/utils/cli/index.js",
+    "prepare": "npm run build && echo 'Built successfully!'"
   },
   "main": "dist/index.js",
   "module": "dist/index.js",
@@ -87,6 +88,5 @@
     "@socket.io/bun-engine": "^0.1.0",
     "dotenv": "^17.2.3"
   },
-  "dependencies": {
-  }
+  "dependencies": {}
 }
