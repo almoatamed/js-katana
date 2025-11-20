@@ -1,4 +1,5 @@
 #! /usr/bin/env node
+import 'dotenv/config'
 import { execSync, spawn } from "child_process";
 import { program } from "commander";
 import { readVolatileJSON } from "kt-common";
@@ -83,7 +84,6 @@ const run = async () => {
                     stdio: "inherit",
                     encoding: "utf-8",
                 });
-                execSync("kill");
             } else {
                 log("Starting server in development mode using node...");
                 execSync("npx tsx --watch ./run.js", {
