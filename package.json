@@ -1,7 +1,7 @@
 {
   "name": "js-kt",
   "description": "Kata for building JavaScript/TypeScript web servers with ease",
-  "version": "1.6.16",
+  "version": "1.6.17",
   "keywords": [
     "typescript",
     "nodejs",
@@ -75,7 +75,7 @@
     "find-root-kt": "^1.0.7",
     "ioredis": "^5.8.2",
     "kt-common": "^1.0.1",
-    "kt-logger": "^1.1.0",
+    "kt-logger": "^1.1.2",
     "locate-config-kt": "^1.3.0",
     "markdown-it": "^14.1.0",
     "moment": "^2.30.1",
