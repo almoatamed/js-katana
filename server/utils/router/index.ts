@@ -51,6 +51,11 @@ export const defineMiddleware = <T, B, Q, P, H, S extends NodeJS.ReadableStream>
 export type Route<T, B, Q, P, H, S extends NodeJS.ReadableStream> = {
     externalMiddlewares: Middleware<any, B, Q, P, H, S>[];
     middleWares: Middleware<any, B, Q, P, H, S>[];
+    /**
+     * Pre-combined `[...externalMiddlewares, ...middleWares]` to avoid per-request
+     * array allocations. Populated at build time by the router builder.
+     */
+    allMiddlewares: Middleware<any, B, Q, P, H, S>[];
     serveVia: ("Http" | "Socket")[];
     __symbol: symbol;
     method: "GET" | "POST" | "PUT" | "DELETE" | "ALL" | "PATCH";
@@ -85,6 +90,7 @@ export const createHandler = <T, B, Q, P, H, S extends NodeJS.ReadableStream>(
     return {
         ...props,
         middleWares: props.middleWares || [],
+        allMiddlewares: [],
         externalMiddlewares: [],
         serveVia: props.serveVia || ["Http", "Socket"],
         __symbol: routerSymbol,

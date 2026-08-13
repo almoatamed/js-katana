@@ -286,6 +286,7 @@ export default async function buildRouter(
             __symbol: routerSymbol,
             serveVia: ["Http"],
             externalMiddlewares: [],
+            allMiddlewares: [],
             handler: async (context) => {
                 if (await isDev()) {
                     const dirContent = await readdir(path.dirname(result.fullRouteFilePath), {
@@ -335,6 +336,7 @@ export default async function buildRouter(
             __symbol: routerSymbol,
             serveVia: ["Http"],
             externalMiddlewares: [],
+            allMiddlewares: [],
             handler: async (context) => {
                 console.log(result);
                 const targetPath = `/${trimSlashes(
@@ -414,6 +416,7 @@ export default async function buildRouter(
             routesRegistryMap[path.join(staticResource.remote, "*filePath")] = {
                 __symbol: routerSymbol,
                 externalMiddlewares: [],
+            allMiddlewares: [],
                 middleWares: staticResource.middlewares || [],
                 handler: (
                     context,
@@ -445,6 +448,7 @@ export default async function buildRouter(
         routesRegistryMap[path.join(apiPrefix, fullPrefix, "/__describe-json")] = {
             __symbol: routerSymbol,
             externalMiddlewares: [],
+            allMiddlewares: [],
             handler: async (context) => {
                 if (!fs.existsSync(typesPath)) {
                     throwRequestError(404, [
@@ -463,6 +467,7 @@ export default async function buildRouter(
         routesRegistryMap[path.join(apiPrefix, fullPrefix, "/__routes-list")] = {
             __symbol: routerSymbol,
             externalMiddlewares: [],
+            allMiddlewares: [],
             handler: async (context) => {
                 return context.respond.json({
                     routesList: Object.entries(routesRegistryMap).map(([path, route]) => {
@@ -482,6 +487,7 @@ export default async function buildRouter(
         routesRegistryMap[path.join(apiPrefix, fullPrefix, "/__channels-list")] = {
             __symbol: routerSymbol,
             externalMiddlewares: [],
+            allMiddlewares: [],
             handler: async (context) => {
                 return context.respond.json({
                     routesList: handlers.map((c) => c.path),
@@ -491,6 +497,15 @@ export default async function buildRouter(
             middleWares: getDescriptionMiddleware(devMode, secret),
             serveVia: ["Http"],
         };
+
+        // Pre-combine middleware arrays once so the hot path never allocates
+        // `[...externalMiddlewares, ...middleWares]` per request.
+        for (const route of Object.values(routesRegistryMap)) {
+            route.allMiddlewares =
+                route.externalMiddlewares.length > 0 || route.middleWares.length > 0
+                    ? [...route.externalMiddlewares, ...route.middleWares]
+                    : route.externalMiddlewares;
+        }
 
         log("finished Building Router:", Object.keys(routesRegistryMap));
     }
@@ -840,11 +855,8 @@ const loadCompatibleRoutesIntoChannels = async () => {
                                 },
                             };
 
-                            // Combine middlewares once
-                            const allMiddlewares =
-                                route.externalMiddlewares.length > 0 || route.middleWares.length > 0
-                                    ? [...route.externalMiddlewares, ...route.middleWares]
-                                    : route.externalMiddlewares;
+                            // Pre-combined middleware array (built once at router build time)
+                            const allMiddlewares = route.allMiddlewares;
 
                             for (const middleware of allMiddlewares) {
                                 await middleware(context, body, query, params, headers);

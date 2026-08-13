@@ -2,13 +2,15 @@ import { createServer } from "http";
 import { createLogger } from "kt-logger";
 import express from "express";
 import type { Request as BunRequest } from "undici-types";
-import qs from "qs";
 import {
     getHeadersTimeout,
     getHttpAdapter,
     getKeepAliveTimeout,
     getMaxJsonSize,
+    getMaxRequestBodySize,
     getPort,
+    getRequestLogging,
+    getUseNativeRouter,
     hasBun,
 } from "../loadConfig/index.js";
 import compression from "compression";
@@ -16,10 +18,12 @@ import { routesRegistryMap } from "../mainRouterBuilder/index.js";
 import { createRequestError, extractRequestError, HandlerContext, Route } from "../router/index.js";
 import { Handler as ExpressHandler } from "express";
 import { TransactionLogger } from "./requestLogger.js";
-import { dashDateFormatter, trimSlashes } from "kt-common";
+import { trimSlashes } from "kt-common";
 import { MaybePromise } from "bun";
 import cluster from "cluster";
 import { runBun, runExpress, runThreadedExpress } from "../channelsBuilder/index.js";
+import { SegmentTrieRouter } from "../routersHelpers/trieRouter.js";
+import { getNativeRouter, NativeRouterModule } from "../routersHelpers/nativeRouter.js";
 
 const log = await createLogger({
     color: "red",
@@ -28,33 +32,156 @@ const log = await createLogger({
     worker: true,
 });
 
+/**
+ * Per-request transaction logging is the single largest hot-path cost
+ * (date formatting + console writes on every request). It defaults to
+ * development-only and can be forced on/off via `getRequestLogging`.
+ */
+const requestLoggingEnabled = await getRequestLogging();
+
 type BunHandler<Req extends BunRequest, S, Res> = (request: Req, server: S) => MaybePromise<Res>;
 
+/**
+ * Manual URL splitting — avoids allocating a `URL` object per request when we
+ * only need the pathname and the raw query string. Handles both full URLs
+ * (Bun passes absolute URLs) and bare paths.
+ */
+const parseRequestUrl = (url: string): { pathname: string; search: string } => {
+    let rest = url;
+
+    // strip scheme://authority prefix
+    const schemeIndex = rest.indexOf("://");
+    if (schemeIndex !== -1) {
+        const authorityStart = schemeIndex + 3;
+        const authorityEnd = rest.indexOf("/", authorityStart);
+        if (authorityEnd === -1) {
+            // e.g. "http://host:3001" with no path (query may still exist)
+            const queryIndex = rest.indexOf("?", authorityStart);
+            return {
+                pathname: "/",
+                search: queryIndex === -1 ? "" : rest.slice(queryIndex + 1),
+            };
+        }
+        rest = rest.slice(authorityEnd);
+    }
+
+    // rest now starts with the pathname (or is empty)
+    let pathname = rest;
+    let search = "";
+    const queryIndex = rest.indexOf("?");
+    if (queryIndex !== -1) {
+        pathname = rest.slice(0, queryIndex);
+        search = rest.slice(queryIndex + 1);
+        const hashIndex = search.indexOf("#");
+        if (hashIndex !== -1) {
+            search = search.slice(0, hashIndex);
+        }
+    } else {
+        const hashIndex = rest.indexOf("#");
+        if (hashIndex !== -1) {
+            pathname = rest.slice(0, hashIndex);
+        }
+    }
+    return { pathname, search };
+};
+
+/**
+ * Minimal query-string parser (flat keys, duplicate keys → arrays, percent
+ * decoding). Faster than `qs` for the common case.
+ */
+const parseQueryString = (search: string): Record<string, any> => {
+    if (!search) return {};
+    const result: Record<string, any> = {};
+    const parts = search.split("&");
+    for (let i = 0; i < parts.length; i++) {
+        const part = parts[i];
+        if (!part) continue;
+        const eqIndex = part.indexOf("=");
+        let key: string;
+        let value: string;
+        if (eqIndex === -1) {
+            key = part;
+            value = "";
+        } else {
+            key = part.slice(0, eqIndex);
+            value = part.slice(eqIndex + 1);
+        }
+        try {
+            key = decodeURIComponent(key.replace(/\+/g, " "));
+            value = decodeURIComponent(value.replace(/\+/g, " "));
+        } catch {
+            // keep raw values on malformed encodings
+        }
+        if (result[key] === undefined) {
+            result[key] = value;
+        } else if (Array.isArray(result[key])) {
+            result[key].push(value);
+        } else {
+            result[key] = [result[key], value];
+        }
+    }
+    return result;
+};
+
+/**
+ * Exposes a `Headers` instance (e.g. Bun's `context.headers`) as the plain
+ * case-insensitive object handlers expect, matching Node/Express `req.headers`
+ * semantics — without copying the headers eagerly on every request.
+ *
+ * Access is resolved lazily through a Proxy: bracket/property reads hit
+ * `headers.get(key)` only for the keys a handler actually touches, so
+ * header-light requests never pay for enumeration.
+ */
+const requestHeadersView = (headers: {
+    get: (name: string) => string | null;
+    has: (name: string) => boolean;
+    keys: () => IterableIterator<string>;
+}): Record<string, string> => {
+    return new Proxy({} as Record<string, string>, {
+        get(_target, prop, receiver) {
+            if (typeof prop === "string") {
+                const value = headers.get(prop);
+                return value === null ? undefined : value;
+            }
+            return Reflect.get(headers, prop, headers);
+        },
+        has(_target, prop) {
+            return typeof prop === "string" && headers.has(prop);
+        },
+        ownKeys() {
+            return Array.from(headers.keys());
+        },
+        getOwnPropertyDescriptor(_target, prop) {
+            if (typeof prop !== "string") return undefined;
+            const value = headers.get(prop);
+            if (value === null) return undefined;
+            return { enumerable: true, configurable: true, value };
+        },
+    });
+};
+
 const convertHandlerToExpressRoute = (route: Route<any, any, any, any, any, any>) => {
+    const allMiddlewares = route.allMiddlewares;
     const expressHandler: ExpressHandler = async (request, response) => {
         let responded = false;
-        const logger = new TransactionLogger("Request Logger");
+        let logger: TransactionLogger | undefined = undefined;
+        if (requestLoggingEnabled) {
+            logger = new TransactionLogger("Request Logger");
+        }
 
         try {
-            const text = `
+            if (requestLoggingEnabled) {
+                const text = `
         method: ${request.method} 
         url: ${request.protocol}://${request.get("host")}${request.originalUrl} 
         Authentication: ${request.headers["authorization"]
                     ? "Has Authorization Info in headers"
                     : "Doesn't have Authorization Info in headers"
                 }
-        started at: ${dashDateFormatter(new Date(), {
-                    getDate: true,
-                    getTime: true,
-                    getMilliseconds: true,
-                    dateFormat: "yyyy-mm-dd",
-                })} 
+        started at: ${new Date().toISOString()} 
 `;
-            logger.log("blue", text);
-            const query = { ...request.query };
-            const params = { ...request.params };
-            const headers = { ...request.headers };
-            const body = { ...request.body };
+                logger?.log("blue", text);
+            }
 
             const context: HandlerContext<any, any, any, any, any> = {
                 locals: {},
@@ -92,32 +219,36 @@ const convertHandlerToExpressRoute = (route: Route<any, any, any, any, any, any>
                         return data;
                     },
                 },
-                body,
-                headers,
-                params,
-                query,
+                body: request.body,
+                headers: request.headers,
+                params: request.params,
+                query: request.query,
                 setStatus(_statusCode) {
                     response.status(_statusCode);
                     return context;
                 },
             };
 
-            for (const middleware of [...route.externalMiddlewares, ...route.middleWares]) {
-                await middleware(context, body, query, params, headers);
+            for (const middleware of allMiddlewares) {
+                await middleware(context, request.body, request.query, request.params, request.headers);
                 if (responded) {
                     return;
                 }
             }
 
-            await route.handler(context, body, query, params, headers);
+            await route.handler(context, request.body, request.query, request.params, request.headers);
             if (!responded) {
-                logger.warn("yellow", "You Did not respond properly to the request on", route.method, request.originalUrl);
+                logger?.warn("yellow", "You Did not respond properly to the request on", route.method, request.originalUrl);
                 response.json?.({
                     msg: "OK",
                 });
             }
         } catch (error) {
-            logger.error("red", "Error in route handler:", error);
+            if (requestLoggingEnabled) {
+                logger?.error("red", "Error in route handler:", error);
+            } else {
+                console.error("Error in route handler:", error);
+            }
             if (responded) {
                 return;
             }
@@ -135,20 +266,17 @@ const convertHandlerToExpressRoute = (route: Route<any, any, any, any, any, any>
                 ])
             );
         } finally {
-            logger
-                .log(
-                    "red",
-                    `
+            if (requestLoggingEnabled) {
+                logger
+                    ?.log(
+                        "red",
+                        `
         Status Code: ${response.statusCode}
-        Finished At: ${dashDateFormatter(new Date(), {
-                        getDate: true,
-                        getTime: true,
-                        getMilliseconds: true,
-                        dateFormat: "yyyy-mm-dd",
-                    })}                
+        Finished At: ${new Date().toISOString()}                
 `
-                )
-                .out();
+                    )
+                    .out();
+            }
         }
     };
     return expressHandler;
@@ -165,6 +293,8 @@ const convertHandlerToExpressRoute = (route: Route<any, any, any, any, any, any>
  *  - /api/x/*filePath      -> { filePath: ["one","two","three"] }
  *
  * Note: uses RegExp named capture groups (Node 10+ / modern browsers).
+ * Kept as a fallback for patterns with optional params (`:id?`) which the
+ * SegmentTrieRouter intentionally does not handle.
  */
 class RouteMatcher {
     pattern: string;
@@ -289,12 +419,31 @@ class RouteMatcher {
 type GeneralRoute = Route<any, any, any, any, any, any>
 
 
-const handleGeneralBunRequest = () => {
+type NativeRouterInstance = InstanceType<NativeRouterModule["NativeRouter"]>;
+
+export const handleGeneralBunRequest = async () => {
     const exactRoutesMap = new Map<string, GeneralRoute>()
+    // Segment trie for O(segments) dynamic matching (no regex per request)
+    const dynamicRoutesTrie = new SegmentTrieRouter<GeneralRoute>()
+    // Regex fallback for optional-param patterns (`:id?`)
     const patternedRoutesList: {
         matcher: RouteMatcher;
         route: GeneralRoute;
     }[] = []
+    // Native (napi-rs) trie, when opted in via `useNativeRouter`
+    const useNativeRouter = await getUseNativeRouter()
+    let nativeRouter: NativeRouterInstance | null = null
+    let nativeRoutes: GeneralRoute[] = []
+    if (useNativeRouter) {
+        const nativeModule = getNativeRouter()
+        if (nativeModule) {
+            nativeRouter = new nativeModule.NativeRouter()
+        } else {
+            log.warning(
+                "native router requested via `useNativeRouter` but the native module is not available; falling back to the JS router. Run `npm run build:native` in js-kt and rebuild."
+            )
+        }
+    }
 
 
     const includeMethod = (route: string, method: string) => {
@@ -304,33 +453,57 @@ const handleGeneralBunRequest = () => {
         return `${method}---${route}`
     }
 
+    // A pattern is trie-safe when every `:param`/`*wildcard` token starts its own
+    // segment and uses a plain identifier. Anything else (optional `:id?`, embedded
+    // tokens like `describe.:ext`) is delegated to the regex RouteMatcher.
+    const trieSegment = /^:([A-Za-z0-9_]+)$/;
+    const wildcardSegment = /^\*([A-Za-z0-9_]+)$/;
+    const isTrieSafe = (pattern: string): boolean => {
+        const segments = pattern.split("/");
+        for (const segment of segments) {
+            if (trieSegment.test(segment) || wildcardSegment.test(segment)) continue;
+            if (segment.includes(":") || segment.includes("*")) return false;
+        }
+        return true;
+    };
+
     for (const routePattern in routesRegistryMap) {
         const route = routesRegistryMap[routePattern]
-        const match = routePattern.match(RouteMatcher.tokenRe)
+        const hasTokens = routePattern.match(RouteMatcher.tokenRe)
 
         const fullRoutePattern = includeMethod(trimSlashes(routePattern), route.method)
-        if (match) {
-            const matcher = new RouteMatcher(fullRoutePattern)
+        if (hasTokens) {
+            if (fullRoutePattern.includes("?") || !isTrieSafe(fullRoutePattern)) {
+                // optional params or exotic token placement: keep regex fallback
+                const matcher = new RouteMatcher(fullRoutePattern)
 
-            patternedRoutesList.push({
-                matcher,
-                route,
-            })
+                patternedRoutesList.push({
+                    matcher,
+                    route,
+                })
+            } else if (nativeRouter) {
+                nativeRouter.add(fullRoutePattern, nativeRoutes.length)
+                nativeRoutes.push(route)
+            } else {
+                dynamicRoutesTrie.add(fullRoutePattern, route)
+            }
         } else {
             exactRoutesMap.set(fullRoutePattern, route)
         }
     }
 
     const bunHandler: BunHandler<BunRequest, any, any> = async (request) => {
-        const logger = new TransactionLogger("Request Logger");
+        let logger: TransactionLogger | undefined = undefined;
+        if (requestLoggingEnabled) {
+            logger = new TransactionLogger("Request Logger");
+        }
         let responded = false;
         let responseStatusCode = 200;
 
         try {
-            const url = new URL(request.url);
-            const query = qs.parse(request.url.split("?")[1] || "");
-            const routePath = trimSlashes(url.pathname)
-            const body: any = request.headers.get("content-type")?.includes("application/json") ? await request.json() : {}
+            const { pathname, search } = parseRequestUrl(request.url);
+            const query = parseQueryString(search);
+            const routePath = trimSlashes(pathname)
             const fullRoutePattern = includeMethod(routePath, request.method)
             let response: Response | null = null
 
@@ -338,37 +511,62 @@ const handleGeneralBunRequest = () => {
             let route: GeneralRoute | null = null
 
             route = exactRoutesMap.get(fullRoutePattern) || null
-            const headers = new Headers()
+            const requestHeaders = requestHeadersView(request.headers)
             if (route) {
                 params = {}
+            } else if (nativeRouter) {
+                const nativeMatch = nativeRouter.matchRoute(fullRoutePattern)
+                if (nativeMatch.found) {
+                    route = nativeRoutes[nativeMatch.routeId]
+                    params = nativeMatch.params
+                    const wildcards = nativeMatch.wildcards
+                    for (const wildcardName in wildcards) {
+                        params[wildcardName] = wildcards[wildcardName]
+                    }
+                } else {
+                    for (const r of patternedRoutesList) {
+                        const match = r.matcher.match(fullRoutePattern);
+                        if (match.ok) {
+                            route = r.route;
+                            params = match.params
+                            break
+                        }
+                    }
+                }
             } else {
-                for (const r of patternedRoutesList) {
-                    const match = r.matcher.match(fullRoutePattern);
-                    if (match.ok) {
-                        route = r.route;
-                        params = match.params
-                        break
+                const trieMatch = dynamicRoutesTrie.match(fullRoutePattern)
+                if (trieMatch) {
+                    route = trieMatch.route;
+                    params = trieMatch.params;
+                } else {
+                    for (const r of patternedRoutesList) {
+                        const match = r.matcher.match(fullRoutePattern);
+                        if (match.ok) {
+                            route = r.route;
+                            params = match.params
+                            break
+                        }
                     }
                 }
             }
 
+            // Parse the body only when a route will actually consume it. This also
+            // keeps 404s free of body-parsing overhead.
+            const body: any = request.headers.get("content-type")?.includes("application/json") ? await request.json() : {}
 
-            const text = `
+            if (requestLoggingEnabled) {
+                const text = `
         method: ${request.method} 
-        url: ${url} 
-        Authentication: ${request.headers["authorization"]
+        url: ${request.url} 
+        Authentication: ${requestHeaders["authorization"]
                     ? "Has Authorization Info in headers"
                     : "Doesn't have Authorization Info in headers"
                 }
-        started at: ${dashDateFormatter(new Date(), {
-                    getDate: true,
-                    getTime: true,
-                    getMilliseconds: true,
-                    dateFormat: "yyyy-mm-dd",
-                })} 
+        started at: ${new Date().toISOString()} 
 `;
 
-            logger.log("blue", text);
+                logger?.log("blue", text);
+            }
 
             if (!route) {
                 throw createRequestError(404, [
@@ -381,14 +579,15 @@ const handleGeneralBunRequest = () => {
                 ])
             }
 
-
-
+            // Response headers are created lazily — most responses never set one.
+            let responseHeaders: Headers | null = null;
+            const ensureHeaders = () => responseHeaders ?? (responseHeaders = new Headers());
 
             const context: HandlerContext<any, any, any, any, any> = {
                 locals: {},
                 servedVia: "http",
                 setHeader(key, value) {
-                    headers.set(key, value);
+                    ensureHeaders().set(key, value);
                 },
                 sourceStream: request.body,
                 method: route.method,
@@ -397,7 +596,7 @@ const handleGeneralBunRequest = () => {
                     async file(fullPath) {
                         responded = true;
                         response = new Response(Bun.file(fullPath), {
-                            headers,
+                            headers: responseHeaders || undefined,
                             status: responseStatusCode,
                         })
                         return {
@@ -406,6 +605,7 @@ const handleGeneralBunRequest = () => {
                     },
                     html: (text) => {
                         responded = true;
+                        const headers = ensureHeaders();
                         headers.set("Content-Type", "text/html; charset=utf-8");
                         response = new Response(text, {
                             headers,
@@ -417,15 +617,16 @@ const handleGeneralBunRequest = () => {
                     text: (text) => {
                         responded = true;
                         response = new Response(text, {
-                            headers,
+                            headers: responseHeaders || undefined,
                             status: responseStatusCode,
 
                         })
                         return text;
                     },
                     json: (data: any) => {
-                        headers.set("Content-Type", "application/json")
                         responded = true;
+                        const headers = ensureHeaders();
+                        headers.set("Content-Type", "application/json")
                         response = new Response(JSON.stringify(data), {
                             headers,
                             status: responseStatusCode,
@@ -434,7 +635,7 @@ const handleGeneralBunRequest = () => {
                     },
                 },
                 body,
-                headers,
+                headers: requestHeaders,
                 params,
                 query,
                 setStatus(_statusCode) {
@@ -443,19 +644,19 @@ const handleGeneralBunRequest = () => {
                 },
             };
 
-            for (const middleware of [...route.externalMiddlewares, ...route.middleWares]) {
-                await middleware(context, body, query, params, headers);
+            for (const middleware of route.allMiddlewares) {
+                await middleware(context, body, query, params, requestHeaders);
                 if (response && responded) {
                     return response;
                 }
             }
 
-            await route.handler(context, body, query, params, headers);
+            await route.handler(context, body, query, params, requestHeaders);
             if (response && responded) {
                 return response
             }
 
-            logger.warn("yellow", "You Did not respond properly to the request on", route.method, request.url);
+            logger?.warn("yellow", "You Did not respond properly to the request on", route.method, request.url);
             return new Response(JSON.stringify({
                 msg: "OK",
             }));
@@ -463,7 +664,11 @@ const handleGeneralBunRequest = () => {
             if (responded) {
                 return;
             }
-            logger.error("red", "Error in route handler:", error);
+            if (requestLoggingEnabled) {
+                logger?.error("red", "Error in route handler:", error);
+            } else {
+                console.error("Error in route handler:", error);
+            }
             const requestError = extractRequestError(error);
             if (requestError) {
                 responseStatusCode = requestError.statusCode
@@ -486,20 +691,17 @@ const handleGeneralBunRequest = () => {
             })
 
         } finally {
-            logger
-                .log(
-                    "red",
-                    `
+            if (requestLoggingEnabled) {
+                logger
+                    ?.log(
+                        "red",
+                        `
         Status Code: ${responseStatusCode}
-        Finished At: ${dashDateFormatter(new Date(), {
-                        getDate: true,
-                        getTime: true,
-                        getMilliseconds: true,
-                        dateFormat: "yyyy-mm-dd",
-                    })}                
+        Finished At: ${new Date().toISOString()}                
 `
-                )
-                .out();
+                    )
+                    .out();
+            }
         }
     };
     return bunHandler;
@@ -572,16 +774,19 @@ export async function createBunApp(multithreading: boolean = false): Promise<{
             
             if ((multithreading && !cluster.isPrimary) || (!multithreading && cluster.isPrimary)) {
                 const engine = await runBun();
-                const routerHandler = handleGeneralBunRequest()
+                const routerHandler = await handleGeneralBunRequest()
+                const maxRequestBodySize = await getMaxRequestBodySize()
+                const socketPath = trimSlashes(engine.opts.path)
                
                 serve({
                     reusePort: multithreading,
                     port,
                     ...engine.handler(),
+                    ...(maxRequestBodySize !== undefined ? { maxRequestBodySize } : {}),
                     error: bunErrorHandler,
                     fetch: async (req, server: any) => {
-                        const url = new URL(req.url);
-                        if (trimSlashes(url.pathname) === trimSlashes(engine.opts.path)) {
+                        const { pathname } = parseRequestUrl(req.url);
+                        if (trimSlashes(pathname) === socketPath) {
                             try {
                                 const result = await engine.handleRequest(req, server);
                                 return result

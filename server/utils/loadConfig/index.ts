@@ -46,6 +46,20 @@ export type RoutingConfig = {
     getDirectoryAliasSuffix?: MaybePromise<string>;
     getKeepAliveTimeout?: MaybePromise<number>;
     getHeadersTimeout?: MaybePromise<number>;
+    /**
+     * Controls whether every request is logged to stdout with its lifecycle.
+     * Defaults to `true` in development and `false` in production.
+     * Disabling removes the largest per-request overhead in the hot path.
+     */
+    getRequestLogging?: MaybePromise<boolean>;
+    getMaxRequestBodySize?: MaybePromise<number>;
+    /**
+     * When enabled, dynamic (param/wildcard) HTTP route matching is delegated to
+     * the native Rust segment-trie router (`build:native` must have been run and
+     * the `.node` module shipped with the package). Falls back to the JS router
+     * transparently when the native module is unavailable. Defaults to `false`.
+     */
+    useNativeRouter?: MaybePromise<boolean>;
     getStaticDirs?: MaybePromise<
         {
             local: string;
@@ -63,6 +77,13 @@ let hasBunCachedValue: boolean | undefined = undefined;
 export const hasBun = async () => {
     if (typeof hasBunCachedValue == "boolean") {
         return hasBunCachedValue;
+    }
+
+    // Bun exposes `process.versions.bun`; Node does not. This avoids spawning a
+    // child process (`execSync("bun --version")`) on every boot.
+    if (typeof process.versions?.bun === "string") {
+        hasBunCachedValue = true;
+        return true;
     }
 
     try {
@@ -189,6 +210,36 @@ export async function getKeepAliveTimeout() {
     return (await valueOf(config.getKeepAliveTimeout)) || 110000;
 }
 
+let cachedRequestLogging: boolean | undefined = undefined;
+export async function getRequestLogging() {
+    if (typeof cachedRequestLogging == "boolean") {
+        return cachedRequestLogging;
+    }
+    const config = await loadConfig();
+    const configured = await valueOf(config.getRequestLogging);
+    if (typeof configured == "boolean") {
+        cachedRequestLogging = configured;
+        return configured;
+    }
+    cachedRequestLogging = await isDev();
+    return cachedRequestLogging;
+}
+
+export async function getMaxRequestBodySize() {
+    const config = await loadConfig();
+    return await valueOf(config.getMaxRequestBodySize);
+}
+
+let cachedUseNativeRouter: boolean | undefined = undefined;
+export async function getUseNativeRouter() {
+    if (typeof cachedUseNativeRouter == "boolean") {
+        return cachedUseNativeRouter;
+    }
+    const config = await loadConfig();
+    cachedUseNativeRouter = (await valueOf(config.useNativeRouter)) ?? false;
+    return cachedUseNativeRouter;
+}
+
 export async function getPort() {
     const config = await loadConfig();
     return (await valueOf(config.getPort)) ?? 3000;
@@ -250,7 +301,12 @@ export const getSourceDir = async () => {
     return path.join(await findRoot(), configuredSrcPath);
 };
 
+let cachedConfig: RoutingConfig | null = null;
 export const loadConfig = async (): Promise<RoutingConfig> => {
+    if (cachedConfig) {
+        return cachedConfig;
+    }
+
     const defaultConfig: RoutingConfig = {};
 
     const configPath = await getConfigPath({
@@ -258,7 +314,13 @@ export const loadConfig = async (): Promise<RoutingConfig> => {
     });
 
     if (configPath) {
-        return (await import(configPath)).default;
+        cachedConfig = (await import(configPath)).default as RoutingConfig;
+    } else {
+        cachedConfig = defaultConfig;
     }
-    return defaultConfig;
+    return cachedConfig as RoutingConfig;
+};
+
+export const clearConfigCache = () => {
+    cachedConfig = null;
 };
