@@ -1,5 +1,6 @@
 import { createLogger } from "kt-logger";
 import { createRequestError, extractRequestError } from "../../router/index.js";
+import { SegmentTrieRouter } from "../../routersHelpers/trieRouter.js";
 import { Socket } from "socket.io";
 
 const log = await createLogger({
@@ -166,11 +167,31 @@ interface Route {
     handler: ChannelHandler<any, any>;
 }
 
+// A socket pattern is trie-safe when every `:param`/`*` token is its own segment
+// with a plain name — matching what the socket regex compiler supports. Anything
+// else falls back to the regex matcher.
+const isTrieSafePattern = (pattern: string): boolean => {
+    const segments = pattern.split("/");
+    for (let i = 0; i < segments.length; i++) {
+        const segment = segments[i];
+        if (segment.startsWith(":")) {
+            if (!/^:[A-Za-z0-9_]+$/.test(segment)) return false;
+        } else if (segment === "*") {
+            if (i !== segments.length - 1) return false;
+        } else if (segment.includes(":") || segment.includes("*")) {
+            return false;
+        }
+    }
+    return true;
+};
+
 // Create a router per socket
 export function createSocketRouter(socket: Socket) {
     // Separate exact matches (no wildcards/params) for O(1) lookup
     const exactRoutes = new Map<string, Route>();
-    // Dynamic routes (with params/wildcards) stored in array
+    // Dynamic routes (with params/wildcards): trie for common patterns, regex
+    // list as a fallback for exotic ones
+    const dynamicRoutesTrie = new SegmentTrieRouter<Route>();
     const dynamicRoutes: Route[] = [];
 
     // Cache for cleaned event names (per socket instance) - reduces repeated normalization
@@ -207,8 +228,33 @@ export function createSocketRouter(socket: Socket) {
                 return;
             }
 
-            // Dynamic route matching - only iterate through routes that could match
-            // The cleanedEventCache is already populated, so matchPattern will reuse it
+            // Trie match for :param/* patterns (raw, undecoded, * joined as string)
+            const trieMatch = dynamicRoutesTrie.match(normalizedEvent, {
+                decode: false,
+                wildcardAs: "joined",
+            });
+
+            if (trieMatch) {
+                // the socket `*` token means "(.+)" — require at least one segment
+                if (trieMatch.params["*"] !== "") {
+                    try {
+                        await perform(body, cb, trieMatch.route.handler, eventName, trieMatch.params);
+                    } catch (error: any) {
+                        log.error("Channel Error", eventName, error);
+                        if (cb) {
+                            const e = extractRequestError(error);
+                            if (e) {
+                                cb(e);
+                            } else {
+                                cb(createRequestError(500, [{ ...UNKNOWN_ERROR_TEMPLATE, data: error }]));
+                            }
+                        }
+                    }
+                    return;
+                }
+            }
+
+            // Dynamic route matching (regex fallback) - only for exotic patterns
             const routeCount = dynamicRoutes.length;
             for (let i = 0; i < routeCount; i++) {
                 const r = dynamicRoutes[i];
@@ -260,6 +306,8 @@ export function createSocketRouter(socket: Socket) {
                 if (normalizedPattern !== pattern) {
                     exactRoutes.set(pattern, route);
                 }
+            } else if (isTrieSafePattern(pattern)) {
+                dynamicRoutesTrie.add(pattern, route);
             } else {
                 dynamicRoutes.push(route);
             }
