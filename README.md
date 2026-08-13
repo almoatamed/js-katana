@@ -18,10 +18,35 @@ Build scalable, type-safe Node.js servers with zero configuration overhead. js-k
 ### ⚡ **Performance Built-In**
 
 - **Bun Adapter**: Optional high-performance Bun runtime for exceptional speed and lower latency.
-- **Optimized Routing**: O(1) lookups, pattern caching, and intelligent route matching.
+- **Optimized Routing**: O(1) exact-match lookups, a segment-trie for dynamic routes (O(path segments), no per-request regex), and a regex fallback for exotic patterns.
+- **Fast Request Pipeline**: Manual URL/query parsing (no `URL` object or `qs` per request), lazy response headers, and deferred body parsing.
+- **Low-Overhead Logging**: Per-request transaction logging is disabled by default in production (`getRequestLogging`).
 - **Multi-Threading**: Built-in cluster support with intelligent worker scaling for maximum CPU utilization.
 - **Redis-Ready**: Seamless Socket.IO scaling with Redis adapter support.
 - **Smart Caching**: File stat caching, compiled pattern reuse, and efficient middleware execution.
+
+#### Benchmarks
+
+Measured with the harness in `scripts/bench.ts` (worker-thread clients). Run-to-run variance on
+throttled/`powersave` machines is high, so treat single runs as indicative only.
+
+- Parsing fast path (micro-benchmark): **765k ops/s** vs 522k ops/s for the previous `new URL` + `qs` path (~**+46%**).
+- Dynamic socket dispatch with 500 shared-prefix routes: segment-trie is **1.32x** faster than scanning compiled regexes and stays O(depth) as routes grow.
+- Single-core end-to-end throughput (Bun, this repo's benchmark app): ~31k–70k req/s depending on CPU governor state.
+
+#### Optional Native Router (Rust)
+
+Dynamic HTTP route matching can be delegated to a native (napi-rs) segment-trie router:
+
+```typescript
+export default {
+    useNativeRouter: true,
+} satisfies RoutingConfig;
+```
+
+- Build it with `npm run build:native` (requires a Rust toolchain); the `.node` module ships in the package under `dist/native/`.
+- If the module is unavailable it **falls back transparently** to the JS router with a warning — safe to enable anywhere.
+- **Note:** on current Bun/Node, per-request napi FFI overhead (~600ns/call) exceeds the JIT-optimized JS trie match (~420ns), so the native router is currently a capability/native-binding option rather than a speedup. Micro-benchmarks: ~1.1M match/s native vs ~2.4M match/s JS trie at 500 routes.
 
 ### 🔄 **Unified Protocol Support**
 
@@ -473,7 +498,14 @@ export default {
     apiPrefix: "/api",
     
     // Server port
-    port: 3000,
+    getPort: 3000,
+    
+    // Log every request to stdout (defaults to dev-only)
+    // Disabling removes the largest per-request hot-path overhead.
+    getRequestLogging: false,
+    
+    // Use the native Rust router for dynamic routes (optional)
+    useNativeRouter: false,
     
     // CORS configuration
     cors: {
@@ -529,6 +561,33 @@ export default {
     headersTimeout: 66000,
 } satisfies RoutingConfig;
 ```
+
+---
+
+## 🚀 Building a Single Binary
+
+Compile your app into a standalone executable (embedded Bun runtime, no
+`node_modules` needed at deploy time):
+
+```bash
+npx kt-cli build
+# outputs ./js-kt-app (in your project root)
+
+./js-kt-app --production
+```
+
+Options:
+
+```bash
+npx kt-cli build \
+  --entry run.ts \        # entry file (auto-detected: run.ts/run.js/src/run.ts/...)
+  --outfile my-app \      # output binary name (default: js-kt-app)
+  --target bun-linux-x64  # cross-compile for another platform
+  --minify --sourcemap
+```
+
+> Requires Bun (`bun build --compile`). Native `.node` modules (e.g. the optional
+> native router) are externalized by Bun and must be shipped next to the binary.
 
 ---
 

@@ -1,0 +1,9 @@
+{
+    "name": "js-kt-benchmark-app",
+    "version": "1.0.0",
+    "private": true,
+    "type": "module",
+    "dependencies": {
+        "js-kt": "file:../../../../tmp/opencode/js-kt-1.6.17.tgz"
+    }
+}
