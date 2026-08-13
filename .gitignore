@@ -1,11 +1,11 @@
 .DS_Store
-src/
+/src/
 node_modules
 node_modules/*
 # /dist
-/scripts
 /.now
 dist
+/native/target
 /database/backup/*.sql
 # Tests
 /tests/e2e/videos/

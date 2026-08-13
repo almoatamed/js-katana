@@ -22,7 +22,8 @@
     "kt-cli": "dist/utils/cli/index.js"
   },
   "scripts": {
-    "build": "rm -rf ./dist && tsc && chmod -R 755 ./dist && chmod +x ./dist/utils/cli/index.js",
+    "build": "rm -rf ./dist && tsc && node scripts/copyNativeModule.js && chmod -R 755 ./dist && chmod +x ./dist/utils/cli/index.js",
+    "build:native": "cargo build --release --manifest-path native/Cargo.toml && node scripts/copyNativeModule.js",
     "prepare": "npm run build && echo 'Built successfully!'"
   },
   "main": "dist/index.js",

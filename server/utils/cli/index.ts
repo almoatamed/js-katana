@@ -2,6 +2,8 @@
 import 'dotenv/config'
 import { execSync, spawn } from "child_process";
 import { program } from "commander";
+import { existsSync } from "fs";
+import findRoot from "find-root-kt";
 import { readVolatileJSON } from "kt-common";
 import { createLogger } from "kt-logger";
 import { getConfigPath } from "locate-config-kt";
@@ -165,6 +167,61 @@ export default {
             );
             log(`Created default configuration file at path: ${newConfigPath}`);
         });
+
+    program
+        .command("build")
+        .alias("b")
+        .description("Compile the app into a single executable binary using `bun build --compile`")
+        .option("-e, --entry <path>", "entry file (defaults to run.ts / run.js in the app root)", undefined)
+        .option("-o, --outfile <name>", "output binary name", "js-kt-app")
+        .option("-t, --target <target>", "bun --target (e.g. bun-linux-x64 for cross-compiling)")
+        .option("--minify", "minify the bundle")
+        .option("--sourcemap", "include sourcemaps")
+        .action(async (options: { entry?: string; outfile: string; target?: string; minify?: boolean; sourcemap?: boolean }) => {
+            const useBun = await hasBun();
+            if (!useBun) {
+                console.error(
+                    "`kt-cli build` requires bun (`bun build --compile`). Install bun: https://bun.sh"
+                );
+                process.exit(1);
+            }
+
+            const root = await findRoot();
+            const candidates = options.entry
+                ? [options.entry]
+                : ["run.ts", "run.js", "src/run.ts", "src/run.js", "index.ts", "index.js"];
+            const entry = candidates
+                .map((candidate) => (path.isAbsolute(candidate) ? candidate : path.join(root, candidate)))
+                .find((candidate) => existsSync(candidate));
+
+            if (!entry) {
+                console.error(
+                    `Could not find an app entry point (${candidates.join(", ")}) in ${root}. Pass one with --entry.`
+                );
+                process.exit(1);
+            }
+
+            const args = ["build", "--compile", entry, "--outfile", options.outfile];
+            if (options.target) {
+                args.push("--target", options.target);
+            }
+            if (options.minify) {
+                args.push("--minify");
+            }
+            if (options.sourcemap) {
+                args.push("--sourcemap");
+            }
+
+            const outPath = path.isAbsolute(options.outfile) ? options.outfile : path.join(root, options.outfile);
+            log(`compiling ${entry} -> ${outPath} (bun build --compile)`);
+            execSync(`bun ${args.map((arg) => `"${arg}"`).join(" ")}`, {
+                cwd: root,
+                stdio: "inherit",
+                encoding: "utf-8",
+            });
+            log(`built single-file executable at ${outPath}`);
+        });
+
     await program.parseAsync();
 };
 await run();

@@ -1,0 +1,22 @@
+[package]
+name = "js-kt-native-router"
+version = "0.1.0"
+edition = "2021"
+description = "Native segment-trie router for js-kt (napi-rs)"
+license = "MIT"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+napi = { version = "3", default-features = false, features = ["napi8"] }
+napi-derive = "3"
+
+[build-dependencies]
+napi-build = "2"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+strip = true
