@@ -2,7 +2,7 @@ import express from "express";
 import cors from "cors";
 import { collectRoutesFiles, collectRoutesFilesAndDeleteDescriptions, useContextToProcessTypes } from "./index.js";
 import { readFile } from "fs/promises";
-import ts from "typescript";
+import ts from "@typescript/typescript6";
 import { getDescriptionPreExtensionSuffix, getTypeScannerBatchingPeriod } from "../loadConfig/index.js";
 import { removeFilesFromEventsDescriptionMap } from "../channelsHelpers/describe/emitter/index.js";
 import { createHash } from "crypto";

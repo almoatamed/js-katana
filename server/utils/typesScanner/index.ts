@@ -1,4 +1,4 @@
-import ts from "typescript";
+import ts from "@typescript/typescript6";
 import { describeRoute, routesDescriptionMap } from "../routersHelpers/describe/index.js";
 import { pathToFileURL } from "url";
 import { channelsDescriptionsMap, describeChannel } from "../channelsHelpers/describe/listener/index.js";

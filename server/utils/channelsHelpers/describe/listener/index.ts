@@ -2,7 +2,7 @@ import { routerSuffixRegx as channelsSuffixRegx, descriptionSuffixRegx } from ".
 import cluster from "cluster";
 import fs from "fs";
 import path from "path";
-import ts from "typescript";
+import ts from "@typescript/typescript6";
 import url from "url";
 import { getDescriptionPreExtensionSuffix, getRouterDirectory, getRouteSuffix } from "../../../loadConfig/index.js";
 
