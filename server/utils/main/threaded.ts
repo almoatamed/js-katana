@@ -61,7 +61,6 @@ if (!cluster.isPrimary) {
     process.on("message", listener);
 
     const start = async () => {
-        process.removeListener("message", listener);
         const { startServer } = await createApp(true);
         await startServer();
     };
