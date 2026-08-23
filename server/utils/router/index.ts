@@ -21,16 +21,16 @@ export type HandlerContext<B, Q, P, H, SourceStream extends NodeJS.ReadableStrea
     setStatus: (statusCode: number) => HandlerContext<B, Q, P, H, SourceStream>;
     body: B;
 } & (
-    | {
-          servedVia: "http";
-          sourceStream: SourceStream;
-          setHeader: (key: string, value: string) => void;
-      }
-    | {
-          servedVia: "socket";
-          socket: Socket;
-      }
-);
+        | {
+            servedVia: "http";
+            sourceStream: SourceStream;
+            setHeader: (key: string, value: string) => void;
+        }
+        | {
+            servedVia: "socket";
+            socket: Socket;
+        }
+    );
 
 export type Handler<T, B, Q, P, H, S extends NodeJS.ReadableStream> = (
     context: HandlerContext<B, Q, P, H, S>,
@@ -99,14 +99,14 @@ export type RequestError = {
     errors: {
         error: string;
         errors?: string[] | undefined;
-    }[];
+    };
 };
 export const throwUnauthorizedError = (message?: string) => {
-    throwRequestError(401, [
+    throwRequestError(401,
         {
             error: message || "Unauthorized",
         },
-    ]);
+    );
 };
 export const throwRequestError = (
     statusCode: number,
@@ -114,7 +114,7 @@ export const throwRequestError = (
         error: string;
         data?: any;
         errors?: string[];
-    }[]
+    }
 ) => {
     const error = {
         statusCode,
@@ -129,7 +129,7 @@ export const createRequestError = (
         error: string;
         data?: any;
         errors?: string[];
-    }[]
+    }
 ) => {
     const error = {
         statusCode,

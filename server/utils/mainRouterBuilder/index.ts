@@ -321,11 +321,11 @@ export default async function buildRouter(
                     }
                     return context.respond.file(descriptionFullPath);
                 }
-                throwRequestError(404, [
+                throwRequestError(404,
                     {
                         error: "There is no description for this route",
                     },
-                ]);
+                );
             },
             middleWares: getDescriptionMiddleware(devMode, secret),
             method: "GET",
@@ -341,11 +341,11 @@ export default async function buildRouter(
                     path.join(path.dirname(result.fullRouteFilePath), result.routerName)
                 )}${await getDescriptionPreExtensionSuffix()}.${context.params?.ext}`;
                 if (!existsSync(targetPath)) {
-                    throwRequestError(404, [
+                    throwRequestError(404, 
                         {
                             error: "There is no description with this extension for this route",
                         },
-                    ]);
+                    );
                 }
                 return context.respond.file(targetPath);
             },
@@ -425,11 +425,11 @@ export default async function buildRouter(
                 ) => {
                     const targetFile = path.join(root, ...(params.filePath || []));
                     if (!fs.existsSync(targetFile)) {
-                        throwRequestError(404, [
+                        throwRequestError(404, 
                             {
                                 error: "File not found",
                             },
-                        ]);
+                        );
                     }
                     return context.respond.file(targetFile);
                 },
@@ -447,11 +447,11 @@ export default async function buildRouter(
             externalMiddlewares: [],
             handler: async (context) => {
                 if (!fs.existsSync(typesPath)) {
-                    throwRequestError(404, [
+                    throwRequestError(404, 
                         {
                             error: "API Types description not found",
                         },
-                    ]);
+                    );
                 }
                 return context.respond.file(typesPath);
             },
@@ -868,12 +868,12 @@ const loadCompatibleRoutesIntoChannels = async () => {
                                 return;
                             }
                             cb(
-                                createRequestError(500, [
+                                createRequestError(500, 
                                     {
                                         error: "Unknown server error",
                                         data: error,
                                     },
-                                ])
+                                )
                             );
                         }
                     },

@@ -30,12 +30,12 @@ export const expressErrorHandler: ErrorRequestHandler = async (originalError, re
 
         let extractedRequestError = extractRequestError(error);
         if (!extractedRequestError) {
-            extractedRequestError = createRequestError(500, [
+            extractedRequestError = createRequestError(500, 
                 {
                     error: "Unknown server error",
                     data: error,
                 },
-            ]);
+            );
         }
 
         const statusCode = extractedRequestError.statusCode || 500;
@@ -69,12 +69,12 @@ export const bunErrorHandler = (originalError: any) => {
 
         let extractedRequestError = extractRequestError(error);
         if (!extractedRequestError) {
-            extractedRequestError = createRequestError(500, [
+            extractedRequestError = createRequestError(500, 
                 {
                     error: "Unknown server error",
                     data: error,
                 },
-            ]);
+            );
         }
 
         const statusCode = extractedRequestError.statusCode || 500;
@@ -85,12 +85,12 @@ export const bunErrorHandler = (originalError: any) => {
         log.error(error, "Error", "Failed To Handle Error on Error Middleware", originalError);
         return new Response(
             JSON.stringify(
-                createRequestError(500, [
+                createRequestError(500, 
                     {
                         error: "Unknown Error",
                         data: error,
                     },
-                ])
+                )
             ),
             {
                 status: 500,

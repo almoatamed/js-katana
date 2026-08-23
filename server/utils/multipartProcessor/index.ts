@@ -407,21 +407,21 @@ export const createFormDataHandler = <T, B, Q, P, H, S extends NodeJS.ReadableSt
         middleWares: [
             async (context) => {
                 if (context.servedVia !== "http") {
-                    throwRequestError(400, [
+                    throwRequestError(400, 
                         {
                             error: "Cannot Handle form data outside of http, dont use sockets for form data",
                         },
-                    ]);
+                    );
                     return;
                 }
                 const contentType = context.headers["content-type"];
                 const boundaryStr = parseContentType(contentType);
                 if (!boundaryStr) {
-                    throwRequestError(400, [
+                    throwRequestError(400, 
                         {
                             error: "Processing FormData, could not find content-type boundary header",
                         },
-                    ]);
+                    );
                     return;
                 }
 
@@ -468,12 +468,12 @@ export const createFormDataHandler = <T, B, Q, P, H, S extends NodeJS.ReadableSt
                             console.error("Upload error:", err);
                             try {
                                 reject(
-                                    createRequestError(400, [
+                                    createRequestError(400, 
                                         {
                                             error: String(err.message) || "Unknown Error",
                                             data: err,
                                         },
-                                    ])
+                                    )
                                 );
                                 return;
                             } catch (e) {

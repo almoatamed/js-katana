@@ -200,7 +200,7 @@ export function createSocketRouter(socket: Socket) {
                         if (e) {
                             cb(e);
                         } else {
-                            cb(createRequestError(500, [{ ...UNKNOWN_ERROR_TEMPLATE, data: error }]));
+                            cb(createRequestError(500,  { ...UNKNOWN_ERROR_TEMPLATE, data: error }));
                         }
                     }
                 }
@@ -223,7 +223,7 @@ export function createSocketRouter(socket: Socket) {
                             if (e) {
                                 cb(e);
                             } else {
-                                cb(createRequestError(500, [{ ...UNKNOWN_ERROR_TEMPLATE, data: error }]));
+                                cb(createRequestError(500, { ...UNKNOWN_ERROR_TEMPLATE, data: error }));
                             }
                         }
                     }
@@ -234,14 +234,14 @@ export function createSocketRouter(socket: Socket) {
             if (cb) {
                 console.log(eventName)
                 cb(
-                    createRequestError(404, [
+                    createRequestError(404, 
                         {
                             error: "event not found",
                             data: {
                                 event: eventName,
                             }
                         },
-                    ])
+                    )
                 );
             }
         });

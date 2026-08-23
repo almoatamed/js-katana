@@ -86,6 +86,7 @@ const run = async () => {
                 });
             } else {
                 log("Starting server in development mode using node...");
+                await maybeSpawnTypeProcessor();
                 execSync("npx tsx --watch ./run.js", {
                     cwd: path.join(import.meta.dirname, "../.."),
                     stdio: "inherit",
@@ -141,6 +142,7 @@ const run = async () => {
                 encoding: "utf-8",
             });
         });
+
     program
         .command("create-config")
         .description("Create a default configuration file")

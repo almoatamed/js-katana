@@ -328,23 +328,23 @@ export const registerSocket = async (socket: Socket) => {
                 } else {
                     socket.emit(
                         "error",
-                        createRequestError(500, [
+                        createRequestError(500, 
                             {
                                 error: "Unknown Socket error",
                                 data: error,
                             },
-                        ])
+                        )
                     );
                 }
             } else {
                 socket.emit(
                     "error",
-                    createRequestError(500, [
+                    createRequestError(500, 
                         {
                             error: "Unknown Socket error",
                             data: error,
                         },
-                    ])
+                    )
                 );
             }
             socket.disconnect();

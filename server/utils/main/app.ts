@@ -127,12 +127,12 @@ const convertHandlerToExpressRoute = (route: Route<any, any, any, any, any, any>
                 return;
             }
             response.status(500).json(
-                createRequestError(500, [
+                createRequestError(500, 
                     {
                         error: "Unknown server error",
                         data: error,
                     },
-                ])
+                )
             );
         } finally {
             logger
@@ -371,14 +371,14 @@ const handleGeneralBunRequest = () => {
             logger.log("blue", text);
 
             if (!route) {
-                throw createRequestError(404, [
+                throw createRequestError(404, 
                     {
                         error: "invalid url, route with given path not found",
                         data: {
                             url: request.url
                         }
                     }
-                ])
+                )
             }
 
 
@@ -474,12 +474,12 @@ const handleGeneralBunRequest = () => {
                     }
                 })
             }
-            const serverError = createRequestError(500, [
+            const serverError = createRequestError(500, 
                 {
                     error: "Unknown server error",
                     data: error,
                 },
-            ])
+            )
             responseStatusCode = serverError.statusCode;
             return new Response(JSON.stringify(serverError), {
                 status: serverError.statusCode
