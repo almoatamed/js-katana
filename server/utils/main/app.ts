@@ -601,13 +601,15 @@ export async function createBunApp(multithreading: boolean = false): Promise<{
                     ...engine.handler(),
                     error: bunErrorHandler,
                     fetch: async (req, server: any) => {
+
+                        if (req.method === "OPTIONS") {
+                            return new Response(null, { status: 204, headers: corsHeaders });
+                        }
+
+
                         const url = new URL(req.url);
+
                         if (trimSlashes(url.pathname) === trimSlashes(engine.opts.path)) {
-
-
-                            if (req.method === "OPTIONS") {
-                                return new Response(null, { status: 204, headers: corsHeaders });
-                            }
 
                             try {
                                 const result = await engine.handleRequest(req, server);
