@@ -3,7 +3,9 @@ import { createLogger } from "kt-logger";
 import express from "express";
 import type { Request as BunRequest } from "undici-types";
 import qs from "qs";
+import cors from "cors";
 import {
+    getCorsOptions,
     getHeadersTimeout,
     getHttpAdapter,
     getKeepAliveTimeout,
@@ -127,7 +129,7 @@ const convertHandlerToExpressRoute = (route: Route<any, any, any, any, any, any>
                 return;
             }
             response.status(500).json(
-                createRequestError(500, 
+                createRequestError(500,
                     {
                         error: "Unknown server error",
                         data: error,
@@ -339,6 +341,12 @@ const handleGeneralBunRequest = () => {
 
             route = exactRoutesMap.get(fullRoutePattern) || null
             const headers = new Headers()
+            let requestHeaders = request.headers;
+            // @ts-ignore
+            if (typeof request.headers?.toJSON == "function") {
+                // @ts-ignore
+                requestHeaders = request.headers.toJSON()
+            }
             if (route) {
                 params = {}
             } else {
@@ -356,7 +364,7 @@ const handleGeneralBunRequest = () => {
             const text = `
         method: ${request.method} 
         url: ${url} 
-        Authentication: ${request.headers["authorization"]
+        Authentication: ${requestHeaders["authorization"]
                     ? "Has Authorization Info in headers"
                     : "Doesn't have Authorization Info in headers"
                 }
@@ -371,7 +379,7 @@ const handleGeneralBunRequest = () => {
             logger.log("blue", text);
 
             if (!route) {
-                throw createRequestError(404, 
+                throw createRequestError(404,
                     {
                         error: "invalid url, route with given path not found",
                         data: {
@@ -434,7 +442,7 @@ const handleGeneralBunRequest = () => {
                     },
                 },
                 body,
-                headers,
+                headers: requestHeaders,
                 params,
                 query,
                 setStatus(_statusCode) {
@@ -444,13 +452,13 @@ const handleGeneralBunRequest = () => {
             };
 
             for (const middleware of [...route.externalMiddlewares, ...route.middleWares]) {
-                await middleware(context, body, query, params, headers);
+                await middleware(context, body, query, params, requestHeaders);
                 if (response && responded) {
                     return response;
                 }
             }
 
-            await route.handler(context, body, query, params, headers);
+            await route.handler(context, body, query, params, requestHeaders);
             if (response && responded) {
                 return response
             }
@@ -474,7 +482,7 @@ const handleGeneralBunRequest = () => {
                     }
                 })
             }
-            const serverError = createRequestError(500, 
+            const serverError = createRequestError(500,
                 {
                     error: "Unknown server error",
                     data: error,
@@ -509,6 +517,13 @@ export async function createExpressApp(multithreading = false): Promise<{
     startServer: () => Promise<void>;
 }> {
     const app = express();
+    const corsOptions = await getCorsOptions();
+    if (corsOptions) {
+        app.use(cors({
+            methods: corsOptions?.["Access-Control-Allow-Methods"],
+            origin: corsOptions?.["Access-Control-Allow-Origin"],
+        }));
+    }
     app.use(compression());
     app.use(express.json({ limit: await getMaxJsonSize() }));
     app.use(express.urlencoded({ extended: false }));
@@ -564,16 +579,22 @@ export async function createBunApp(multithreading: boolean = false): Promise<{
     log("started building routers");
     await (await import("../mainRouterBuilder/index.js")).default();
     const { serve } = await import("bun");
+    const corsOptions = await getCorsOptions();
+    const corsHeaders = {
+        "Access-Control-Allow-Origin": corsOptions?.["Access-Control-Allow-Origin"] || "*", // or a specific origin
+        "Access-Control-Allow-Methods": corsOptions?.["Access-Control-Allow-Methods"]?.join(", ") || "GET, POST, PUT, DELETE, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    };
 
     return {
         async startServer() {
             const port = await getPort();
             const { bunErrorHandler } = await import("./errorHandler.js");
-            
+
             if ((multithreading && !cluster.isPrimary) || (!multithreading && cluster.isPrimary)) {
                 const engine = await runBun();
                 const routerHandler = handleGeneralBunRequest()
-               
+
                 serve({
                     reusePort: multithreading,
                     port,
@@ -582,6 +603,12 @@ export async function createBunApp(multithreading: boolean = false): Promise<{
                     fetch: async (req, server: any) => {
                         const url = new URL(req.url);
                         if (trimSlashes(url.pathname) === trimSlashes(engine.opts.path)) {
+
+
+                            if (req.method === "OPTIONS") {
+                                return new Response(null, { status: 204, headers: corsHeaders });
+                            }
+
                             try {
                                 const result = await engine.handleRequest(req, server);
                                 return result
